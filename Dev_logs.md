@@ -1,0 +1,1 @@
+Have setup all imp docs -  Readme, Roadmap, Wiki, Dev logs

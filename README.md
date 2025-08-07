@@ -52,3 +52,5 @@ This is the most crucial point. We do not try to outsmart the whales. The whales
 The "sharp" odds we get from The Odds API are created by the whales and professional syndicates. They represent the most efficient, rational, and data-driven price for a game. The whales are, in effect, our unpaid team of world-class analysts.
 Our final edge is created when the retail crowd on a decentralized platform like Dexsport gets emotional and pushes the price far away from the "true" odds set by the whales.
 We win by using the whales' intelligence (from The Odds API) to systematically exploit the retail crowd's predictable mistakes (on Dexsport). We are arbitraging rationality against irrationality. This is a durable, professional, and powerful edge.
+
+lets buildl!
