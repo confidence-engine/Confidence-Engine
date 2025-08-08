@@ -1,72 +1,188 @@
+Project Tracer Bullet
 
-Project Charter & Roadmap: Project Tracer Bullet
+Summary
+An always-on research and trading agent that spots short-term mispricings by comparing what the story says (news-driven narrative momentum) to what the tape shows (price momentum). When those disagree in a meaningful, well-defined way, the agent takes a paper trade with full explainability, logs everything to a local database, and sends a Telegram “style analysis” message you can read in one glance.
+
+Philosophy (my version)
+- Mastery through evidence: Every idea is a hypothesis with a falsifiable test. We promote or kill based on data.
+- Thin thread first: Always get an end-to-end path running before adding features. Complexity earns its way in.
+- Explainability as a feature: If we can’t justify a signal in one paragraph, we don’t trade it.
+- Two independent eyes: LLM narrative and FinBERT sentiment cross-check each other; TA/volume validates the tape side.
+- Time is a feature: Narrative impact decays; events matter; regimes change. We model decay and use event triggers.
+- Reliability beats cleverness: Strict schemas, retries, key rotation, circuit breakers, and idempotent orders protect edge.
+- Anti-overfit protocols: Small, interpretable feature set; walk-forward validation; cohort analytics; no indicator soup.
+- Incremental risk: Paper → tiny live → scale where evidence persists.
+- Human-in-the-loop: Telegram “style analysis” for every signal; review on cadence, not mid-drawdown emotion.
+- Build your own dataset: The real moat is the corpus of divergence signals with reasons and outcomes.
+
+Core Idea
+- Narrative Momentum: A score from −1 to +1 derived from LLM narrative polarity/confidence on recent headlines, blended with FinBERT sentiment, discounted by time decay. New, credible stories matter more; old ones fade.
+- Price Momentum: A score from −1 to +1 from simple, interpretable indicators: RSI, short-vs-medium MA slope, MACD histogram (acceleration), volume z-score (participation), with optional ATR context.
+- Divergence: narrative_z − price_z. Large positive: price may be lagging good story. Large negative: price may be lagging bad story. Only act when confidence and risk checks pass.
+
+Tech Stack (and why)
+- Language/IDE: Python 3.10+ in Cursor AI (GPT-5) for rapid scaffolding, refactors, and TDD support.
+- Market Data & Trading: Alpaca (paper) for prices, headlines, and execution. Free, stable, and live-parity API.
+- LLM/Narrative: Perplexity Pro API for production narrative synthesis (you already have keys). In dev, a local adapter to iterate prompts without burning credits.
+- NLP: FinBERT (ProsusAI) via Hugging Face for financial sentiment on headlines; spaCy for keywords/entities.
+- Analytics: pandas/numpy for indicators and normalization; APScheduler for periodic/event-driven runs.
+- Storage/Logging: SQLite for durable local logs of prompts, signals, trades, and raw payloads.
+- Notifications: python-telegram-bot for real-time signal messages with “style analysis.”
+- Testing/Quality: pytest, coverage, black/isort/ruff, pre-commit, python-dotenv for configuration.
+
+Why this stack: It’s zero-cost for V1, reliable, widely used, and easy to harden. Clean upgrade paths exist for streaming, dashboards, and deployment.
+
+Architecture
+- Data
+  - alpaca_fetcher: bars and headlines from Alpaca; optional yfinance for backtests.
+- Narrative Adapters
+  - narrative_local: development adapter (Cursor) for prompt/schema iteration.
+  - narrative_perplexity: production adapter with key rotation, retries, timeouts, strict JSON validation, and repair-then-reject.
+- NLP
+  - sentiment_finbert: batch headline sentiment → continuous score in [−1, +1].
+  - keyword_extractor: entities/keywords for explainability and novelty.
+- Analysis
+  - price_momentum: RSI, MA slope (e.g., 10 vs 50), MACD histogram, volume z-score, optional ATR context → scaled to [−1, +1].
+  - narrative_momentum: LLM polarity + confidence blended with FinBERT; exponential time decay with configurable half-life.
+  - divergence: z-score normalization and divergence calculation; thresholds and reason codes.
+- Execution & Risk
+  - trade_executor: Alpaca paper orders with unique client order IDs for idempotency; market-first with optional limits later.
+  - risk: per-symbol cooldown, max positions, min volume credibility, timed exits.
+- Orchestration
+  - agent: APScheduler job to run scans; optional event triggers on headline deltas; graceful error handling and degradation paths.
+- Persistence & Notifs
+  - db_manager: SQLite tables for prompts, signals, trades; raw JSON blobs preserved.
+  - telegram_notifier: structured “style analysis” message for each signal; optional heartbeat.
+
+Data Contracts
+Narrative JSON (must validate before use)
+- narrative_summary: string
+- narrative_momentum_score: float in [-1, 1]
+- confidence: float in 
+- salient_entities: list of strings
+- anchor_quotes: list of short strings
+- metadata (optional): { source_sample: list[str], model_name: str, created_at: iso8601 }
+
+Parser policy: validate against a typed schema; attempt one repair for minor JSON issues; if still invalid, skip trading and log the sample.
+
+Decision Blueprint
+- Inputs:
+  - Narrative Score = weighted blend of LLM polarity and FinBERT sentiment, decayed over time.
+  - Price Score = composite from normalized RSI, MA slope, MACD histogram; down-weight if volume z-score is weak.
+- Divergence:
+  - divergence = z(narrative) − z(price).
+- Trigger (initial defaults, to be tuned):
+  - abs(divergence) > 1.0,
+  - narrative confidence > 0.6,
+  - volume credibility floor (e.g., volume z > −0.5),
+  - cooldown satisfied.
+- V1: long-only. Shorts considered later after backtesting and guardrails.
+- Explainability: store the summary, key quotes, indicators, scores, thresholds, and reason_code for each signal.
+
+Reliability
+- API failure handling: retries with backoff, Perplexity key rotation, timeouts, and circuit breakers to pause narrative calls if failure rate spikes.
+- Degradation paths:
+  - Narrative down → TA-only mode or skip entries.
+  - Market data down → pause trading; keep logging narratives if available.
+- Orders: unique client order IDs avoid duplicate fills on retry.
+- Alerts: Telegram on critical errors and circuit-breaker events.
+
+Backtesting Integrity
+- Event-ordered replay: process bars and headlines strictly by timestamp.
+- Point-in-time features only: lag everything properly; no future info in current decisions.
+- Validation: in-sample tuning vs. out-of-sample testing; walk-forward to mirror deployment; robustness checks to small parameter changes.
+- Cohorts: measure by asset, time-of-day, volatility regime, and event type.
+
+Roadmap
+V1 — Tracer Bullet (single-asset E2E)
+- One symbol (recommend BTCUSD for 24/7 flow).
+- Fetch last 60m bars and latest headlines.
+- Dev narrative adapter returns strict JSON; schema-validated and logged.
+- Compute RSI, MA slope, MACD histogram, volume z-score → Price Score.
+- Blend narrative + FinBERT with decay → Narrative Score.
+- Compute divergence; print decision preview; then paper trade under thresholds.
+- Telegram “style analysis” message for each signal.
+Acceptance: stable end-to-end run that can place a paper trade and log full context.
+
+V2 — Better Signals
+- Event-driven scans on headline deltas (detect novelty/changes).
+- Narrative decay active; basic novelty weighting to avoid echo chasing.
+- Multi-symbol universe (10–20 news-sensitive names).
+- Enhanced explainability in Telegram and DB.
+Acceptance: fewer, higher-quality signals; readable evidence per trade.
+
+V3 — Backtesting and Governance
+- Event-driven backtester with leak-free design.
+- Walk-forward parameter tuning; monthly governance cadence.
+- Cohort metrics by regime and event type.
+Acceptance: documented thresholds from out-of-sample results and reproducible runs.
+
+V4 — Execution Quality
+- Microstructure-aware tweaks: limit orders when spreads widen; volatility-aware position sizing; stricter cooldowns.
+Acceptance: reduced slippage and improved realized PnL on paper.
+
+V5 — Data Breadth and Explainability+
+- Optional crowd sentiment as secondary attention proxy (filtered).
+- Source credibility weighting learned over time.
+- Per-signal “case file” artifact.
+Acceptance: improved precision and faster postmortems.
+
+V6 — Small Live Capital and Safety
+- Small live deployment with strict caps and daily loss limits.
+- Heartbeats, daily summaries, anomaly alerts; version tagging on all signals.
+Acceptance: stable live operation with rollback path.
+
+Setup
+1) Prereqs
+- Python 3.10+
+- Alpaca paper trading account (API key/secret)
+- Perplexity Pro API keys (comma-separated list for rotation)
+- Telegram bot token and chat_id
+
+2) Environment
+- Clone repo, create a venv, install requirements.
+- Copy .env.example → .env; fill ALPACA, PERPLEXITY, TELEGRAM values.
+
+3) First Run (preview mode)
+- Run tracer_bullet.py for BTCUSD. It fetches prices/headlines, produces narrative JSON via dev adapter, computes TA and divergence, and prints a decision preview. No orders yet.
+
+4) Paper Trading
+- Flip the execution flag to enable Alpaca paper orders once previews look sane.
+- Watch SQLite and Telegram messages for “style analysis” evidence.
+
+Repository Structure
+- agent.py (scheduler + orchestration)
+- tracer_bullet.py (single-asset E2E tracer)
+- src/
+  - adapters/ narrative_base.py, narrative_local.py, narrative_perplexity.py
+  - data/ alpaca_fetcher.py, yfinance_fetcher.py
+  - nlp/ sentiment_finbert.py, keyword_extractor.py
+  - analysis/ price_momentum.py, narrative_momentum.py, divergence.py
+  - execution/ trade_executor.py, risk.py
+  - db/ db_manager.py, schema.sql
+  - utils/ logging_setup.py, retry.py, time_utils.py
+- tests/
+  - test_parsers.py, test_price_momentum.py, test_divergence.py, test_db.py
+- docs/
+  - roadmap.md, knowledge_wiki.md, dev_log.md
+
+Schemas (SQLite)
+- signals(id, ts, symbol, narrative_score, price_score, divergence, confidence, action, reason_code, json_blob, version_tag)
+- trades(id, signal_id, ts, side, qty, fill_price, status, pnl_15m, pnl_60m)
+- prompts(id, ts, symbol, prompt_hash, model_name, tokens_in, tokens_out, latency_ms)
+
+Security and Safety Notes
+- Never trade on invalid JSON parses; repair then reject.
+- Respect rate limits; rotate Perplexity keys; exponential backoff.
+- Circuit-breaker halts on repeated failures; send Telegram alert.
+- Parameter changes only on a scheduled cadence after review.
+
+Getting Help
+- If something fails, check logs/ and the SQLite tables for the latest signal with reason_code.
+- For Telegram issues, verify bot token and chat_id, and ensure your bot has started a conversation with you.
+- For Alpaca issues, test account endpoints (account, clock) before trading.
+
+License
+- Choose the license that matches your goals. If unsure, start with MIT for flexibility.
 
 
-1. Project Overview
-
-Mission:
-To build a professional-grade Quantitative Alpha Engine. The V1 of this agent will be an autonomous system designed to find and validate trading opportunities in the stock and crypto markets. Its core function is to identify short-term, sentiment-driven inefficiencies.
-The primary goal of this project is the deep acquisition of elite skills in AI development, data engineering, and quantitative finance. The agent itself is the verifiable proof of work.
-Core Strategy: "Narrative vs. Price Momentum Divergence"
-Our agent's "alpha," or competitive edge, is derived from a sophisticated, hybrid intelligence model.
-1. It ingests two independent data streams from the Alpaca API: real-time price action and real-time news headlines.
-2. It uses a powerful research agent (the Perplexity API) to synthesize the raw news into a high-level, qualitative narrative.
-3. Its Analysis Core, powered by a finBERT model, quantifies this narrative into a "Narrative Momentum Score."
-4. It simultaneously calculates a "Price Momentum Score" from the market data.
-5. Its primary function is to identify and act upon divergences between these two momentum scores, exploiting the market's temporary under-reaction or over-reaction to new information.
-
-2. The Optimized Technology Stack
-
-This stack is selected for its professional-grade capabilities, reliability, and adherence to our "no cost" V1 principle.
-Category	Tool	Rationale
-Language	Python 3.9+	The industry standard for data science and algorithmic trading.
-Core Library	Pandas	For all data manipulation and analysis.
-Development Environment	Cursor	For AI-assisted coding, debugging, and project management.
-Primary Data & Trading	Alpaca API	A stable, developer-first API for all price, news, and paper trading.
-Qualitative Research	Perplexity API	A powerful AI engine for synthesizing narrative and context.
-Sentiment Analysis	Hugging Face Transformers	Specifically, the ProsusAI/finbert model for financial context.
-NLP	spaCy	For robust keyword extraction and language processing.
-Database	SQLite	A simple, powerful, and file-based database for professional logging.
-Version Control	Git / GitHub	For professional code management and automated data logging.
-3. Project Architecture
-
-The agent is a modular system with a clear separation of concerns.
-* Data Pipeline (alpaca_fetcher.py, perplexity_fetcher.py): A simplified and robust pipeline with only two primary data fetchers.
-* Analysis Core (analysis_core.py, sentiment_analyzer_v2.py, keyword_extractor.py): The "brain" of the agent. It contains the logic for NLP, sentiment scoring, and the final divergence analysis to generate a Confidence Score.
-* Execution & Logging (agent.py, db_manager.py): The main orchestrator that runs the scan, executes paper trades via the Alpaca API, and logs all data and decisions to the SQLite database.
-
-4. Risk Assessment & Mitigation
-
-* Primary Technical Risk: Building a robust NLP parser to reliably extract structured data from the unstructured text of the Perplexity API.
-    * Mitigation: We will use a strict Test-Driven Development (TDD) methodology for this specific component, with a comprehensive suite of tests to ensure its accuracy.
-* Primary Strategic Risk: The "Narrative vs. Price" strategy, while sound, may not be profitable.
-    * Mitigation: We will build a comprehensive Backtesting Engine in Phase 3 to rigorously test and optimize the strategy against historical data before ever deploying it with real capital.
-
-5. The Project Roadmap (Milestone-Based)
-
-This is our flexible, milestone-based roadmap. We will build at your pace and check off each phase as it is completed.
-* [ ] Phase 0: Foundation Setup
-    * Create the Project-Tracer-Bullet folder and initialize the Git repository.
-    * Register for an Alpaca account and get paper trading API keys.
-    * Securely store all API keys in the .env file.
-    * Set up the local logs.db SQLite database file and its initial schema.
-* [ ] Phase 1: The "Tracer Bullet" (Monolithic Proof of Concept)
-    * Build a single, monolithic script (tracer_bullet.py) that proves the end-to-end concept works.
-    * The script must:
-        1. Connect to the Alpaca API and fetch the price of one asset.
-        2. Connect to the Perplexity API and fetch a summary for that asset.
-        3. Perform a crude, combined analysis and print a result.
-* [ ] Phase 2: The Professional Refactor & V1 Build
-    * Refactor the tracer_bullet.py logic into our clean, modular architecture (alpaca_fetcher, perplexity_fetcher, analysis_core, agent.py).
-    * Implement the full "Narrative vs. Price Momentum" logic.
-    * Integrate the SQLite database for professional logging.
-    * The deliverable is a fully functional V1 agent that can autonomously run, analyze, and place paper trades.
-* [ ] Phase 3: Backtesting & Optimization
-    * Build the backtester.py module.
-    * Use Alpaca's historical data to test and optimize the V1 agent's strategy.
-    * Refine the parameters in our analysis_core.py based on historical performance.
-* [ ] Phase 4: Live Validation & V2 Planning
-    * Deploy the optimized agent to run continuously in paper trading mode.
-    * Monitor its live performance and gather data.
-    * Plan the roadmap for V2, which could include live trading with real capital.
-This is the definitive blueprint for our project. The brainstorming is complete.
