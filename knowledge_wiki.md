@@ -281,3 +281,112 @@ Sources
 
 ----------------
 
+# File-by-file summaries
+
+- tracer_bullet.py
+  - Orchestrates full run: fetches headlines (Alpaca + Perplexity rotation + CoinDesk if enabled), dedupes, semantic relevance gating, robust FinBERT sentiment on relevant-only headlines, narrative built from accepted headlines with confidence heuristic, narrative decay, price/volume scores, divergence and action with adaptive trigger, exports (JSON, bars CSV, accepted TXT), auto-commit, console preview.
+  - Key features: robust sentiment aggregation (MAD outlier drop + trimmed mean), adaptive divergence trigger, provenance tagging, conservative confidence fallback when narrative missing but accepted exists.
+
+- finbert.py
+  - FinBERT sentiment scoring.
+  - sentiment_score: legacy mean.
+  - sentiment_robust: per-headline pos-neg scores in [-1,1], MAD outlier drop, 10% trimmed mean. Returns (aggregate, kept_scores, dropped_outliers).
+
+- sentiment_utils.py
+  - Robust stats helpers: trimmed_mean, mad, drop_outliers (MAD z-score).
+
+- narrative_dev.py
+  - Relevance gating and narrative construction.
+  - BTC_TOPIC enriched for BTC.
+  - filter_relevant: accepted/rejected with scores.
+  - make_from_headlines: narrative from accepted-only; confidence 0.55 (1 headline), 0.65 (2+); neutral momentum (blend with FinBERT downstream).
+
+- pplx_fetcher.py
+  - Perplexity Pro API client (sonar-pro chat completions).
+  - fetch_pplx_headlines_with_rotation: rotates multiple API keys; returns (titles, items, err). Strict JSON response parsing.
+
+- coindesk_rss.py
+  - CoinDesk RSS fetch with retry/backoff; returns titles.
+
+- dedupe_utils.py
+  - Normalize + dedupe titles; preserves original text.
+
+- provenance.py
+  - Tag origins for accepted headlines: perplexity, alpaca, coindesk, unknown.
+
+- narrative_analysis_extras.py
+  - adaptive_trigger: adjust divergence trigger by volume Z; clamp to [0.6, 1.5].
+
+- export.py
+  - export_run_json: runs/<id>.json
+  - save_bars_csv: bars/<id>.csv
+  - save_accepted_txt: runs/<id>_accepted.txt with [source] relevance | headline
+
+- config.py
+  - .env loader and settings.
+  - Supports PPLX_API_KEY_1..N or PPLX_API_KEYS (comma) or single PPLX_API_KEY.
+  - Toggles: USE_COINDESK, PPLX_ENABLED; thresholds, lookbacks.
+
+- debug_sources.py
+  - Dev utility: print counts/samples from Alpaca, Perplexity (rotation), CoinDesk.
+
+- test_pplx_auth.py
+  - Dev utility: 200/401 checks for each Perplexity key.
+
+- inspect_env_pplx.py
+  - Dev utility: raw env string inspection for PPLX_API_KEYS.
+-----------------
+# How it works
+
+## Data ingestion
+- Alpaca latest_headlines(symbol, limit)
+- Perplexity Pro API via sonar-pro with key rotation (PPLX_API_KEY_1..N or PPLX_API_KEYS)
+- CoinDesk RSS (USE_COINDESK toggle)
+- Deduplication across sources
+
+## Relevance gating
+- Semantic similarity to enriched BTC topic
+- RELEVANCE_THRESHOLD 0.40–0.45
+- Keyword fallback if 0 accepted
+
+## Sentiment + narrative
+- FinBERT robust sentiment (relevant-only): MAD outlier drop + 10% trimmed mean
+- Narrative from accepted headlines; confidence by count; composite signal blends LLM (neutral baseline) and FinBERT; decay by staleness
+
+## Price/volume and divergence
+- Price score from bars; Volume Z
+- Divergence = decayed narrative − price score
+- Adaptive trigger based on volume (lower when high participation, higher when low)
+
+## Decision and outputs
+- BUY/HOLD with confidence cutoff, divergence trigger, volume floor
+- Exports JSON, accepted TXT, bars CSV; auto-commit
+- Console preview: provenance, top-5 relevance (debug), beginner-friendly summary
+
+--------------------------
+
+# Runbook – daily use
+
+## Pre-run
+- Ensure .env has Perplexity keys (PPLX_API_KEY_1..N or PPLX_API_KEYS) and PPLX_ENABLED=true
+- USE_COINDESK=true recommended
+- Start with RELEVANCE_THRESHOLD=0.42
+
+## Run
+- python3 tracer_bullet.py
+
+## Validate
+- Console shows:
+  - Accepted (source, score) with ~3–8 items
+  - Decision Preview with adaptive trigger and robust FinBERT kept/dropped
+- Artifacts:
+  - runs/<id>.json
+  - runs/<id>_accepted.txt
+  - bars/<id>.csv
+- Auto-commit pushes runs/ and bars/
+
+## Tuning
+- If accepted < 2 repeatedly:
+  - Set RELEVANCE_THRESHOLD=0.40
+  - Check [Relevance top-5] output
+- Verify Perplexity returns titles (debug_sources.py) and keys 200 (test_pplx_auth.py)
