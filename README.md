@@ -183,6 +183,266 @@ Getting Help
 - For Alpaca issues, test account endpoints (account, clock) before trading.
 
 License
-- Choose the license that matches your goals. If unsure, start with MIT for flexibility.
+ MIT for flexibility.
+----------------------------
+Update Tracer Bullet V1
+
+Filename: README_Agent_V1.md
+```markdown
+# Tracer Bullet V1 – README (Consolidated)
+
+This document consolidates architecture, configuration, runbook, file summaries, dev log, roadmap, changelog, and a suggested commit message for the Agent V1 release.
+
+---
+
+## 1) Overview
+
+Agent V1 ingests multi-source crypto headlines (Perplexity Pro API with key rotation, CoinDesk RSS, Alpaca), deduplicates, semantically filters for BTC relevance, computes robust FinBERT sentiment on relevant-only headlines, builds a narrative from accepted headlines with confidence heuristics, applies decay, scores price/volume, computes divergence, and makes a guarded decision with an adaptive trigger. It exports JSON, bars CSV, and accepted headlines TXT, then auto-commits artifacts.
+
+Key features:
+- Multi-source ingest with Perplexity key rotation
+- Robust sentiment: MAD outlier removal + 10% trimmed mean
+- Narrative built from accepted headlines; conservative confidence fallback
+- Adaptive divergence trigger (volume-aware)
+- Provenance tagging for accepted headlines
+- Exports: JSON payload, bars CSV, accepted headlines TXT
+- Debug visibility: accepted (source, score) + relevance top-5
+
+---
+
+## 2) Architecture
+
+- Ingest
+  - Alpaca: latest_headlines(symbol, limit)
+  - Perplexity Pro API: sonar-pro chat-completions; multiple API keys rotation
+  - CoinDesk RSS (optional)
+  - Deduplication across sources (preserve original text)
+- Relevance gating
+  - Semantic similarity against enriched BTC topic (RELEVANCE_THRESHOLD ~0.40–0.45)
+  - Keyword fallback if 0 accepted
+- Sentiment + Narrative
+  - FinBERT on relevant-only headlines
+  - Robust aggregation: MAD-based outlier drop → 10% trimmed mean
+  - Narrative built from accepted-only; confidence: 0.55 (1), 0.65 (2+)
+  - Composite: blend narrative + FinBERT; decay with staleness (half-life)
+- Price/Volume + Divergence
+  - Price score from bars; volume Z
+  - Divergence = decayed narrative − price score
+  - Adaptive trigger based on volume participation
+- Decision
+  - BUY/HOLD only (guardrails: confidence cutoff, divergence trigger, volume floor)
+- Exports + Dev tooling
+  - JSON payload, bars CSV, accepted TXT
+  - Auto-commit to repo
+  - Debug scripts for env/keys and source sanity
+
+---
+
+## 3) File-by-file summaries
+
+- tracer_bullet.py
+  - End-to-end orchestration: ingest (Alpaca + Perplexity rotation + CoinDesk), dedupe, relevance gating, robust sentiment, narrative build/decay, price/volume, divergence, adaptive decision, exports (JSON/CSV/TXT), auto-commit, console preview.
+  - Includes provenance tagging and debug prints (accepted sources/scores, relevance top-5).
+
+- finbert.py
+  - FinBERT scoring utilities.
+  - sentiment_robust: per-headline pos-neg in [-1,1], MAD outlier drop, 10% trimmed mean; returns (aggregate, kept_scores, dropped_outliers).
+
+- sentiment_utils.py
+  - trimmed_mean(values, trim), mad(a), drop_outliers(values, z_thresh) via robust MAD z-scores.
+
+- narrative_dev.py
+  - filter_relevant(headlines, threshold): semantic BTC relevance
+  - make_from_headlines(accepted_only): narrative summary from accepted; confidence heuristic; neutral baseline score (composite blending used downstream).
+
+- pplx_fetcher.py
+  - Perplexity chat-completions (sonar-pro) client with multi-key rotation; returns (titles, items, err) with strict JSON parsing.
+
+- coindesk_rss.py
+  - RSS fetcher with retry/backoff; returns title list.
+
+- dedupe_utils.py
+  - Normalization + dedupe; preserves original capitalization.
+
+- provenance.py
+  - Tag accepted headlines with source: perplexity | alpaca | coindesk | unknown.
+
+- narrative_analysis_extras.py
+  - adaptive_trigger(base_trigger, volume_z): volume-aware divergence trigger; clamps to [0.6, 1.5].
+
+- export.py
+  - export_run_json(run_id, payload): runs/<id>.json
+  - save_bars_csv(run_id, bars): bars/<id>.csv
+  - save_accepted_txt(run_id, accepted_with_src): runs/<id>_accepted.txt
+
+- config.py
+  - .env settings + parsing. Supports:
+    - PPLX_API_KEY_1..N (preferred)
+    - PPLX_API_KEYS (comma-separated)
+    - PPLX_API_KEY (single)
+  - USE_COINDESK, PPLX_ENABLED, thresholds, lookbacks.
+
+- debug_sources.py
+  - Dev: print counts/samples from Alpaca, Perplexity (rotation), CoinDesk.
+
+- test_pplx_auth.py
+  - Dev: HTTP 200/401 check per Perplexity key.
+
+- inspect_env_pplx.py
+  - Dev: raw env inspection for PPLX_API_KEYS to detect hidden characters.
+
+---
+
+## 4) Configuration (.env)
+
+Perplexity keys (preferred numbered variables):
+```
+PPLX_ENABLED=true
+PPLX_API_KEY_1=pk_live_keyA
+PPLX_API_KEY_2=pk_live_keyB
+PPLX_API_KEY_3=pk_live_keyC
+PPLX_API_KEY_4=pk_live_keyD
+PPLX_HOURS=24
+```
+
+Alternative (comma-separated):
+```
+PPLX_API_KEYS=pk_live_keyA,pk_live_keyB,pk_live_keyC,pk_live_keyD
+```
+
+Other toggles and parameters:
+```
+USE_COINDESK=true
+RELEVANCE_THRESHOLD=0.42
+LOOKBACK_MINUTES=120
+DIVERGENCE_THRESHOLD=1.0
+CONFIDENCE_CUTOFF=0.6
+NARRATIVE_HALFLIFE_MIN=90
+SYMBOL=BTC/USD
+ALPACA_API_KEY_ID=
+ALPACA_API_SECRET_KEY=
+ALPACA_BASE_URL=https://paper-api.alpaca.markets
+```
+
+---
+
+## 5) Runbook
+
+Pre-run:
+- Ensure Perplexity keys present and PPLX_ENABLED=true
+- USE_COINDESK=true recommended
+- Start with RELEVANCE_THRESHOLD=0.42
+
+Run:
+```
+python3 tracer_bullet.py
+```
+
+Validate:
+- Console shows:
+  - Accepted (source, score) list
+  - Relevance top-5
+  - Decision Preview with adaptive trigger and robust FinBERT kept/dropped
+- Artifacts:
+  - runs/<id>.json
+  - runs/<id>_accepted.txt
+  - bars/<id>.csv
+- Auto-commit pushes runs/ and bars/
+
+Tuning:
+- If accepted < 2 frequently:
+  - Set RELEVANCE_THRESHOLD=0.40
+  - Use relevance top-5 to calibrate
+- If Perplexity empty or 401:
+  - Run test_pplx_auth.py and debug_sources.py
+  - Check .env keys load in config.py
+
+---
+
+## 6) JSON payload (key fields)
+
+- headlines_count, raw_headlines
+- relevance_details.accepted[{headline, relevance, source}], rejected[{headline, relevance}]
+- finbert_score, finbert_kept_scores, finbert_dropped_scores
+- llm_score, raw_narrative, decayed_narrative
+- price_score, volume_z
+- divergence, divergence_threshold (adaptive)
+- confidence, action, reason
+- pplx_provenance (source/title/url list)
+- summary, detail
+
+---
+
+## 7) Dev log summary (2025-08-09)
+
+- Added multi-source ingest: Perplexity Pro API (key rotation), CoinDesk RSS
+- Implemented robust FinBERT sentiment (MAD + trimmed mean) on relevant-only
+- Enriched BTC topic; tuned relevance gating; added keyword fallback
+- Built narrative from accepted-only; conservative confidence fallback
+- Added provenance tagging; saved accepted headlines to TXT
+- Adaptive divergence trigger based on volume Z
+- Debug utilities: inspect_env_pplx, test_pplx_auth, debug_sources
+- Improved console output: accepted sources/scores, relevance top-5, decision preview
+- Auto-commit of artifacts retained; JSON enriched with robust details and Perplexity provenance
+
+---
+
+## 8) Roadmap milestone update
+
+Milestone: Agent V1 – Stable ingest and robust sentiment
+
+Completed:
+- Perplexity rotation + CoinDesk RSS
+- Deduplication + semantic gating
+- Robust FinBERT (MAD + trimmed mean)
+- Narrative from accepted-only; confidence heuristic
+- Adaptive trigger (volume-aware)
+- Provenance tagging; exports (JSON, CSV, accepted TXT)
+- Debug scripts; config hardening
+
+Outstanding:
+- Per-source weighting (boost BTC-only; downweight multi-asset wraps)
+- Confidence shaping by source diversity and accepted count
+- JSON schema versioning; unit tests for drop_outliers, trimmed_mean, adaptive_trigger
+- Optional: CoinTelegraph RSS integration
+- Optional: Relaxed JSON parsing fallback for Perplexity non-strict responses
+
+---
+
+## 9) Changelog
+
+Agent V1:
+- Added: Perplexity Pro API ingestion with multi-key rotation
+- Added: CoinDesk RSS ingestion
+- Added: Robust FinBERT sentiment (MAD outlier control + trimmed mean)
+- Added: Adaptive divergence trigger (volume-aware)
+- Added: Provenance tagging and accepted-headlines TXT export
+- Improved: Narrative from accepted-only; confidence heuristic
+- Improved: Relevance gating with enriched BTC topic and debug visibility
+- Fixed: Tokenizer parallelism warnings silenced
+- Tooling: Debug scripts for env inspection and API auth validations
+
+---
+
+## 10) Commit message (squash)
+
+Title:
+- agent v1: multi-source ingest (Perplexity rotation + CoinDesk), robust sentiment, adaptive trigger, provenance, exports
+
+Body:
+- Add Perplexity Pro API fetcher with key rotation (pplx_fetcher.py), strict JSON parsing, provenance capture
+- Add CoinDesk RSS fetcher (coindesk_rss.py) with retry/backoff; merged pre-relevance
+- Dedupe merged headlines (dedupe_utils.py), preserve original text
+- Relevance pipeline (narrative_dev.py): enriched BTC topic; narrative from accepted-only; confidence heuristic (1→0.55, 2+→0.65)
+- FinBERT robust sentiment (finbert.py + sentiment_utils.py): pos-neg scores; MAD outlier drop; 10% trimmed mean; kept/dropped scores exported
+- Adaptive divergence trigger (narrative_analysis_extras.py) based on volume Z; reflected in payload and console
+- Provenance tagging (provenance.py) and accepted-headlines TXT export (export.py)
+- tracer_bullet.py orchestration: multi-source merge, relevance gating, robust sentiment, narrative decay, price/volume, divergence, adaptive action, exports (JSON/CSV/TXT), auto-commit; debug prints for accepted sources and relevance top-5
+- Dev tooling: debug_sources.py, test_pplx_auth.py, inspect_env_pplx.py
+- Config (config.py): numbered PPLX_API_KEY_1..N and PPLX_API_KEYS fallback; toggles; thresholds; lookbacks
+
+Notes:
+- JSON payload includes finbert_kept/dropped counts/scores, pplx_provenance, adaptive divergence threshold
+- Legacy sentiment_score retained; tracer uses sentiment_robust
 
 
