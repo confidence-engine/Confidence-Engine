@@ -1,56 +1,72 @@
-# Project: Tracer Bullet
-> **Status:** Phase 0 - Foundation Setup
 
-## Mission Statement
-An experimental project to build a "Quantitative Sports Analyst" agent. The agent is designed to find value by synthesizing real-time odds data from professional and retail markets with AI-driven qualitative analysis.
-
-## Core Philosophy
-This project is guided by the principle of **"Tracer Bullet" Development**: move with extreme speed to build a single, end-to-end "thin thread" of functionality to prove viability and expose core challenges as quickly as possible. We prioritize real-world feedback and rapid iteration over slow, theoretical planning.
-
-## Technology Stack
-| Category | Tool |
-| :--- | :--- |
-| **Language** | `Python` |
-| **Data Analysis** | `Pandas` |
-| **Development Environment** | `Cursor` |
-| **Quantitative Data** | `The Odds API` |
-| **Qualitative Data** | `Perplexity API` |
-| **Execution Venue** | `Dexsport API` |
-| **Database** | `SQLite` |
-| **Version Control** | `Git` / `GitHub` |
-
-Architect's Briefing: The Psychology of the Sports Betting Market
-
-The reason we can win is that a sports market is fundamentally different from a financial market. It is a market of emotion, narrative, and tribal loyalty. Our agent is the only participant that has none of these.
-
-How Cognitive Biases Create Opportunity (Our Edge vs. The Retail Crowd)
-
-The average retail bettor is a pure System 1 (fast, emotional) thinker. Our agent is a pure System 2 (slow, logical) thinker. We win by systematically exploiting the predictable, irrational mistakes made by the crowd.
-Here are the specific biases we will hunt:
-* Recency Bias: This is the single biggest inefficiency in sports. A team wins three games in a row unexpectedly. The public sees this recent success and massively over-bets on them in their fourth game, ignoring the larger, season-long data that shows the team is mediocre. The odds become inflated and irrational. Our agent will bet against the winning streak when the long-term data shows it's a fluke.
-* Narrative Fallacy & Confirmation Bias: Sports are driven by stories. A star player is having a "hero's season." An underdog team is on a "Cinderella run." The media creates these powerful narratives, and the public bets on the story, not the statistics. They will seek out information that confirms the narrative and ignore data that contradicts it. Our agent cannot read stories. It only reads data. It will bet against the popular narrative when the underlying statistics show a different reality.
-* "Home Team" & Popularity Bias: Bettors are fans.1 They irrationally place bets on their own home team or on globally popular teams, regardless of their actual chances. This consistently distorts the odds for the most popular teams. Our agent has no "home team." It is a cold, neutral observer, allowing it to find value in betting against popular fan favorites when the data supports it.
-
-How Crowd Failures Create Opportunity (Wisdom of the Crowd in Sports)
-
-The sports betting crowd is rarely "wise" because it constantly violates the four conditions.
-* Failure of Independence (Information Cascades): One famous TV analyst makes a "shocking upset" prediction. This single opinion can trigger a massive information cascade, as thousands of bettors pile on, not based on their own research, but on the analyst's fame. This dramatically moves the betting line, creating a huge, artificial inefficiency. Our agent can detect this sudden, narrative-driven line movement and bet on the other side, knowing the price is no longer based on collective wisdom.
-* Failure of Diversity (Groupthink): During a major event like the World Cup or the Super Bowl, national or regional pride creates massive Groupthink. The entire public betting market in one region can become irrationally biased in favor of their team. Our agent, as a global observer, can exploit these pockets of regional Groupthink.
+Project Charter & Roadmap: Project Tracer Bullet
 
 
-Our Definitive Edge: How We Win
+1. Project Overview
 
-This brings us to how we outsmart both retail bettors and professional whales.
+Mission:
+To build a professional-grade Quantitative Alpha Engine. The V1 of this agent will be an autonomous system designed to find and validate trading opportunities in the stock and crypto markets. Its core function is to identify short-term, sentiment-driven inefficiencies.
+The primary goal of this project is the deep acquisition of elite skills in AI development, data engineering, and quantitative finance. The agent itself is the verifiable proof of work.
+Core Strategy: "Narrative vs. Price Momentum Divergence"
+Our agent's "alpha," or competitive edge, is derived from a sophisticated, hybrid intelligence model.
+1. It ingests two independent data streams from the Alpaca API: real-time price action and real-time news headlines.
+2. It uses a powerful research agent (the Perplexity API) to synthesize the raw news into a high-level, qualitative narrative.
+3. Its Analysis Core, powered by a finBERT model, quantifies this narrative into a "Narrative Momentum Score."
+4. It simultaneously calculates a "Price Momentum Score" from the market data.
+5. Its primary function is to identify and act upon divergences between these two momentum scores, exploiting the market's temporary under-reaction or over-reaction to new information.
 
-Our Edge vs. The Retail Crowd
+2. The Optimized Technology Stack
 
-We do not need to be smarter than every fan. We just need to be more disciplined. Our agent is a machine for identifying and betting against their predictable, emotional, System 1 biases. While they are betting on hope, narrative, and loyalty, we are betting on math.
+This stack is selected for its professional-grade capabilities, reliability, and adherence to our "no cost" V1 principle.
+Category	Tool	Rationale
+Language	Python 3.9+	The industry standard for data science and algorithmic trading.
+Core Library	Pandas	For all data manipulation and analysis.
+Development Environment	Cursor	For AI-assisted coding, debugging, and project management.
+Primary Data & Trading	Alpaca API	A stable, developer-first API for all price, news, and paper trading.
+Qualitative Research	Perplexity API	A powerful AI engine for synthesizing narrative and context.
+Sentiment Analysis	Hugging Face Transformers	Specifically, the ProsusAI/finbert model for financial context.
+NLP	spaCy	For robust keyword extraction and language processing.
+Database	SQLite	A simple, powerful, and file-based database for professional logging.
+Version Control	Git / GitHub	For professional code management and automated data logging.
+3. Project Architecture
 
-Our Edge vs. The Whales (Professional Syndicates)
+The agent is a modular system with a clear separation of concerns.
+* Data Pipeline (alpaca_fetcher.py, perplexity_fetcher.py): A simplified and robust pipeline with only two primary data fetchers.
+* Analysis Core (analysis_core.py, sentiment_analyzer_v2.py, keyword_extractor.py): The "brain" of the agent. It contains the logic for NLP, sentiment scoring, and the final divergence analysis to generate a Confidence Score.
+* Execution & Logging (agent.py, db_manager.py): The main orchestrator that runs the scan, executes paper trades via the Alpaca API, and logs all data and decisions to the SQLite database.
 
-This is the most crucial point. We do not try to outsmart the whales. The whales are our tool.
-The "sharp" odds we get from The Odds API are created by the whales and professional syndicates. They represent the most efficient, rational, and data-driven price for a game. The whales are, in effect, our unpaid team of world-class analysts.
-Our final edge is created when the retail crowd on a decentralized platform like Dexsport gets emotional and pushes the price far away from the "true" odds set by the whales.
-We win by using the whales' intelligence (from The Odds API) to systematically exploit the retail crowd's predictable mistakes (on Dexsport). We are arbitraging rationality against irrationality. This is a durable, professional, and powerful edge.
+4. Risk Assessment & Mitigation
 
-lets buildl!
+* Primary Technical Risk: Building a robust NLP parser to reliably extract structured data from the unstructured text of the Perplexity API.
+    * Mitigation: We will use a strict Test-Driven Development (TDD) methodology for this specific component, with a comprehensive suite of tests to ensure its accuracy.
+* Primary Strategic Risk: The "Narrative vs. Price" strategy, while sound, may not be profitable.
+    * Mitigation: We will build a comprehensive Backtesting Engine in Phase 3 to rigorously test and optimize the strategy against historical data before ever deploying it with real capital.
+
+5. The Project Roadmap (Milestone-Based)
+
+This is our flexible, milestone-based roadmap. We will build at your pace and check off each phase as it is completed.
+* [ ] Phase 0: Foundation Setup
+    * Create the Project-Tracer-Bullet folder and initialize the Git repository.
+    * Register for an Alpaca account and get paper trading API keys.
+    * Securely store all API keys in the .env file.
+    * Set up the local logs.db SQLite database file and its initial schema.
+* [ ] Phase 1: The "Tracer Bullet" (Monolithic Proof of Concept)
+    * Build a single, monolithic script (tracer_bullet.py) that proves the end-to-end concept works.
+    * The script must:
+        1. Connect to the Alpaca API and fetch the price of one asset.
+        2. Connect to the Perplexity API and fetch a summary for that asset.
+        3. Perform a crude, combined analysis and print a result.
+* [ ] Phase 2: The Professional Refactor & V1 Build
+    * Refactor the tracer_bullet.py logic into our clean, modular architecture (alpaca_fetcher, perplexity_fetcher, analysis_core, agent.py).
+    * Implement the full "Narrative vs. Price Momentum" logic.
+    * Integrate the SQLite database for professional logging.
+    * The deliverable is a fully functional V1 agent that can autonomously run, analyze, and place paper trades.
+* [ ] Phase 3: Backtesting & Optimization
+    * Build the backtester.py module.
+    * Use Alpaca's historical data to test and optimize the V1 agent's strategy.
+    * Refine the parameters in our analysis_core.py based on historical performance.
+* [ ] Phase 4: Live Validation & V2 Planning
+    * Deploy the optimized agent to run continuously in paper trading mode.
+    * Monitor its live performance and gather data.
+    * Plan the roadmap for V2, which could include live trading with real capital.
+This is the definitive blueprint for our project. The brainstorming is complete.
