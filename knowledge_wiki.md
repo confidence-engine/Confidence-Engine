@@ -390,3 +390,16 @@ Sources
   - Set RELEVANCE_THRESHOLD=0.40
   - Check [Relevance top-5] output
 - Verify Perplexity returns titles (debug_sources.py) and keys 200 (test_pplx_auth.py)
+
+## Per-source weighting and Perplexity recency
+
+- Weighted relevance:
+  - Each headline’s semantic relevance is multiplied by a source weight:
+    - Perplexity: 1.10
+    - CoinDesk: 1.05
+    - Alpaca: 1.00
+  - JSON payload -> relevance_details.accepted[].raw_relevance and weighted_relevance
+- Perplexity recency:
+  - web_search_options.search_recency_filter = "day" (past 24h)
+  - Ensures fresher results and reduces stale headlines
+

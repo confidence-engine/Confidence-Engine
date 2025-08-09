@@ -7,10 +7,9 @@ import httpx
 PPLX_API_URL = "https://api.perplexity.ai/chat/completions"
 
 DEFAULT_PROMPT = (
-    "Return 10 concise crypto market headlines focused on Bitcoin (BTC) and Ethereum (ETH) "
-    "from the past 24 hours. Prefer titles that mention Bitcoin/BTC explicitly. "
-    "Avoid duplicates and clickbait. Respond strictly as a JSON array of objects with keys: "
-    "title, source, url. No extra text."
+    "Return 12 concise crypto market headlines focused on Bitcoin (BTC). "
+    "Prefer titles that explicitly mention Bitcoin/BTC. Avoid duplicates and clickbait. "
+    "Respond ONLY as a JSON array of objects with keys: title, source, url. No preamble. No extra text."
 )
 
 def _headers(api_key: str) -> dict:
@@ -20,6 +19,8 @@ def _headers(api_key: str) -> dict:
     }
 
 def _build_payload(prompt: str, hours: int = 24) -> dict:
+    # Enforce recent results via web_search_options, targeting 'day' recency.
+    # Include a time hint in the prompt too.
     return {
         "model": "sonar-pro",
         "messages": [
@@ -29,6 +30,10 @@ def _build_payload(prompt: str, hours: int = 24) -> dict:
         "top_p": 0.9,
         "presence_penalty": 0.0,
         "frequency_penalty": 0.0,
+        "web_search_options": {
+            "search_recency_filter": "day",
+            "enable_citation": True
+        }
     }
 
 def _attempt_request(
@@ -37,10 +42,6 @@ def _attempt_request(
     prompt: str,
     hours: int,
 ) -> Tuple[List[str], List[dict], Optional[str]]:
-    """
-    Try a single request with one API key.
-    Returns (titles, raw_items, error_message). If success, error_message is None.
-    """
     payload = _build_payload(prompt, hours=hours)
     try:
         r = client.post(PPLX_API_URL, headers=_headers(api_key), json=payload)
@@ -63,7 +64,6 @@ def _attempt_request(
                     raw_items.append({"title": title, "source": source, "url": url})
             return titles, raw_items, None
         except Exception:
-            # Non-JSON or unexpected format
             return [], [], "Invalid JSON in content"
     except Exception as e:
         return [], [], str(e)
@@ -75,10 +75,6 @@ def fetch_pplx_headlines_with_rotation(
     timeout: float = 12.0,
     backoff: float = 1.2
 ) -> Tuple[List[str], List[dict], Optional[str]]:
-    """
-    Tries each API key in order. On first success, returns results.
-    If all keys fail, returns empty results with the last error string.
-    """
     keys = [k.strip() for k in api_keys if k and k.strip()]
     if not keys:
         return [], [], "No Perplexity API keys provided"
@@ -89,8 +85,6 @@ def fetch_pplx_headlines_with_rotation(
             titles, items, err = _attempt_request(client, key, prompt, hours)
             if err is None and titles:
                 return titles, items, None
-            # If rate-limited or exhausted, try next key
             last_err = err or "Unknown error"
-            # Small backoff between keys
             time.sleep(backoff * (i + 1))
     return [], [], last_err
