@@ -59,3 +59,22 @@ To build a professional-grade, autonomous trading agent that finds and exploits 
 ### Test Question
 
 According to our new "Tracer Bullet" roadmap, what is the single, simple objective of our very first coding script, `tracer_bullet.py`?
+
+---------------------------
+# Dev log summary (2025-08-09)
+
+- Added multi-source ingest: Perplexity Pro API with key rotation; CoinDesk RSS.
+- Implemented robust FinBERT sentiment: MAD outlier removal + trimmed mean on relevant-only.
+- Enriched BTC topic; tuned relevance gating; added keyword fallback.
+- Narrative built from accepted headlines; conservative confidence fallback.
+- Provenance tagging for accepted; persisted accepted headlines to runs/<id>_accepted.txt.
+- Adaptive divergence trigger based on volume Z.
+- Debug utilities: inspect_env_pplx, test_pplx_auth, debug_sources.
+- Console output improvements: accepted sources/score list, relevance top-5, clear decision preview.
+- Auto-commit of artifacts retained; JSON includes robust sentiment details and Perplexity provenance.
+## Post-initial-commit updates (Agent V1.1)
+- Integrated per-source weighted relevance; using weighted score for acceptance thresholding.
+- Enforced Perplexity recency filter to "day" for fresher coverage; retained rotation.
+- Replaced process-focused preview with alpha-first summary and actionable next steps.
+- Wired Telegram push: auto-sends alpha summary with top evidence to configured chat.
+- Restored summary/detail in payload for DB schema alignment; ensured JSON carries alpha_* fields and weighted relevance details.

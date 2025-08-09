@@ -445,4 +445,10 @@ Notes:
 - JSON payload includes finbert_kept/dropped counts/scores, pplx_provenance, adaptive divergence threshold
 - Legacy sentiment_score retained; tracer uses sentiment_robust
 
+## What's new in V1.1
+- Weighted relevance by source (Perplexity > CoinDesk > Alpaca) to improve acceptance precision.
+- Perplexity search recency fixed to "day" to curb stale items.
+- Alpha-first console output and JSON: signal summary + playbook (no more process-heavy text).
+- Telegram integration to deliver the alpha summary to a channel/group.
+- DB payload alignment: summary/detail retained; additional fields for audit (relevance_details with raw/weighted and source).
 

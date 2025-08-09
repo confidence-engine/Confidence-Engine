@@ -403,3 +403,38 @@ Sources
   - web_search_options.search_recency_filter = "day" (past 24h)
   - Ensures fresher results and reduces stale headlines
 
+## Telegram integration
+- Set .env:
+  - TELEGRAM_BOT_TOKEN=...
+  - TELEGRAM_CHAT_ID=...
+  - TELEGRAM_PARSE_MODE=Markdown (or HTML)
+- Run:
+  - python3 tracer_bullet.py (auto-sends at end)
+  - or python3 export_to_telegram.py (send latest run)
+- Evidence in message:
+  - Top-3 accepted headlines by weighted relevance with sources
+  - Alpha summary and next steps
+
+## Outputs
+- Alpha-first:
+  - alpha_summary: narrative vs price gap, confidence, volume tone, one-line signal label
+  - alpha_next_steps: actionable playbook (entry gating, alerts, risk, invalidation)
+- Evidence:
+  - relevance_details (accepted/rejected): headline, raw_relevance, weighted_relevance, source
+  - pplx_provenance: Perplexity items (title/source/url)
+- Artifacts:
+  - runs/<id>.json, runs/<id>_accepted.txt (source + weighted relevance), bars/<id>.csv
+- Delivery:
+  - Console + Telegram push
+## Perplexity recency
+- pplx_fetcher sets web_search_options.search_recency_filter="day"
+- Adjust hours via PPLX_HOURS in .env for prompt time hint; recency filter remains "day"
+
+- narrative_dev.py
+  - filter_relevant_weighted: returns accepted/rejected with (headline, raw_score, weighted_score, source)
+- pplx_fetcher.py
+  - Enforces recency="day"; returns titles + items (title, source, url)
+- alpha_summary.py
+  - Trader-facing alpha_summary and alpha_next_steps for console/Telegram/JSON
+- telegram_bot.py / export_to_telegram.py
+  - Bot wrapper and latest-run sender
