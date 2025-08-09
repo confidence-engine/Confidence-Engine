@@ -438,3 +438,43 @@ Sources
   - Trader-facing alpha_summary and alpha_next_steps for console/Telegram/JSON
 - telegram_bot.py / export_to_telegram.py
   - Bot wrapper and latest-run sender
+
+# Runbook
+
+## Regular run
+- Run: `python3 tracer_bullet.py`
+- Artifacts:
+  - runs/<id>.json (full payload incl. alpha_* and relevance_details)
+  - runs/<id>_accepted.txt (source + weighted relevance + headline)
+  - bars/<id>.csv (recent bars snapshot)
+
+## Telegram DM (optional)
+- .env:
+  - TELEGRAM_BOT_TOKEN=...
+  - TELEGRAM_CHAT_ID=... (numeric DM id; negative for groups/channels)
+  - TELEGRAM_PARSE_MODE=Markdown (or HTML)
+- End-of-run push is automatic (integrated in tracer_bullet.py).
+- Send latest run manually: `python3 export_to_telegram.py`
+
+## Troubleshooting
+- If getUpdates returns empty, send “hi” to the bot and retry.
+- If posting to a channel, bot must be Admin.
+
+# Configuration Guide
+
+## Relevance
+- Threshold: settings.relevance_threshold (weighted score threshold).
+- Per-source weights (default):
+  - perplexity: 1.10
+  - coindesk: 1.05
+  - alpaca: 1.00
+
+## Perplexity
+- Day recency enforced in pplx_fetcher (web_search_options.search_recency_filter="day").
+- Multiple API keys supported for rotation.
+
+## Telegram
+- TELEGRAM_BOT_TOKEN from BotFather.
+- TELEGRAM_CHAT_ID (numeric):
+  - DM: positive id from getUpdates.
+  - Group/Channel: negative id (often -100...).

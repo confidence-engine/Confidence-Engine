@@ -452,3 +452,18 @@ Notes:
 - Telegram integration to deliver the alpha summary to a channel/group.
 - DB payload alignment: summary/detail retained; additional fields for audit (relevance_details with raw/weighted and source).
 
+# Tracer Bullet — Crypto News-to-Alpha Agent
+
+Tracer Bullet ingests multi-source headlines, filters for asset relevance, scores narrative vs price/volume, and outputs a trader-facing signal with next steps. Exports artifacts and can DM you via Telegram.
+
+## What’s new (V1.1)
+- Per-source weighted relevance (Perplexity > CoinDesk > Alpaca).
+- Perplexity “day” recency enforcement and provenance capture.
+- Alpha-first console/JSON output (signal + playbook).
+- Telegram DM integration for end-of-run push.
+- Restored payload summary/detail for DB schema alignment.
+
+## Quick start
+1) Configure .env with data/API keys and Telegram (optional).
+2) Install deps: `pip3 install -U python-dotenv requests`
+3) Run: `python3 tracer_bullet.py` (saves to runs/, bars/, sends Telegram if configured)

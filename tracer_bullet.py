@@ -1,10 +1,14 @@
 from datetime import datetime, timezone
 import os
 import json
+
+# Config and data sources
 from config import settings
 from alpaca import recent_bars, latest_headlines
 from coindesk_rss import fetch_coindesk_titles
 from pplx_fetcher import fetch_pplx_headlines_with_rotation
+
+# Pipeline utilities
 from dedupe_utils import dedupe_titles
 from narrative_dev import make_from_headlines, filter_relevant_weighted
 from finbert import sentiment_robust
@@ -14,18 +18,26 @@ from narrative_analysis_extras import adaptive_trigger
 from divergence import compute, reason
 from time_utils import minutes_since
 from explain import strength_label, volume_label, divergence_label, explain_term
+
+# Persistence and exports
 from db import init_db, save_run
 from export import export_run_json, save_bars_csv, save_accepted_txt
+
+# Alpha-first summary
 from alpha_summary import alpha_summary, alpha_next_steps
 
+# Telegram push (end-of-run)
+from telegram_bot import send_message, format_alpha_message
+
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+
 
 def main():
     init_db()
     symbol = settings.symbol
     print(f"[TracerBullet] {symbol} lookback={settings.lookback_minutes}m")
 
-    # 1) Bars
+    # 1) Market bars
     bars = recent_bars(symbol, settings.lookback_minutes)
 
     # 2) Headlines
@@ -43,17 +55,21 @@ def main():
     # 3) Merge + dedupe
     merged_heads = dedupe_titles([*alpaca_heads, *pplx_titles, *coindesk_heads])
 
-    # Source lookup
+    # Source lookup for weighting/provenance
     alp_set = set(alpaca_heads)
     pplx_set = set(pplx_titles)
     cdx_set = set(coindesk_heads)
+
     def _origin(h: str) -> str:
-        if h in pplx_set: return "perplexity"
-        if h in alp_set:  return "alpaca"
-        if h in cdx_set:  return "coindesk"
+        if h in pplx_set:
+            return "perplexity"
+        if h in alp_set:
+            return "alpaca"
+        if h in cdx_set:
+            return "coindesk"
         return "unknown"
 
-    # 4) Relevance gate with per-source weights
+    # 4) Relevance gate (per-source weighted)
     accepted_w, rejected_w = filter_relevant_weighted(
         merged_heads,
         threshold=settings.relevance_threshold,
@@ -64,7 +80,7 @@ def main():
     used_heads = [h for (h, _rs, _ws, _src) in accepted_w]
     used_cnt, drop_cnt = len(accepted_w), len(rejected_w)
 
-    # Keyword fallback
+    # Keyword fallback if empty
     if not used_heads:
         kw = ["bitcoin", "btc", "satoshi", "halving"]
         kw_hits = [h for h in merged_heads if any(k in h.lower() for k in kw)]
@@ -80,37 +96,34 @@ def main():
     # 6) Robust sentiment (relevant-only)
     fin, fin_kept, fin_dropped = sentiment_robust(used_heads) if used_heads else (0.0, [], [])
 
-    # LLM score + confidence
+    # 7) Composite narrative and decay
     llm_s = nar.narrative_momentum_score if nar else 0.0
     conf = nar.confidence if nar else (0.50 if used_heads else 0.0)
 
-    # 7) Decay + composite
     last_ts = bars.index[-1].to_pydatetime() if len(bars) else datetime.now(timezone.utc)
     mins_old = minutes_since(last_ts)
     raw_narr = blend(llm_s, fin, 0.6, 0.4)
     dec_narr = decay(raw_narr, mins_old, settings.narrative_halflife_min)
 
+    # 8) Price/volume and divergence
     px, vz = price_score(bars)
     div = compute(dec_narr, px)
 
-    # 8) Adaptive trigger and decision
+    # 9) Trigger, reason, and action
     base_trig = settings.divergence_threshold
     trig = adaptive_trigger(base_trig, vz)
     default_rc = reason(div, conf, vz, trig, settings.confidence_cutoff)
     rc = "NO_RELEVANT_HEADLINES" if not used_heads else default_rc
     action = "BUY" if (used_heads and abs(div) > trig and conf > settings.confidence_cutoff and vz > -0.5 and div > 0) else "HOLD"
 
-    # 9) Labels
+    # 10) Labels
     nar_lbl = strength_label(dec_narr)
     px_lbl = strength_label(px)
     vol_lbl = volume_label(vz)
     gap_lbl = divergence_label(div, trig)
 
-    # 10) Story (audit), alpha-first summary for traders
-    if nar:
-        story = nar.narrative_summary
-    else:
-        story = ("; ".join(used_heads)[:200] if used_heads else "No BTC-relevant headlines passed the filter") or "No headlines"
+    # Story excerpt (for audit)
+    story = nar.narrative_summary if nar else (("; ".join(used_heads)[:200] if used_heads else "No BTC-relevant headlines passed the filter") or "No headlines")
 
     fin_kept_cnt, fin_drop_cnt = len(fin_kept), len(fin_dropped)
 
@@ -124,22 +137,20 @@ def main():
         for (h, rs, ws, src) in rejected_w
     ]
 
-    # Alpha-focused outputs
+    # 12) Alpha-first outputs
     alpha = alpha_summary(nar_lbl, div, conf, px_lbl, vol_lbl, used_cnt)
     plan = alpha_next_steps(div, conf, trig, vz)
 
-    # Short summary and detail for DB schema compatibility
-    summary = (
-        f"Narrative {nar_lbl} vs Price {px_lbl}; {gap_lbl}. "
-        f"Used {used_cnt}, dropped {drop_cnt}. Action: {action} ({rc})."
-    )
+    # 13) Payload (keep summary/detail for DB schema compatibility)
+    summary = f"Narrative {nar_lbl} vs Price {px_lbl}; {gap_lbl}. Used {used_cnt}, dropped {drop_cnt}. Action: {action} ({rc})."
     detail = (
-        f"FinBERT (relevant-only)={fin:+.2f}, LLM={llm_s:+.2f}, decayed narrative={dec_narr:+.2f}; "
+        f"FinBERT sentiment (relevant-only)={fin:+.2f} "
+        f"[kept={fin_kept_cnt}, dropped_outliers={fin_drop_cnt}], "
+        f"LLM={llm_s:+.2f}, decayed narrative={dec_narr:+.2f}; "
         f"price score={px:+.2f} ({vol_lbl}, z={vz:+.2f}); gap={div:+.2f} "
         f"(trigger>{trig:.2f}); confidence={conf:.2f}."
     )
 
-    # 12) Payload
     payload = {
         "ts_utc": datetime.now(timezone.utc).isoformat(),
         "symbol": symbol,
@@ -165,12 +176,13 @@ def main():
         "confidence": float(conf),
         "action": action,
         "reason": rc,
-        "summary": summary,
-        "detail": detail,
 
         "alpha_summary": alpha,
         "alpha_next_steps": plan,
         "story_excerpt": story,
+
+        "summary": summary,
+        "detail": detail,
 
         "pplx_provenance": json.dumps(pplx_items, ensure_ascii=False),
         "pplx_last_error": pplx_err or ""
@@ -178,19 +190,18 @@ def main():
 
     run_id = save_run(payload)
 
-    # 13) Export artifacts
+    # 14) Export artifacts
     try:
         export_run_json(run_id, payload)
         N = 240
         bars_to_save = bars.tail(N) if len(bars) > N else bars
         save_bars_csv(run_id, bars_to_save)
-        # Accepted TXT (use weighted relevance for readability)
         lines = [{"source": d["source"], "relevance": d["weighted_relevance"], "headline": d["headline"]} for d in accepted_details]
         save_accepted_txt(run_id, lines)
     except Exception:
         pass
 
-    # 14) Auto-commit
+    # 15) Auto-commit
     try:
         paths_to_commit = ["runs", "bars"]
         from autocommit import auto_commit_and_push
@@ -199,7 +210,7 @@ def main():
     except Exception:
         pass
 
-    # 15) Console output (alpha-first)
+    # 16) Console output (alpha-first)
     print(f"Bars={len(bars)} Headlines={len(merged_heads)} (used {used_cnt}, dropped {drop_cnt})")
     print("\n[Accepted (source, raw→weighted)]")
     for d in accepted_details[:10]:
@@ -215,7 +226,16 @@ def main():
     print(alpha)
     print("\n" + plan)
 
+    # 17) Telegram push (end-of-run)
+    try:
+        msg = format_alpha_message(payload)  # uses alpha_summary, alpha_next_steps, top evidence
+        ok = send_message(msg)
+        print(f"\n[Telegram] sent: {ok}")
+    except Exception as e:
+        print("[Telegram] error:", e)
+
     print(f"\nSaved run_id={run_id} to tracer.db")
+
 
 if __name__ == "__main__":
     main()

@@ -78,3 +78,12 @@ According to our new "Tracer Bullet" roadmap, what is the single, simple objecti
 - Replaced process-focused preview with alpha-first summary and actionable next steps.
 - Wired Telegram push: auto-sends alpha summary with top evidence to configured chat.
 - Restored summary/detail in payload for DB schema alignment; ensured JSON carries alpha_* fields and weighted relevance details.
+
+# Dev Log — 2025-08-09
+
+- Integrated per-source weighted relevance and persisted raw/weighted scores.
+- Enforced Perplexity day-recency; added provenance.
+- Replaced process-centric text with alpha-first summary and actionable next steps.
+- Restored payload summary/detail for DB schema alignment.
+- Telegram DM wired: end-of-run message with alpha, what flips to action, and top-3 evidence.
+- Added catalyst heuristic to Telegram formatter.
