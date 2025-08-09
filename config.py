@@ -55,6 +55,17 @@ def _collect_numbered_keys(prefix: str = "PPLX_API_KEY_") -> list[str]:
 
 @dataclass
 class Settings:
+    """
+    Settings loaded from environment with safe parsing and sensible defaults.
+
+    Overrides precedence (highest first):
+      1) Process environment variables (e.g., set by CLI wrapper `scripts/run.py`)
+      2) Values from .env loaded via python-dotenv
+      3) Hard defaults declared below
+
+    Use TB_* envs for automation/testing controls (e.g., TB_NO_TELEGRAM) — they
+    are read by the relevant modules (telegram_bot, scripts/run) rather than here.
+    """
     alpaca_key_id: str = os.getenv("ALPACA_API_KEY_ID", "")
     alpaca_secret_key: str = os.getenv("ALPACA_API_SECRET_KEY", "")
     alpaca_base_url: str = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")

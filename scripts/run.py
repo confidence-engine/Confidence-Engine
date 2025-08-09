@@ -26,6 +26,16 @@ def _load_env() -> None:
 
 
 def main() -> int:
+    """
+    CLI entrypoint for Tracer Bullet.
+
+    Overrides precedence (highest first):
+      1) CLI flags (--symbol, --lookback, --no-telegram, --debug)
+      2) Environment variables (SYMBOL, LOOKBACK_MINUTES, TB_NO_TELEGRAM, LOG_LEVEL)
+      3) Defaults in config.py
+
+    The TB_* flags are intended for automation/testing; avoid hardcoding.
+    """
     parser = argparse.ArgumentParser(description="Tracer Bullet runner")
     parser.add_argument("--symbol", dest="symbol", default=None, help="Override symbol (e.g., BTC/USD)")
     parser.add_argument("--lookback", dest="lookback", type=int, default=None, help="Lookback minutes")

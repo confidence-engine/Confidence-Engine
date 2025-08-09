@@ -20,6 +20,11 @@ def _load_env() -> None:
 
 
 def ensure_dirs() -> Tuple[bool, list[str]]:
+    """
+    Ensure required artifact directories exist (runs/, bars/).
+
+    Returns (ok, created_list). Creates if missing; never raises for existent dirs.
+    """
     created: list[str] = []
     ok = True
     for d in ("runs", "bars"):
@@ -58,6 +63,13 @@ def _check_telegram_reachability(timeout: float = 3.0) -> Tuple[bool, str]:
 
 
 def health(verbose: bool = False) -> int:
+    """
+    Run environment + filesystem + network preflight checks.
+
+    - Loads .env
+    - Ensures required directories
+    - Verifies basic Telegram API host reachability (no secrets required)
+    """
     _load_env()
     ok_dirs, created = ensure_dirs()
 

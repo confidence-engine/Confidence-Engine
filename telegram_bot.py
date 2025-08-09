@@ -12,6 +12,15 @@ def _escape_md(text: str) -> str:
     return (text.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[").replace("`", "\\`"))
 
 def send_message(text: str, chat_id: str = None, disable_web_page_preview: bool = True) -> bool:
+    """
+    Send a Telegram message using env-provided credentials.
+
+    Honors TB_NO_TELEGRAM=1|true to skip sending (returns False, prints a note).
+    No secrets are logged.
+    """
+    if os.getenv("TB_NO_TELEGRAM", "0").lower() in ("1", "true", "yes", "on"):
+        print("[Telegram] skipped due to TB_NO_TELEGRAM=1")
+        return False
     if not TELEGRAM_BOT_TOKEN:
         print("[Telegram] missing TELEGRAM_BOT_TOKEN"); return False
     cid = chat_id or TELEGRAM_CHAT_ID
@@ -36,6 +45,10 @@ def send_message(text: str, chat_id: str = None, disable_web_page_preview: bool 
         return False
 
 def format_alpha_message(payload: dict) -> str:
+    """
+    Build a concise, alpha-first message from a payload without leaking secrets.
+    Keeps within Telegram's 4096 char limit (we trim at 4000 to be safe).
+    """
     symbol = payload.get("symbol", "BTC/USD")
     conf = float(payload.get("confidence", 0.0))
     gap = float(payload.get("divergence", 0.0))

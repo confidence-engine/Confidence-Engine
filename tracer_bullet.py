@@ -31,6 +31,17 @@ from telegram_bot import send_message, format_alpha_message
 
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
+"""
+Main pipeline orchestrator.
+
+Configuration is sourced from `config.settings`, which in turn reads the
+environment (.env and process env). You can override at runtime via either:
+- Environment variables: SYMBOL, LOOKBACK_MINUTES, etc.
+- CLI wrapper: `python3 scripts/run.py --symbol BTC/USD --lookback 120 --no-telegram`
+
+Telegram sending respects TB_NO_TELEGRAM=1 for safe automation/CI runs.
+"""
+
 
 def main():
     init_db()
