@@ -1,12 +1,15 @@
-import os, json, traceback, requests
+import os, json, traceback, requests, logging
 from dotenv import load_dotenv
 
 load_dotenv(".env")
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
-TELEGRAM_PARSE_MODE = os.getenv("TELEGRAM_PARSE_MODE", "Markdown")
+TELEGRAM_PARSE_MODE = os.getenv("TELEGRAM_PARSE_MODE", "")
 API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
+
+logger = logging.getLogger(__name__)
+
 
 def _escape_md(text: str) -> str:
     return (text.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[").replace("`", "\\`"))
@@ -19,29 +22,42 @@ def send_message(text: str, chat_id: str = None, disable_web_page_preview: bool 
     No secrets are logged.
     """
     if os.getenv("TB_NO_TELEGRAM", "0").lower() in ("1", "true", "yes", "on"):
-        print("[Telegram] skipped due to TB_NO_TELEGRAM=1")
+        logger.info("[Telegram] skipped due to TB_NO_TELEGRAM=1")
         return False
     if not TELEGRAM_BOT_TOKEN:
-        print("[Telegram] missing TELEGRAM_BOT_TOKEN"); return False
+        logger.warning("[Telegram] missing TELEGRAM_BOT_TOKEN"); return False
     cid = chat_id or TELEGRAM_CHAT_ID
     if not cid:
-        print("[Telegram] missing TELEGRAM_CHAT_ID"); return False
+        logger.warning("[Telegram] missing TELEGRAM_CHAT_ID"); return False
     if TELEGRAM_PARSE_MODE.lower().startswith("markdown"):
         text = _escape_md(text)
+    # Always truncate to stay under Telegram limit
+    text = (text or "")[:4000]
     payload = {
         "chat_id": cid,
         "text": text,
         "disable_web_page_preview": disable_web_page_preview,
-        "parse_mode": TELEGRAM_PARSE_MODE,
     }
+    if TELEGRAM_PARSE_MODE:
+        payload["parse_mode"] = TELEGRAM_PARSE_MODE
     try:
         r = requests.post(f"{API_URL}/sendMessage", json=payload, timeout=10)
         if r.status_code != 200:
-            print("[Telegram] sendMessage failed:", r.status_code, r.text[:200])
+            detail = ""
+            try:
+                j = r.json()
+                detail = j.get("description") or r.text[:200]
+            except Exception:
+                detail = r.text[:200]
+            if r.status_code == 429:
+                retry_after = r.headers.get("Retry-After") or r.headers.get("retry-after")
+                logger.warning(f"[Telegram] 429 Too Many Requests. Retry-After={retry_after}; detail={detail}")
+            else:
+                logger.warning(f"[Telegram] sendMessage failed: {r.status_code}; detail={detail}")
             return False
         return True
     except Exception:
-        print("[Telegram] exception:\n", traceback.format_exc())
+        logger.error("[Telegram] exception:\n%s", traceback.format_exc())
         return False
 
 def format_alpha_message(payload: dict) -> str:
