@@ -22,6 +22,7 @@ from explain import strength_label, volume_label, divergence_label, explain_term
 # Persistence and exports
 from db import init_db, save_run
 from export import export_run_json, save_bars_csv, save_accepted_txt
+from retention import prune_artifacts
 
 # Alpha-first summary
 from alpha_summary import alpha_summary, alpha_next_steps
@@ -237,7 +238,14 @@ def main():
     print(alpha)
     print("\n" + plan)
 
-    # 17) Telegram push (end-of-run)
+    # 17) Retention hygiene (best-effort)
+    try:
+        keep = int(os.getenv("TB_ARTIFACTS_KEEP", "500"))
+        prune_artifacts(keep=keep)
+    except Exception:
+        pass
+
+    # 18) Telegram push (end-of-run)
     try:
         if os.getenv("TB_NO_TELEGRAM", "0").lower() in ("1", "true", "yes", "on"):
             print("\n[Telegram] skipped (TB_NO_TELEGRAM=1)")
