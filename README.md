@@ -1,4 +1,40 @@
 Project Tracer Bullet
+Here is a draft for the README introduction that puts the Tracer Bullet philosophy and mission front and center, clearly distinguishing it from generic sentiment bots. This will ensure anyone reading knows the core vision and agile process powering your divergence engine:
+
+***
+
+# Tracer Bullet — The Agile Divergence Engine for Crypto Alpha
+
+## Our Mission: Exploit Emotional-Math Gaps with Perfect Discipline
+
+Financial markets are driven by human emotion as much as by fundamentals. Crowd fear, greed, and narrative bias often cause prices to diverge significantly from their true, statistical values — creating opportunities for disciplined, rational traders.
+
+**Tracer Bullet is not just another sentiment bot. It is a purpose-built divergence engine, designed to detect the market’s “lie” between story and price, and deliver actionable alpha signals in real time.**
+
+We ask the key question nonstop:
+
+> *"The news narrative is strongly positive (or negative), but why hasn’t the price moved yet? Is the market underreacting or overreacting?"*
+
+By measuring and quantifying these divergences rigorously, filtering for relevance and confidence, and adapting thresholds dynamically, Tracer Bullet provides **real-time, explainable**, and **action-ready** trading signals — all delivered with evidence and playbook guidance directly to your Telegram DM.
+
+## Why Tracer Bullet Is Different
+
+- **Philosophy-first:** We shipped a fast, end‑to‑end prototype (V1) to validate our core edge early, avoiding premature complexity.
+- **Elegant simplicity:** We leverage two clean, high-quality signal pillars — Alpaca price data and Perplexity synthesized narrative — before adding noisy social feeds.
+- **Hybrid intelligence:** Combining quantitative “oracle” data and qualitative “psychologist” narrative to find true market inefficiencies.
+- **Divergence over sentiment:** Unlike traditional news sentiment bots, we trade the **gap** between narrative and price, where predictable emotional mistakes happen.
+- **Adaptive and auditable:** Confidence shaping, source weighting, catalyst tagging, and full payload provenance ensure discipline and continuous improvement.
+
+## How We Work
+
+- Ingest multi-source crypto news with semantic filtering for asset relevance.
+- Score narrative sentiment versus price/volume context.
+- Compute divergence signal with adaptive thresholds.
+- Generate concise alpha-first summaries and next steps.
+- Deliver signals and evidence automatically via Telegram DMs.
+- Persist rich data for audit, backtesting, and iterative tuning.
+
+***
 
 Summary
 An always-on research and trading agent that spots short-term mispricings by comparing what the story says (news-driven narrative momentum) to what the tape shows (price momentum). When those disagree in a meaningful, well-defined way, the agent takes a paper trade with full explainability, logs everything to a local database, and sends a Telegram “style analysis” message you can read in one glance.

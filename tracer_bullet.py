@@ -228,9 +228,12 @@ def main():
 
     # 17) Telegram push (end-of-run)
     try:
-        msg = format_alpha_message(payload)  # uses alpha_summary, alpha_next_steps, top evidence
-        ok = send_message(msg)
-        print(f"\n[Telegram] sent: {ok}")
+        if os.getenv("TB_NO_TELEGRAM", "0").lower() in ("1", "true", "yes", "on"):
+            print("\n[Telegram] skipped (TB_NO_TELEGRAM=1)")
+        else:
+            msg = format_alpha_message(payload)
+            ok = send_message(msg)
+            print(f"\n[Telegram] sent: {ok}")
     except Exception as e:
         print("[Telegram] error:", e)
 
