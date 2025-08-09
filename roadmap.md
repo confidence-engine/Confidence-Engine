@@ -279,28 +279,24 @@ Sources
 [19] 4.1 Advanced Python Scheduler - Jodoo https://help.jodoo.com/en/articles/9992509-4-1-advanced-python-scheduler
 [20] Introduction to APScheduler - Better Programming https://betterprogramming.pub/introduction-to-apscheduler-86337f3bb4a6
 
-----------------------------
 
-V1.0 – Tracer bullet preview (no orders yet)
-	•	One symbol (BTCUSD).
-	•	Fetch last 60–120m bars + latest headlines (Alpaca).
-	•	Dev narrative adapter returns strict JSON; schema-validated.
-	•	Compute RSI, MA(10 vs 50) slope, MACD hist, volume z-score → Price Score.
-	•	Blend LLM+FinBERT + decay → Narrative Score.
-	•	Compute divergence; print decision preview to console.
-	•	Send Telegram “style analysis” for each run.Exit criteria: clean end-to-end run; valid JSON parsing; sensible Telegram output.
-V1.1 – Paper trade on threshold
-	•	Enable Alpaca paper orders with idempotent client order IDs.
-	•	Add basic risk: cooldown per symbol, max open positions.
-	•	Persist signals/trades/prompts to SQLite.Exit criteria: at least one paper trade placed with full context logged and linked to Telegram alert.
-V1.2 – Scheduler + resilience
-	•	APScheduler every N minutes; graceful error handling.
-	•	Retries/backoff; circuit-breaker to pause narrative calls on repeated failures.
-	•	TA-only degradation mode if narrative unavailable.Exit criteria: runs unattended for a few hours with no crashes; alerts on failures.
-V1.3 – Event-lite triggers and explainability polish
-	•	Simple headline-delta trigger to run an immediate scan (reduces noise).
-	•	Standardized reason codes; cleaner Telegram formatting with anchor quotes/entities.Exit criteria: fewer, better signals; each alert is audit-grade at a glance.
-V1.4 – Mini hardening pass
-	•	Add unit tests for parser, indicators, divergence, DB IO.
-	•	Parameterize thresholds (T, confidence cutoff, cooldown) via config.
-	•	Tag signals with version_tag for reproducibility.Exit criteria: tests passing; config-driven thresholds; reproducible logs.
+---------------------
+
+# Milestone: Agent V1 – Stable ingest and robust sentiment
+
+## Completed
+- Perplexity integration with key rotation
+- CoinDesk RSS ingest
+- Deduplication and semantic relevance gating
+- Robust FinBERT (MAD + trimmed mean) on relevant-only
+- Narrative from accepted-only; confidence heuristic
+- Adaptive divergence trigger (volume-aware)
+- Provenance tagging; exports (JSON, CSV, accepted TXT)
+- Debug scripts and config hardening
+
+## Outstanding
+- Per-source weighting (boost BTC-only, downweight multi-asset wraps)
+- Confidence shaping by source diversity and accepted count
+- JSON schema versioning; unit tests for drop_outliers, trimmed_mean, adaptive_trigger
+- Optional: CoinTelegraph RSS integration
+- Optional: Relaxed JSON extraction fallback for Perplexity when strict JSON not returned
