@@ -53,10 +53,18 @@ def main() -> int:
     setup_logging(debug=args.debug)
 
     # Apply environment overrides expected by the app
+    # CLI has highest precedence
     if args.symbol:
         os.environ["SYMBOL"] = args.symbol
     if args.lookback is not None:
         os.environ["LOOKBACK_MINUTES"] = str(args.lookback)
+    # Next, TB_* overrides if provided and not set by CLI
+    tb_sym = os.getenv("TB_SYMBOL_OVERRIDE", "").strip()
+    if not args.symbol and tb_sym:
+        os.environ["SYMBOL"] = tb_sym
+    tb_look = os.getenv("TB_LOOKBACK_OVERRIDE", "").strip()
+    if args.lookback is None and tb_look.isdigit():
+        os.environ["LOOKBACK_MINUTES"] = tb_look
     if args.no_telegram:
         os.environ["TB_NO_TELEGRAM"] = "1"
     if args.debug:

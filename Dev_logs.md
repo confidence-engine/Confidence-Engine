@@ -1,3 +1,22 @@
+## [v1-hardening] - 2025-08-10
+- Preflight/health: scripts/preflight.py creates runs/ and bars/, checks Telegram reachability.
+- CLI/logging: scripts/run.py with flags (--symbol, --lookback, --no-telegram, --debug, --health); centralized logging with ISO timestamps.
+- Telegram robustness: plain-text default, truncation to 4000 chars, graceful 200/400/429 handling, TB_NO_TELEGRAM honored.
+- Tests/CI: unit tests for divergence, telegram formatting, payload schema, dir checks; GitHub Actions for lint and tests.
+- Retention: prune runs/ and bars/ to last N files via TB_ARTIFACTS_KEEP (default 500).
+- Docs: README updated; .env.example added.
+
+## [v2-crowd] - 2025-08-10
+- Source Diversity Engine:
+  - Confidence shaping from unique sources; echo penalty on skew.
+  - Payload: source_diversity {unique, top_source_share, counts, adjustment}; confidence capped at 0.75.
+- Cascade/HYPE Detector:
+  - Repetition via simple token overlap; quant confirmation via price_move_pct and max_volume_z.
+  - Tag HYPE_ONLY applies confidence_delta -0.03; payload cascade_detector {...}.
+- Contrarian Viewport:
+  - Tag POTENTIAL_CROWD_MISTAKE under extreme narrative, low divergence, flat price; informational only.
+- Tests: added tests for diversity, cascade, contrarian; total suite passing.
+
 # Project Tracer Bullet: Development Log
 
 This log will be updated at the end of each development session to track our progress.
