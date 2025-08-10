@@ -16,6 +16,8 @@ from price import price_score
 from narrative_analysis import blend, decay
 from narrative_analysis_extras import adaptive_trigger
 from divergence import compute, reason
+from diversity import compute_diversity_confidence_adjustment
+from cascade import detect_cascade
 from time_utils import minutes_since
 from explain import strength_label, volume_label, divergence_label, explain_term
 
@@ -149,11 +151,20 @@ def main():
         for (h, rs, ws, src) in rejected_w
     ]
 
-    # 12) Alpha-first outputs
+    # 12) Source diversity adjustment (confidence shaping)
+    div_adj, div_meta = compute_diversity_confidence_adjustment(accepted_details)
+    conf = min(0.75, max(0.0, conf + div_adj))
+
+    # 13) Cascade detector (hype-only guard)
+    cascade = detect_cascade(accepted_details, bars)
+    # Apply confidence delta with floor 0.0
+    conf = max(0.0, conf + cascade.get("confidence_delta", 0.0))
+
+    # 14) Alpha-first outputs
     alpha = alpha_summary(nar_lbl, div, conf, px_lbl, vol_lbl, used_cnt)
     plan = alpha_next_steps(div, conf, trig, vz)
 
-    # 13) Payload (keep summary/detail for DB schema compatibility)
+    # 15) Payload (keep summary/detail for DB schema compatibility)
     summary = f"Narrative {nar_lbl} vs Price {px_lbl}; {gap_lbl}. Used {used_cnt}, dropped {drop_cnt}. Action: {action} ({rc})."
     detail = (
         f"FinBERT sentiment (relevant-only)={fin:+.2f} "
@@ -192,6 +203,8 @@ def main():
         "alpha_summary": alpha,
         "alpha_next_steps": plan,
         "story_excerpt": story,
+        "source_diversity": {**div_meta, "adjustment": round(div_adj, 3)},
+        "cascade_detector": cascade,
 
         "summary": summary,
         "detail": detail,
@@ -202,7 +215,7 @@ def main():
 
     run_id = save_run(payload)
 
-    # 14) Export artifacts
+    # 16) Export artifacts
     try:
         export_run_json(run_id, payload)
         N = 240
@@ -213,7 +226,7 @@ def main():
     except Exception:
         pass
 
-    # 15) Auto-commit
+    # 17) Auto-commit
     try:
         paths_to_commit = ["runs", "bars"]
         from autocommit import auto_commit_and_push
@@ -222,7 +235,7 @@ def main():
     except Exception:
         pass
 
-    # 16) Console output (alpha-first)
+    # 18) Console output (alpha-first)
     print(f"Bars={len(bars)} Headlines={len(merged_heads)} (used {used_cnt}, dropped {drop_cnt})")
     print("\n[Accepted (source, raw→weighted)]")
     for d in accepted_details[:10]:
@@ -238,14 +251,14 @@ def main():
     print(alpha)
     print("\n" + plan)
 
-    # 17) Retention hygiene (best-effort)
+    # 18) Retention hygiene (best-effort)
     try:
         keep = int(os.getenv("TB_ARTIFACTS_KEEP", "500"))
         prune_artifacts(keep=keep)
     except Exception:
         pass
 
-    # 18) Telegram push (end-of-run)
+    # 19) Telegram push (end-of-run)
     try:
         if os.getenv("TB_NO_TELEGRAM", "0").lower() in ("1", "true", "yes", "on"):
             print("\n[Telegram] skipped (TB_NO_TELEGRAM=1)")

@@ -101,12 +101,39 @@ def format_alpha_message(payload: dict) -> str:
     next_steps = alpha_next if alpha_next else ""
     evidence = "Evidence:\n" + "\n".join(evid_lines) if top else ""
 
+    # Diversity line if meaningful
+    div = payload.get("source_diversity") or {}
+    try:
+        adj = float(div.get("adjustment", 0.0))
+        uniq = int(div.get("unique", 0))
+        top_share = float(div.get("top_source_share", 0.0))
+    except Exception:
+        adj, uniq, top_share = 0.0, 0, 0.0
+    diversity_line = ""
+    if abs(adj) >= 0.01:
+        sign = "+" if adj >= 0 else ""
+        diversity_line = f"Diversity adj: {sign}{adj:.2f} ({uniq} sources, top share {top_share:.2f})"
+
     if TELEGRAM_PARSE_MODE.lower().startswith("markdown"):
         header = _escape_md(header)
         line1 = _escape_md(line1)
         line2 = _escape_md(line2)
         next_steps = _escape_md(next_steps)
         evidence = _escape_md(evidence)
+        diversity_line = _escape_md(diversity_line)
 
-    msg = f"{header}\n{line1}\n\n{line2}\n\n{next_steps}\n\n{evidence}".strip()
+    parts = [header, line1, "", line2, "", next_steps]
+    # Cascade line
+    cas = payload.get("cascade_detector") or {}
+    if (cas.get("tag") or "") == "HYPE_ONLY":
+        rr = float(cas.get("repetition_ratio", 0.0) or 0.0)
+        pm = float(cas.get("price_move_pct", 0.0) or 0.0)
+        vzm = float(cas.get("max_volume_z", 0.0) or 0.0)
+        cascade_line = f"Cascade: HYPE_ONLY (repetition {rr:.2f}, |Δp| {pm:.1f}%, VolZmax {vzm:.1f})"
+        parts.extend(["", cascade_line])
+    if diversity_line:
+        parts.extend(["", diversity_line])
+    if evidence:
+        parts.extend(["", evidence])
+    msg = "\n".join(parts).strip()
     return msg[:4000]
