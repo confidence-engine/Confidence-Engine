@@ -17,6 +17,18 @@
   - Tag POTENTIAL_CROWD_MISTAKE under extreme narrative, low divergence, flat price; informational only.
 - Tests: added tests for diversity, cascade, contrarian; total suite passing.
 
+## [v3-bias-sizing] - 2025-08-10
+- Timescale scoring:
+  - short/mid/long tails from 1-min bars; divergence per horizon; combined weighted divergence; alignment flag.
+  - Env weights TB_TS_W_SHORT/MID/LONG with renormalization.
+- Negative-confirmation checks:
+  - price_vs_narrative, volume_support, timescale_alignment; penalties summed and clamped by TB_CONF_PENALTY_MIN.
+  - Payload: confirmation_checks[], confirmation_penalty.
+- Position sizing (informational):
+  - map confidence to target_R via floors/caps; optional volatility normalization; payload.position_sizing.
+- Telegram: appended timescales, confirmation penalty, and sizing lines when applicable.
+- Tests: added tests for timescales, confirmation, sizing; all passing.
+
 # Project Tracer Bullet: Development Log
 
 This log will be updated at the end of each development session to track our progress.

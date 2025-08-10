@@ -503,3 +503,67 @@ Tracer Bullet ingests multi-source headlines, filters for asset relevance, score
 1) Configure .env with data/API keys and Telegram (optional).
 2) Install deps: `pip3 install -U python-dotenv requests`
 3) Run: `python3 tracer_bullet.py` (saves to runs/, bars/, sends Telegram if configured)
+
+## V3 Bias Immunity and Sizing
+
+### Timescale scoring
+- Adds short/mid/long horizon analysis using 1-min bars (60/180/360 min tails).
+- Each horizon computes:
+  - divergence_h = narrative_decayed_proxy − price_score_h
+  - price_move_pct_h: abs% change first→last close in horizon
+  - volume_z_h: last-bar volume z-score within horizon (0 if n<3)
+- Combined divergence:
+  - Weighted sum with default weights short=0.50, mid=0.35, long=0.15
+  - Weights overrideable via env; renormalized to sum=1.0
+- Alignment:
+  - alignment_flag True if ≥2 horizons share the combined sign and |divergence_h| ≥ 0.20
+- Output:
+  - payload.timescale_scores with per-horizon metrics, combined_divergence, aligned_horizons, alignment_flag, weights
+
+### Negative-confirmation weighting
+- Small, bounded penalties applied to confidence when confirmations contradict the narrative:
+  - price_vs_narrative: notable short-term price move against combined divergence
+  - volume_support: low average volume_z for sizable divergence
+  - timescale_alignment: lack of alignment for sizable divergence
+- Penalties sum and are clamped to a minimum (default -0.05)
+- Output:
+  - payload.confirmation_checks (name, passed, delta)
+  - payload.confirmation_penalty (≤ 0), applied to confidence with floor/cap
+
+### Position sizing (informational)
+- Maps final confidence to a target risk size (R) with floors and caps
+- Linear scaling between confidence floor and cap to [min_R, max_R]
+- Optional volatility normalization hook (off by default)
+- Output:
+  - payload.position_sizing {confidence, target_R, notes[], params{...}}
+- No order placement in V3; Telegram includes a one-liner when target_R > 0
+
+### New environment variables
+- Timescales weights:
+  - TB_TS_W_SHORT (default 0.50)
+  - TB_TS_W_MID (default 0.35)
+  - TB_TS_W_LONG (default 0.15)
+- Confirmation penalties:
+  - TB_CONF_PRICE_VS_NARR (default -0.02)
+  - TB_CONF_VOLUME_SUPPORT (default -0.01)
+  - TB_CONF_TS_ALIGN (default -0.02)
+  - TB_CONF_PENALTY_MIN (default -0.05)
+- Sizing:
+  - TB_SIZE_CONF_FLOOR (default 0.65)
+  - TB_SIZE_CONF_CAP (default 0.85)
+  - TB_SIZE_MIN_R (default 0.25)
+  - TB_SIZE_MAX_R (default 1.00)
+
+### Example usage
+- Override timescale weights:
+```
+TB_TS_W_SHORT=0.6 TB_TS_W_MID=0.3 TB_TS_W_LONG=0.1 python3 scripts/run.py --symbol BTC/USD --lookback 240 --no-telegram
+```
+- Tune confirmation penalties:
+```
+TB_CONF_PRICE_VS_NARR=-0.03 TB_CONF_TS_ALIGN=-0.03 python3 scripts/run.py --symbol BTC/USD --lookback 240 --no-telegram
+```
+- Adjust sizing floor/caps:
+```
+TB_SIZE_CONF_FLOOR=0.66 TB_SIZE_MIN_R=0.30 python3 scripts/run.py --symbol BTC/USD --lookback 240 --no-telegram
+```

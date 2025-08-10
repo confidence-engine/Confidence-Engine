@@ -21,6 +21,8 @@ from cascade import detect_cascade
 from contrarian import decide_contrarian_viewport
 from time_utils import minutes_since
 from explain import strength_label, volume_label, divergence_label, explain_term
+from timescales import compute_timescale_scores
+from confirmation import run_confirmation_checks
 
 # Persistence and exports
 from db import init_db, save_run
@@ -32,6 +34,7 @@ from alpha_summary import alpha_summary, alpha_next_steps
 
 # Telegram push (end-of-run)
 from telegram_bot import send_message, format_alpha_message
+from sizing import map_confidence_to_R
 
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
@@ -176,7 +179,15 @@ def main():
     pm_pct = float(pm_pct or 0.0)
     contra = decide_contrarian_viewport(narr_mag, div, pm_pct)
 
-    # 15) Alpha-first outputs
+    # 15) Multi-timescale scoring (no confidence changes here)
+    timescale_scores = compute_timescale_scores(bars, dec_narr)
+
+    # Negative confirmation checks (apply penalty before final capping)
+    env_snapshot = dict(os.environ)
+    checks, total_penalty = run_confirmation_checks(timescale_scores, env_snapshot)
+    conf = max(0.0, conf + total_penalty)
+
+    # 16) Alpha-first outputs
     alpha = alpha_summary(nar_lbl, div, conf, px_lbl, vol_lbl, used_cnt)
     plan = alpha_next_steps(div, conf, trig, vz)
 
@@ -222,6 +233,9 @@ def main():
         "source_diversity": {**div_meta, "adjustment": round(div_adj, 3)},
         "cascade_detector": cascade,
         "contrarian_viewport": contra,
+        "timescale_scores": timescale_scores,
+        "confirmation_checks": checks,
+        "confirmation_penalty": float(round(total_penalty, 3)),
 
         "summary": summary,
         "detail": detail,
@@ -229,6 +243,12 @@ def main():
         "pplx_provenance": json.dumps(pplx_items, ensure_ascii=False),
         "pplx_last_error": pplx_err or ""
     }
+
+    # Position sizing (informational only in V3)
+    try:
+        payload["position_sizing"] = map_confidence_to_R(payload["confidence"], vol_norm=None)
+    except Exception:
+        payload["position_sizing"] = {"confidence": payload["confidence"], "target_R": 0.0, "notes": ["error"], "params": {}}
 
     run_id = save_run(payload)
 

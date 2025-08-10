@@ -139,5 +139,32 @@ def format_alpha_message(payload: dict) -> str:
     cv = (payload.get("contrarian_viewport") or "").strip()
     if cv:
         parts.extend(["", f"Contrarian viewport: {cv}"])
+    # Timescale summary
+    tss = payload.get("timescale_scores") or {}
+    if tss:
+        try:
+            aligned = int(tss.get("aligned_horizons", 0))
+            cdiv = float(tss.get("combined_divergence", 0.0))
+            parts.extend(["", f"Timescales: aligned={aligned}/3, combined_div={cdiv:+.2f}"])
+        except Exception:
+            pass
+    # Confirmation penalties
+    try:
+        pen = float(payload.get("confirmation_penalty", 0.0) or 0.0)
+        checks = payload.get("confirmation_checks") or []
+        if pen != 0.0:
+            failed = ", ".join(ch.get("name") for ch in checks if ch.get("failed"))
+            parts.extend(["", f"Confirmations: penalty {pen:+.2f} (failed: {failed})"])
+    except Exception:
+        pass
+    # Position sizing (informational)
+    try:
+        sizing = payload.get("position_sizing") or {}
+        tr = float(sizing.get("target_R", 0.0) or 0.0)
+        conf = float(sizing.get("confidence", 0.0) or 0.0)
+        if tr > 0:
+            parts.extend(["", f"Sizing: target {tr:.2f}R (conf {conf:.2f})"])
+    except Exception:
+        pass
     msg = "\n".join(parts).strip()
     return msg[:4000]

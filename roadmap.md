@@ -300,3 +300,71 @@ Sources
 - JSON schema versioning; unit tests for drop_outliers, trimmed_mean, adaptive_trigger
 - Optional: CoinTelegraph RSS integration
 - Optional: Relaxed JSON extraction fallback for Perplexity when strict JSON not returned
+
+------------------------
+
+Tracer Bullet — Milestone Roadmap (with status)
+
+Milestone V1 — Hardening & Reliability [DONE]
+✓ Preflight/health checks (scripts/preflight.py; run.py --health)
+✓ CLI wrapper with precedence (CLI > env > .env > defaults); early logging
+✓ Robust Telegram delivery (plain text default, truncation, 200/400/429 handling, TB_NO_TELEGRAM)
+✓ Artifact retention (prune runs/ and bars/ by mtime; TB_ARTIFACTS_KEEP)
+✓ Centralized logging utilities; DEBUG/INFO modes
+✓ Tests & CI (pytest suite; lint/format checks documented)
+✓ Docs: README, RUNBOOK, CONTRIBUTING, dev_logs, .env.example, docs/payload
+
+Milestone V2 — Crowd Immunity [DONE]
+✓ Source Diversity Engine (diversity.py; confidence shaping, echo-penalties; payload.source_diversity)
+✓ Cascade/HYPE Detector (cascade.py; repetition vs quant confirm; payload.cascade_detector)
+✓ Contrarian Viewport (contrarian.py; informational tag; payload.contrarian_viewport)
+✓ Telegram one-liners for diversity/cascade/contrarian when applicable
+✓ Tests for diversity, cascade, contrarian; schema presence
+
+Milestone V3 — Bias Immunity + Sizing [PLANNED]
+- Multi-timescale scoring:
+  - Compute short/mid/long horizon metrics (sentiment, divergence, volume_z)
+  - Combine with transparent weights; require alignment for high confidence
+  - payload.timescale_scores = {short, mid, long, combined}
+- Negative-confirmation weighting:
+  - Deduct confidence for specific contradictions (bounded, explainable)
+  - payload.confirmation_checks = [{check, passed, delta}], with clamped total
+- Confidence → position sizing:
+  - Map confidence to target_R with floors/caps and optional vol-normalization
+  - payload.position_sizing = {confidence, target_R, caps_applied, notes}
+  - Telegram line only if above floor
+- Tests: blending math, penalties clamping, sizing boundaries; schema tests
+
+Milestone V3.1 — Multi-Asset Foundations (Crypto + Stocks) [PLANNED]
+- Universe configuration (config/universe.yaml) for crypto and stocks
+- Stock bars adapter (e.g., Polygon/AlphaVantage/Yahoo) with same interface
+- Trading-hours awareness (RTH vs extended; volume_z handling)
+- Multi-asset orchestrator (scripts/scan_universe.py), ranking Top N
+- Universe digest to Telegram (compact per-asset summary)
+- Tests: universe loader, symbol utils, bars_stock adapter (fixture), orchestrator ranking, schema extensions
+
+Milestone V4 — Backtesting & Learning Loop [PLANNED]
+- Backtest/replay harness using bars + runs payloads (event studies, KPIs)
+- Outcome labeling in SQLite (forward return windows, hit-rate)
+- First supervised model to calibrate confidence/edge (explainable baseline)
+- Model monitoring and drift checks; ablation tests
+- Tests for data prep, labeling, and calibration pipeline
+
+Milestone V4.1 — Execution & Risk (Dry-Run) [PLANNED]
+- Paper-trade execution simulator (order lifecycle, slippage model)
+- Portfolio tracking (PnL, exposure, risk caps)
+- Kill-switches/guardrails and dry-run audit logs
+- Tests for sizing→orders→fills and portfolio accounting sanity
+
+Milestone V5 — Autonomy & Scale [PLANNED]
+- Live broker integration (e.g., Alpaca) behind feature flag
+- Multi-asset risk budgeting and rebalancing
+- Continuous/periodic retraining, feature store, drift-aware deployment
+- Horizontal scale (priority queues, smart sampling, cost-aware scheduling)
+- Observability: metrics dashboard for confidence/divergence/vol_z, model health
+
+Cross-Cutting (Ongoing)
+- Documentation: architecture overview, payload schema updates, runbook ops
+- Observability: per-run metrics logs, compact CSV for quick plots
+- Safety: strict caps, fallback paths, and graceful degradation
+

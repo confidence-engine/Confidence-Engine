@@ -43,8 +43,8 @@ def compute_diversity_confidence_adjustment(
     penalty = 0.0
     if top_share >= 0.85:
         penalty = -0.05
-    elif top_share >= 0.70:
-        penalty = -0.02
+    elif top_share >= 0.75:
+        penalty = -0.03
 
     adj = boost + penalty
     if adj > 0.05:
