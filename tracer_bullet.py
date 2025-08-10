@@ -18,6 +18,7 @@ from narrative_analysis_extras import adaptive_trigger
 from divergence import compute, reason
 from diversity import compute_diversity_confidence_adjustment
 from cascade import detect_cascade
+from contrarian import decide_contrarian_viewport
 from time_utils import minutes_since
 from explain import strength_label, volume_label, divergence_label, explain_term
 
@@ -160,11 +161,26 @@ def main():
     # Apply confidence delta with floor 0.0
     conf = max(0.0, conf + cascade.get("confidence_delta", 0.0))
 
-    # 14) Alpha-first outputs
+    # 14) Contrarian viewport (informational)
+    # narrative magnitude uses decayed narrative magnitude as proxy
+    narr_mag = abs(dec_narr)
+    # Use cascade price_move_pct if present; else quick compute from bars
+    pm_pct = cascade.get("price_move_pct") if cascade else None
+    if pm_pct is None:
+        try:
+            closes = getattr(bars, "close", None)
+            if closes is not None and len(closes) >= 2 and float(closes.iloc[0]) != 0.0:
+                pm_pct = abs((float(closes.iloc[-1]) - float(closes.iloc[0])) / float(closes.iloc[0]) * 100.0)
+        except Exception:
+            pm_pct = 0.0
+    pm_pct = float(pm_pct or 0.0)
+    contra = decide_contrarian_viewport(narr_mag, div, pm_pct)
+
+    # 15) Alpha-first outputs
     alpha = alpha_summary(nar_lbl, div, conf, px_lbl, vol_lbl, used_cnt)
     plan = alpha_next_steps(div, conf, trig, vz)
 
-    # 15) Payload (keep summary/detail for DB schema compatibility)
+    # 16) Payload (keep summary/detail for DB schema compatibility)
     summary = f"Narrative {nar_lbl} vs Price {px_lbl}; {gap_lbl}. Used {used_cnt}, dropped {drop_cnt}. Action: {action} ({rc})."
     detail = (
         f"FinBERT sentiment (relevant-only)={fin:+.2f} "
@@ -205,6 +221,7 @@ def main():
         "story_excerpt": story,
         "source_diversity": {**div_meta, "adjustment": round(div_adj, 3)},
         "cascade_detector": cascade,
+        "contrarian_viewport": contra,
 
         "summary": summary,
         "detail": detail,
@@ -215,7 +232,7 @@ def main():
 
     run_id = save_run(payload)
 
-    # 16) Export artifacts
+    # 17) Export artifacts
     try:
         export_run_json(run_id, payload)
         N = 240
@@ -226,7 +243,7 @@ def main():
     except Exception:
         pass
 
-    # 17) Auto-commit
+    # 18) Auto-commit
     try:
         paths_to_commit = ["runs", "bars"]
         from autocommit import auto_commit_and_push
@@ -235,7 +252,7 @@ def main():
     except Exception:
         pass
 
-    # 18) Console output (alpha-first)
+    # 19) Console output (alpha-first)
     print(f"Bars={len(bars)} Headlines={len(merged_heads)} (used {used_cnt}, dropped {drop_cnt})")
     print("\n[Accepted (source, raw→weighted)]")
     for d in accepted_details[:10]:

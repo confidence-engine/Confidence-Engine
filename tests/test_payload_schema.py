@@ -217,6 +217,7 @@ def test_payload_keys_unchanged(monkeypatch):
         "pplx_last_error",
         "source_diversity",
         "cascade_detector",
+        "contrarian_viewport",
     }
 
     missing = expected_keys.difference(captured.keys())

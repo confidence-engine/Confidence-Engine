@@ -135,5 +135,9 @@ def format_alpha_message(payload: dict) -> str:
         parts.extend(["", diversity_line])
     if evidence:
         parts.extend(["", evidence])
+    # Contrarian viewport
+    cv = (payload.get("contrarian_viewport") or "").strip()
+    if cv:
+        parts.extend(["", f"Contrarian viewport: {cv}"])
     msg = "\n".join(parts).strip()
     return msg[:4000]
