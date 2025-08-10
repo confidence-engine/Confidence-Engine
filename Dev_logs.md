@@ -301,5 +301,210 @@ import json
 d = json.load(open("runs/last.json"))
 print(d["alpha_summary"], d["confidence"])
 ```
+Here are copy-ready doc updates reflecting everything you just implemented (V1 hardening + V2 Crowd Immunity modules). Paste into the indicated files.
+
+1) README.md
+Title: Tracer Bullet — Agile Divergence Engine for Crypto Alpha
+
+Summary:
+- Mission: Exploit story vs price gaps with discipline.
+- Architecture: Price/volume oracle + narrative analyzer.
+- Outputs: Actionable signal + evidence via Telegram; auditable JSON payloads.
+
+Quick Start:
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -U pip && pip install -r requirements.txt
+cp .env.example .env   # fill tokens if using Telegram
+python3 scripts/preflight.py
+```
+
+Run:
+```bash
+# Health
+python3 scripts/run.py --health
+
+# Safe (no Telegram)
+python3 scripts/run.py --symbol BTC/USD --lookback 240 --no-telegram
+
+# Debug logs
+python3 scripts/run.py --symbol BTC/USD --lookback 120 --no-telegram --debug
+```
+
+Telegram test (optional):
+```bash
+python3 - << 'PY'
+import os, requests
+from dotenv import load_dotenv
+load_dotenv(".env")
+t=os.getenv("TELEGRAM_BOT_TOKEN"); c=os.getenv("TELEGRAM_CHAT_ID")
+assert t and c, "Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env"
+r=requests.post(f"https://api.telegram.org/bot{t}/sendMessage",
+                json={"chat_id": c, "text": "Tracer Bullet: setup OK"}, timeout=10)
+print(r.status_code, r.text[:160])
+PY
+```
+
+Configuration and overrides:
+- Precedence: CLI flags > process env > .env > defaults.
+- Common envs:
+  - TB_SYMBOL_OVERRIDE (e.g., BTC/USD)
+  - TB_LOOKBACK_OVERRIDE (e.g., 180)
+  - TB_NO_TELEGRAM=1 to disable sends
+  - TELEGRAM_PARSE_MODE leave empty for plain text
+  - TB_ARTIFACTS_KEEP default 500
+  - LOG_LEVEL INFO or DEBUG
+
+Example:
+```bash
+TB_NO_TELEGRAM=1 TB_SYMBOL_OVERRIDE=BTC/USD TB_LOOKBACK_OVERRIDE=180 python3 scripts/run.py --debug
+```
+
+Artifacts & retention:
+- runs/: per-run JSON payloads
+- bars/: cached bar CSVs
+- Automatic pruning keeps most recent N files (TB_ARTIFACTS_KEEP, default 500)
+
+V2 Crowd Immunity features:
+- Source Diversity Engine:
+  - Adjusts confidence based on unique sources and echo-chamber skew
+  - Payload: source_diversity {unique, top_source_share, counts, adjustment}
+- Cascade/HYPE Detector:
+  - Flags repetitive narrative without quant confirmation
+  - Payload: cascade_detector {repetition_ratio, price_move_pct, max_volume_z, tag, confidence_delta}
+- Contrarian Viewport:
+  - Informational tag for potential crowd mistakes under extreme narrative + flat price + low gap
+  - Payload: contrarian_viewport "POTENTIAL_CROWD_MISTAKE" or ""
+
+Tests & CI:
+```bash
+python3 -m pytest -q
+# CI runs flake8, black --check, pytest on PR/push
+```
+
+2) .env.example
+```
+# Telegram (optional if TB_NO_TELEGRAM=1)
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+TELEGRAM_PARSE_MODE=
+
+# Overrides
+TB_SYMBOL_OVERRIDE=
+TB_LOOKBACK_OVERRIDE=
+TB_NO_TELEGRAM=
+
+# Logging
+LOG_LEVEL=INFO
+
+# Retention
+TB_ARTIFACTS_KEEP=500
+```
+
+3) CHANGELOG.md
+## [v1-hardening] - 2025-08-10
+- Preflight/health: scripts/preflight.py creates runs/ and bars/, checks Telegram reachability.
+- CLI/logging: scripts/run.py with flags (--symbol, --lookback, --no-telegram, --debug, --health); centralized logging with ISO timestamps.
+- Telegram robustness: plain-text default, truncation to 4000 chars, graceful 200/400/429 handling, TB_NO_TELEGRAM honored.
+- Tests/CI: unit tests for divergence, telegram formatting, payload schema, dir checks; GitHub Actions for lint and tests.
+- Retention: prune runs/ and bars/ to last N files via TB_ARTIFACTS_KEEP (default 500).
+- Docs: README updated; .env.example added.
+
+## [v2-crowd] - 2025-08-10
+- Source Diversity Engine:
+  - Confidence shaping from unique sources; echo penalty on skew.
+  - Payload: source_diversity {unique, top_source_share, counts, adjustment}; confidence capped at 0.75.
+- Cascade/HYPE Detector:
+  - Repetition via simple token overlap; quant confirmation via price_move_pct and max_volume_z.
+  - Tag HYPE_ONLY applies confidence_delta -0.03; payload cascade_detector {...}.
+- Contrarian Viewport:
+  - Tag POTENTIAL_CROWD_MISTAKE under extreme narrative, low divergence, flat price; informational only.
+- Tests: added tests for diversity, cascade, contrarian; total suite passing.
+
+4) RUNBOOK.md
+Health:
+```bash
+python3 scripts/preflight.py
+python3 scripts/run.py --health
+```
+
+Routine run (no Telegram):
+```bash
+python3 scripts/run.py --symbol BTC/USD --lookback 240 --no-telegram
+```
+
+Debug:
+```bash
+python3 scripts/run.py --symbol BTC/USD --lookback 120 --no-telegram --debug
+```
+
+Overrides:
+```bash
+TB_NO_TELEGRAM=1 TB_SYMBOL_OVERRIDE=ETH/USD TB_LOOKBACK_OVERRIDE=90 python3 scripts/run.py --debug
+```
+
+Artifacts:
+- Auto pruned to TB_ARTIFACTS_KEEP (default 500)
+
+Telegram:
+- Defaults to plain text; set TELEGRAM_PARSE_MODE only if you need Markdown/HTML.
+- 400/429 handled gracefully; TB_NO_TELEGRAM skips send.
+
+Troubleshooting:
+- No DM: DM “Start” to the bot, verify chat ID, ensure parse mode blank.
+- Tests:
+```bash
+python3 -m pytest -q
+```
+
+5) CONTRIBUTING.md
+- Python 3.11; keep secrets in .env (never commit).
+- Run before PR:
+```bash
+flake8 .
+black --check .
+python3 -m pytest -q
+```
+- Respect config precedence; don’t remove payload keys.
+- For new features, add pure functions + tests.
+- Keep Telegram messages <4000 chars; plain text default.
+
+6) docs/payload.md
+Required payload keys:
+- alpha_summary, alpha_next_steps
+- relevance_details (JSON string with accepted[])
+- summary, detail
+- divergence_threshold, confidence, divergence, action
+
+V2 additions:
+- source_diversity: {unique:int, top_source_share:float, counts:dict, adjustment:float}
+- cascade_detector: {repetition_ratio:float, price_move_pct:float, max_volume_z:float, tag:str, confidence_delta:float}
+- contrarian_viewport: "POTENTIAL_CROWD_MISTAKE" or ""
+
+Example:
+```python
+import json
+d = json.load(open("runs/latest.json"))
+print(d["alpha_summary"], d["confidence"], d.get("source_diversity"))
+```
+
+7) PR description template (optional)
+Title: V1 Hardening + V2 Crowd Immunity
+
+Summary:
+- V1: preflight, CLI, logging, Telegram robustness, tests, CI, retention.
+- V2: source diversity, cascade/hype detector, contrarian viewport.
+
+Testing:
+- 18 tests passing locally and in CI.
+- Manual runs with --no-telegram; Telegram send smoke tested.
+
+Notes:
+- Config precedence enforced; no hardcoded secrets.
+- Payload schema extended without breaking existing keys.
+
+If you want these dropped into files via a ready Cursor prompt, say “cursor doc update prompt” and I’ll paste a single Agent instruction to create/patch all docs. Enjoy the break.
+
+Sources
 
 
