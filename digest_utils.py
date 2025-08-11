@@ -5,13 +5,15 @@ Digest utilities for multi-asset universe summaries.
 from typing import List, Dict, Optional
 
 
-def format_universe_digest(payloads: List[Dict], top_n: int = 5) -> str:
+def format_universe_digest(payloads: List[Dict], top_n: int = 5, header_prefix: str = None, ts: str = None) -> str:
     """
     Format a universe digest for Telegram.
     
     Args:
         payloads: List of payload dictionaries from symbol analysis
         top_n: Number of top results to include
+        header_prefix: Optional string to prefix the header (e.g., version)
+        ts: Optional ISO timestamp string for header
         
     Returns:
         Formatted digest string
@@ -32,9 +34,18 @@ def format_universe_digest(payloads: List[Dict], top_n: int = 5) -> str:
     # Take top N
     top_payloads = sorted_payloads[:top_n]
     
-    # Build digest
-    lines = [f"🔍 Universe Scan - Top {len(top_payloads)} Signals"]
-    lines.append("")  # Empty line for spacing
+    # Build digest header
+    header = ""
+    if header_prefix and ts:
+        header = f"[{header_prefix}] Universe Digest — {ts} ({len(payloads)} scanned) — Top {top_n}"
+    elif header_prefix:
+        header = f"[{header_prefix}] Universe Digest — Top {top_n}"
+    elif ts:
+        header = f"Universe Digest — {ts} ({len(payloads)} scanned) — Top {top_n}"
+    else:
+        header = f"🔍 Universe Scan - Top {len(top_payloads)} Signals"
+    
+    lines = [header, ""]
     
     for i, payload in enumerate(top_payloads, 1):
         symbol = payload.get("symbol", "UNKNOWN")

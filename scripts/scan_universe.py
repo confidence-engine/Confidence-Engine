@@ -8,7 +8,7 @@ import json
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -310,122 +310,189 @@ def save_universe_run(payloads: List[Dict], output_dir: str = "universe_runs") -
     return filename
 
 
-def main():
-    """Main function."""
-    parser = argparse.ArgumentParser(description="Scan universe for trading signals")
-    parser.add_argument("--config", default="config/universe.yaml", help="Universe config file")
-    parser.add_argument("--top", type=int, default=5, help="Number of top signals to show")
-    parser.add_argument("--symbols", help="Override symbols (comma-separated)")
-    parser.add_argument("--debug", action="store_true", help="Enable debug output")
-    parser.add_argument("--no-telegram", action="store_true", help="Disable Telegram sends")
-    
-    args = parser.parse_args()
-    
-    # Load environment
+def _sanitize_version_tag(s: str) -> str:
+    if not s:
+        return "v31"
+    s2 = "".join(ch for ch in s if ch.isalnum()).lower()
+    if not s2.startswith("v"):
+        s2 = "v" + s2
+    return s2
+
+
+def run_universe_scan(
+    config_path: str = None,
+    symbols: list = None,
+    top_k: int = 5,
+    debug: bool = False,
+    no_telegram: bool = False,
+    version_tag: str = None,
+    fail_fast: bool = False,
+    max_symbols: int = None
+) -> dict:
     load_dotenv()
-    
-    # Set up logging
-    if args.debug:
+    if debug:
         os.environ["LOG_LEVEL"] = "DEBUG"
-    
-    # Load universe config
-    universe = load_universe_config(args.config)
-    
-    # Override symbols if specified
-    if args.symbols:
-        symbols = [s.strip() for s in args.symbols.split(",")]
-        # Validate symbols
-        for symbol in symbols:
-            if not get_symbol_type(symbol):
-                print(f"Warning: Unknown symbol type for {symbol}")
+    version = version_tag or "v3.1"
+    safe_ver = _sanitize_version_tag(version)
+    now = datetime.now(timezone.utc)
+    ts_utc_iso = now.replace(microsecond=0).isoformat().replace("+00:00","Z")
+    ts_compact = now.strftime("%Y%m%d_%H%M%S")
+    # Load universe config or use symbols
+    if symbols:
+        symlist = [s.strip() for s in symbols]
     else:
-        # Use all symbols from config
-        symbols = universe["crypto"] + universe["stocks"]
-    
-    print(f"Scanning {len(symbols)} symbols: {', '.join(symbols)}")
-    
-    # Get lookback from environment
+        universe = load_universe_config(config_path or "config/universe.yaml")
+        symlist = universe["crypto"] + universe["stocks"]
+    # Cap symbols if needed
+    max_cap = max_symbols or int(os.getenv("TB_UNIVERSE_MAX_SYMBOLS","0") or 0) or None
+    if max_cap:
+        symlist = symlist[:max_cap]
     lookback_minutes = int(os.getenv("TB_LOOKBACK_OVERRIDE", os.getenv("LOOKBACK_MINUTES", "120")))
-    
-    # Analyze each symbol
     payloads = []
-    for symbol in symbols:
-        print(f"Analyzing {symbol}...")
-        
-        payload = analyze_symbol(symbol, lookback_minutes, os.environ.copy())
-        if payload:
-            payloads.append(payload)
-            print(f"  ✓ {symbol}: div={payload['divergence']:.3f}, conf={payload['confidence']:.3f}")
-        else:
-            print(f"  ✗ {symbol}: analysis failed")
-    
+    errors = 0
+    processed = 0
+    for symbol in symlist:
+        try:
+            print(f"Analyzing {symbol}...")
+            payload = analyze_symbol(symbol, lookback_minutes, os.environ.copy())
+            if payload:
+                payloads.append(payload)
+                print(f"  ✓ {symbol}: div={payload['divergence']:.3f}, conf={payload['confidence']:.3f}")
+            else:
+                print(f"  ✗ {symbol}: analysis failed")
+            processed += 1
+        except Exception as e:
+            errors += 1
+            print(f"[Universe] Symbol {symbol} failed: {e}")
+            if fail_fast:
+                raise
     if not payloads:
         print("No successful analyses.")
-        return
-    
-    # Rank results
+        return {"timestamp_iso": ts_utc_iso, "timestamp_compact": ts_compact, "total_symbols": 0, "universe_file": None, "top_k": top_k, "version": version}
     ranked_payloads = rank_payloads(payloads)
-    
-    # Save results
-    output_file = save_universe_run(ranked_payloads)
-    print(f"Results saved to {output_file}")
-    
-    # Auto-commit and mirroring functionality
+    # Save with version and timestamps in filename and JSON
+    output_dir = "universe_runs"
+    Path(output_dir).mkdir(exist_ok=True)
+    basename = f"universe_{ts_compact}_{safe_ver}.json"
+    universe_file = os.path.join(output_dir, basename)
+    summary_json = {
+        "version": version,
+        "timestamp_iso": ts_utc_iso,
+        "timestamp_compact": ts_compact,
+        "total_symbols": len(ranked_payloads),
+        "payloads": ranked_payloads
+    }
+    with open(universe_file, "w") as f:
+        json.dump(summary_json, f, indent=2)
+    # Metrics CSV
+    write_metrics = os.getenv("TB_UNIVERSE_WRITE_METRICS", "1") == "1"
+    files_to_add = [universe_file]
+    if write_metrics:
+        import csv
+        os.makedirs("universe_runs", exist_ok=True)
+        metrics_path = os.path.join("universe_runs","metrics.csv")
+        header = ["ts","symbol","type","div","combined_div","conf","volz_avg","ts_align","diversity_adj","cascade_tag","target_R"]
+        need_header = not os.path.exists(metrics_path)
+        with open(metrics_path, "a", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=header)
+            if need_header:
+                w.writeheader()
+            for p in payloads:
+                ts_scores = p.get("timescale_scores",{}) or {}
+                ts_align = ts_scores.get("aligned_horizons")
+                combined_div = ts_scores.get("combined_divergence")
+                volz_vals = []
+                for h in ("short","mid","long"):
+                    hv = (ts_scores.get(h) or {}).get("volume_z")
+                    if isinstance(hv,(int,float)):
+                        volz_vals.append(hv)
+                volz_avg = sum(volz_vals)/len(volz_vals) if volz_vals else p.get("volume_z",0.0)
+                diversity_adj = (p.get("source_diversity") or {}).get("adjustment",0.0)
+                cascade_tag = (p.get("cascade_detector") or {}).get("tag","")
+                target_R = (p.get("position_sizing") or {}).get("target_R",0.0)
+                w.writerow({
+                    "ts": ts_utc_iso,
+                    "symbol": p.get("symbol",""),
+                    "type": p.get("symbol_type",""),
+                    "div": p.get("divergence",0.0),
+                    "combined_div": combined_div if combined_div is not None else "",
+                    "conf": p.get("confidence",0.0),
+                    "volz_avg": volz_avg,
+                    "ts_align": ts_align if ts_align is not None else "",
+                    "diversity_adj": diversity_adj,
+                    "cascade_tag": cascade_tag,
+                    "target_R": target_R,
+                })
+        files_to_add.append(metrics_path)
+    # Mirroring/auto-commit/push (same as before, but use universe_file, ts_utc_iso, etc)
     import shutil, subprocess
-    
     mirror_flag = os.getenv("TB_UNIVERSE_MIRROR_TO_RUNS", "0") == "1"
     autoc = os.getenv("TB_UNIVERSE_GIT_AUTOCOMMIT", "0") == "1"
     pushc = os.getenv("TB_UNIVERSE_GIT_PUSH", "0") == "1"
-    
-    # Optional mirror into runs/
+    push_default = os.getenv("TB_UNIVERSE_GIT_PUSH_DEFAULT", "0") == "1"
+    if autoc and not pushc and push_default:
+        pushc = True
     mirror_path = None
     if mirror_flag:
         try:
             os.makedirs("runs", exist_ok=True)
-            mirror_path = os.path.join("runs", os.path.basename(output_file))
-            shutil.copy2(output_file, mirror_path)
+            mirror_path = os.path.join("runs", os.path.basename(universe_file))
+            shutil.copy2(universe_file, mirror_path)
             print(f"[Universe] Mirrored to {mirror_path}")
+            files_to_add.append(mirror_path)
         except Exception as e:
             print(f"[Universe] Mirror failed: {e}")
-    
-    # Optional git auto-commit
     if autoc:
         try:
-            files_to_add = [output_file]
-            if mirror_path:
-                files_to_add.append(mirror_path)
-            # Stage files
-            subprocess.run(["git", "add"] + files_to_add, check=True)
-            # Commit message
-            total = len(payloads)  # we have payloads list in scope
-            msg = f"universe: {datetime.now().isoformat()} scanned {total} symbols (Top {args.top})"
-            # Commit
-            subprocess.run(["git", "commit", "-m", msg], check=True)
+            # Safer add: try glob, fallback to explicit
+            cmd = 'git add universe_runs/*.json runs/*.json universe_runs/metrics.csv'
+            try:
+                subprocess.run(cmd, shell=True, check=True)
+            except Exception as e:
+                print(f"Universe Fallback add failed: {e}")
+                try:
+                    subprocess.run(["git", "add"] + files_to_add, check=True)
+                except Exception as e2:
+                    print(f"Universe Explicit add failed: {e2}")
+            # Commit message with ISO timestamp and optional Top-N
+            allow_empty = os.getenv("TB_UNIVERSE_GIT_ALLOW_EMPTY", "0") == "1"
+            append_topn = os.getenv("TB_UNIVERSE_COMMIT_APPEND_TOPN", "0") == "1"
+            topn_k_env = os.getenv("TB_UNIVERSE_COMMIT_TOPN_K")
+            topn_k = int(topn_k_env) if topn_k_env else top_k
+            msg = f"universe: {ts_utc_iso} scanned {len(payloads)} symbols (Top {top_k})"
+            if append_topn and payloads:
+                def _gap(p):
+                    ts = p.get("timescale_scores", {})
+                    return ts.get("combined_divergence", p.get("divergence", 0.0))
+                ranked = sorted(
+                    payloads,
+                    key=lambda p: (abs(_gap(p)), p.get("confidence", 0.0), p.get("symbol","")),
+                    reverse=True
+                )[:topn_k]
+                lines = []
+                for i, p in enumerate(ranked, 1):
+                    gap = _gap(p)
+                    conf = p.get("confidence", 0.0)
+                    sym = p.get("symbol","")
+                    lines.append(f"{i}. {sym} gap {gap:+.2f} conf {conf:.2f}")
+                if lines:
+                    msg += "\n\nTopN: " + " | ".join(lines)
+            commit_cmd = ["git", "commit", "-m", msg]
+            if allow_empty:
+                commit_cmd.insert(2, "--allow-empty")
+            subprocess.run(commit_cmd, check=True)
             print("[Universe] Auto-commit done.")
-            # Optional push
             if pushc:
                 subprocess.run(["git", "push"], check=True)
                 print("[Universe] Pushed.")
         except Exception as e:
             print(f"[Universe] Auto-commit failed: {e}")
-    
-    # Generate digest
-    digest = format_universe_digest(ranked_payloads, args.top)
-    
-    # Validate digest length
+    # Digest
+    digest = format_universe_digest(ranked_payloads, top_k, header_prefix=version, ts=ts_utc_iso)
     if not validate_digest_length(digest):
         digest = truncate_digest(digest)
         print("Warning: Digest truncated to fit Telegram limits")
-    
-    # Print digest
-    print("\n" + "="*50)
-    print("UNIVERSE DIGEST")
-    print("="*50)
-    print(digest)
-    print("="*50)
-    
-    # Send to Telegram if enabled
-    if not args.no_telegram and not os.getenv("TB_NO_TELEGRAM"):
+    if not no_telegram and not os.getenv("TB_NO_TELEGRAM"):
         try:
             success = telegram_bot.send_message(digest)
             if success:
@@ -436,7 +503,40 @@ def main():
             print(f"✗ Error sending to Telegram: {e}")
     else:
         print("Telegram send disabled")
+    return {
+        "timestamp_iso": ts_utc_iso,
+        "timestamp_compact": ts_compact,
+        "total_symbols": len(ranked_payloads),
+        "universe_file": universe_file,
+        "top_k": top_k,
+        "version": version,
+        "digest": digest,
+        "symbols": symlist
+    }
 
+
+def main():
+    parser = argparse.ArgumentParser(description="Scan universe for trading signals")
+    parser.add_argument("--config", default="config/universe.yaml", help="Universe config file")
+    parser.add_argument("--top", type=int, default=5, help="Number of top signals to show")
+    parser.add_argument("--symbols", help="Override symbols (comma-separated)")
+    parser.add_argument("--debug", action="store_true", help="Enable debug output")
+    parser.add_argument("--no-telegram", action="store_true", help="Disable Telegram sends")
+    parser.add_argument("--version-tag", default="v3.1", help="Version tag for this run")
+    parser.add_argument("--fail-fast", action="store_true", help="Fail on first error (CI)")
+    parser.add_argument("--max-symbols", type=int, default=None, help="Max symbols to scan")
+    args = parser.parse_args()
+    symbols = [s.strip() for s in args.symbols.split(",")] if args.symbols else None
+    run_universe_scan(
+        config_path=args.config,
+        symbols=symbols,
+        top_k=args.top,
+        debug=args.debug,
+        no_telegram=args.no_telegram,
+        version_tag=args.version_tag,
+        fail_fast=args.fail_fast,
+        max_symbols=args.max_symbols
+    )
 
 if __name__ == "__main__":
     main()
