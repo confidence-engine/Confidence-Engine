@@ -1,0 +1,92 @@
+{
+  "timestamp": "2025-08-11T12:23:55.986569",
+  "total_symbols": 1,
+  "payloads": [
+    {
+      "symbol": "SPY",
+      "symbol_type": "stock",
+      "market_hours_state": "CLOSED",
+      "divergence": -0.221,
+      "confidence": 0.735,
+      "volume_z": -0.472,
+      "price_move_pct": -1.7,
+      "action": "HOLD",
+      "summary": "Analysis for SPY",
+      "detail": "Basic analysis completed for SPY",
+      "timestamp": "2025-08-11T12:23:55.986387",
+      "source_diversity": {
+        "unique": 2,
+        "top_source_share": 0.36,
+        "counts": {
+          "source1": 2
+        },
+        "adjustment": 0.05
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.5,
+        "price_move_pct": 1.6951654570057786,
+        "max_volume_z": 0.4721193800073753,
+        "tag": "",
+        "confidence_delta": 0.0
+      },
+      "contrarian_viewport": "POTENTIAL_CROWD_MISTAKE",
+      "timescale_scores": {
+        "short": {
+          "divergence": -0.177,
+          "price_move_pct": 0.5085496371017335,
+          "volume_z": -0.4721193800073753
+        },
+        "mid": {
+          "divergence": -0.243,
+          "price_move_pct": 1.017099274203467,
+          "volume_z": -0.37769550400590024
+        },
+        "long": {
+          "divergence": -0.199,
+          "price_move_pct": 1.6951654570057786,
+          "volume_z": -0.2832716280044252
+        },
+        "combined_divergence": -0.221,
+        "aligned_horizons": 1,
+        "alignment_flag": true,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": false,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": false,
+          "delta": 0.0
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": true,
+          "delta": 0.0
+        }
+      ],
+      "confirmation_penalty": 0.0,
+      "position_sizing": {
+        "confidence": 0.734854470026464,
+        "target_R": 0.3,
+        "notes": [
+          "linear scaling"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      }
+    }
+  ]
+}
