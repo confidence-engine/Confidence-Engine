@@ -1,0 +1,92 @@
+{
+  "timestamp": "2025-08-11T11:47:46.908994",
+  "total_symbols": 1,
+  "payloads": [
+    {
+      "symbol": "ETH/USD",
+      "symbol_type": "crypto",
+      "market_hours_state": "24x7",
+      "divergence": 0.165,
+      "confidence": 0.605,
+      "volume_z": 0.978,
+      "price_move_pct": 0.57,
+      "action": "HOLD",
+      "summary": "Analysis for ETH/USD",
+      "detail": "Basic analysis completed for ETH/USD",
+      "timestamp": "2025-08-11T11:47:46.908784",
+      "source_diversity": {
+        "unique": 1,
+        "top_source_share": 0.67,
+        "counts": {
+          "source1": 1
+        },
+        "adjustment": -0.016
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.12,
+        "price_move_pct": 0.5679422218354808,
+        "max_volume_z": 0.9784085668855886,
+        "tag": "HYPE_ONLY",
+        "confidence_delta": -0.03
+      },
+      "contrarian_viewport": "",
+      "timescale_scores": {
+        "short": {
+          "divergence": 0.132,
+          "price_move_pct": 0.17038266655064424,
+          "volume_z": 0.9784085668855886
+        },
+        "mid": {
+          "divergence": 0.181,
+          "price_move_pct": 0.3407653331012885,
+          "volume_z": 0.7827268535084709
+        },
+        "long": {
+          "divergence": 0.148,
+          "price_move_pct": 0.5679422218354808,
+          "volume_z": 0.5870451401313531
+        },
+        "combined_divergence": 0.165,
+        "aligned_horizons": 1,
+        "alignment_flag": false,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": true,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": false,
+          "delta": -0.01
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": true,
+          "delta": 0.0
+        }
+      ],
+      "confirmation_penalty": -0.01,
+      "position_sizing": {
+        "confidence": 0.6047905021150094,
+        "target_R": 0.0,
+        "notes": [
+          "below floor"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      }
+    }
+  ]
+}
