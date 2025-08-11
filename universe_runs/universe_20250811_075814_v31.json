@@ -1,0 +1,437 @@
+{
+  "timestamp": "2025-08-11T07:58:14.717148",
+  "total_symbols": 5,
+  "payloads": [
+    {
+      "symbol": "SPY",
+      "symbol_type": "stock",
+      "market_hours_state": "CLOSED",
+      "divergence": -0.727,
+      "confidence": 0.895,
+      "volume_z": 0.928,
+      "price_move_pct": -2.62,
+      "action": "HOLD",
+      "summary": "Analysis for SPY",
+      "detail": "Basic analysis completed for SPY",
+      "timestamp": "2025-08-11T13:28:14.713306",
+      "source_diversity": {
+        "unique": 3,
+        "top_source_share": 0.65,
+        "counts": {
+          "source1": 3
+        },
+        "adjustment": 0.048
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.83,
+        "price_move_pct": 2.624056292604268,
+        "max_volume_z": 0.9283454004889795,
+        "tag": "",
+        "confidence_delta": 0.0
+      },
+      "contrarian_viewport": "",
+      "timescale_scores": {
+        "short": {
+          "divergence": -0.581,
+          "price_move_pct": 0.7872168877812803,
+          "volume_z": 0.9283454004889795
+        },
+        "mid": {
+          "divergence": -0.799,
+          "price_move_pct": 1.5744337755625606,
+          "volume_z": 0.7426763203911837
+        },
+        "long": {
+          "divergence": -0.654,
+          "price_move_pct": 2.624056292604268,
+          "volume_z": 0.5570072402933877
+        },
+        "combined_divergence": -0.727,
+        "aligned_horizons": 1,
+        "alignment_flag": false,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": true,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": false,
+          "delta": -0.01
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": false,
+          "delta": 0.0
+        }
+      ],
+      "confirmation_penalty": -0.01,
+      "position_sizing": {
+        "confidence": 0.8950906421616758,
+        "target_R": 0.56,
+        "notes": [
+          "linear scaling"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      }
+    },
+    {
+      "symbol": "ETH/USD",
+      "symbol_type": "crypto",
+      "market_hours_state": "24x7",
+      "divergence": 0.529,
+      "confidence": 0.882,
+      "volume_z": -0.365,
+      "price_move_pct": -0.27,
+      "action": "HOLD",
+      "summary": "Analysis for ETH/USD",
+      "detail": "Basic analysis completed for ETH/USD",
+      "timestamp": "2025-08-11T13:28:14.711337",
+      "source_diversity": {
+        "unique": 3,
+        "top_source_share": 0.74,
+        "counts": {
+          "source1": 2
+        },
+        "adjustment": -0.041
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.77,
+        "price_move_pct": 0.2688483173005416,
+        "max_volume_z": 0.36500561299785317,
+        "tag": "",
+        "confidence_delta": 0.0
+      },
+      "contrarian_viewport": "",
+      "timescale_scores": {
+        "short": {
+          "divergence": 0.424,
+          "price_move_pct": 0.08065449519016248,
+          "volume_z": -0.36500561299785317
+        },
+        "mid": {
+          "divergence": 0.582,
+          "price_move_pct": 0.16130899038032495,
+          "volume_z": -0.2920044903982825
+        },
+        "long": {
+          "divergence": 0.477,
+          "price_move_pct": 0.2688483173005416,
+          "volume_z": -0.2190033677987119
+        },
+        "combined_divergence": 0.529,
+        "aligned_horizons": 1,
+        "alignment_flag": false,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": false,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": false,
+          "delta": -0.01
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": false,
+          "delta": 0.0
+        }
+      ],
+      "confirmation_penalty": -0.01,
+      "position_sizing": {
+        "confidence": 0.8821150210604622,
+        "target_R": 0.38,
+        "notes": [
+          "linear scaling"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      }
+    },
+    {
+      "symbol": "MSFT",
+      "symbol_type": "stock",
+      "market_hours_state": "CLOSED",
+      "divergence": 0.195,
+      "confidence": 0.73,
+      "volume_z": 0.606,
+      "price_move_pct": -2.23,
+      "action": "HOLD",
+      "summary": "Analysis for MSFT",
+      "detail": "Basic analysis completed for MSFT",
+      "timestamp": "2025-08-11T13:28:14.717062",
+      "source_diversity": {
+        "unique": 1,
+        "top_source_share": 0.3,
+        "counts": {
+          "source1": 2
+        },
+        "adjustment": 0.0
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.13,
+        "price_move_pct": 2.2334364317108766,
+        "max_volume_z": 0.6063439917271691,
+        "tag": "HYPE_ONLY",
+        "confidence_delta": 0.0
+      },
+      "contrarian_viewport": "",
+      "timescale_scores": {
+        "short": {
+          "divergence": 0.156,
+          "price_move_pct": 0.6700309295132629,
+          "volume_z": 0.6063439917271691
+        },
+        "mid": {
+          "divergence": 0.214,
+          "price_move_pct": 1.3400618590265259,
+          "volume_z": 0.4850751933817353
+        },
+        "long": {
+          "divergence": 0.175,
+          "price_move_pct": 2.2334364317108766,
+          "volume_z": 0.36380639503630147
+        },
+        "combined_divergence": 0.195,
+        "aligned_horizons": 2,
+        "alignment_flag": false,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": false,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": false,
+          "delta": 0.0
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": true,
+          "delta": 0.0
+        }
+      ],
+      "confirmation_penalty": 0.0,
+      "position_sizing": {
+        "confidence": 0.7302532184714974,
+        "target_R": 0.29,
+        "notes": [
+          "linear scaling"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      }
+    },
+    {
+      "symbol": "BTC/USD",
+      "symbol_type": "crypto",
+      "market_hours_state": "24x7",
+      "divergence": -0.167,
+      "confidence": 0.525,
+      "volume_z": -0.183,
+      "price_move_pct": 0.31,
+      "action": "HOLD",
+      "summary": "Analysis for BTC/USD",
+      "detail": "Basic analysis completed for BTC/USD",
+      "timestamp": "2025-08-11T13:28:14.709460",
+      "source_diversity": {
+        "unique": 3,
+        "top_source_share": 0.44,
+        "counts": {
+          "source1": 1
+        },
+        "adjustment": 0.001
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.39,
+        "price_move_pct": 0.30747392118371336,
+        "max_volume_z": 0.18320243497985422,
+        "tag": "",
+        "confidence_delta": -0.03
+      },
+      "contrarian_viewport": "POTENTIAL_CROWD_MISTAKE",
+      "timescale_scores": {
+        "short": {
+          "divergence": -0.133,
+          "price_move_pct": 0.092242176355114,
+          "volume_z": -0.18320243497985422
+        },
+        "mid": {
+          "divergence": -0.184,
+          "price_move_pct": 0.184484352710228,
+          "volume_z": -0.1465619479838834
+        },
+        "long": {
+          "divergence": -0.15,
+          "price_move_pct": 0.30747392118371336,
+          "volume_z": -0.10992146098791253
+        },
+        "combined_divergence": -0.167,
+        "aligned_horizons": 2,
+        "alignment_flag": false,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": false,
+          "delta": -0.02
+        },
+        {
+          "name": "volume_support",
+          "passed": false,
+          "delta": -0.01
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": false,
+          "delta": 0.0
+        }
+      ],
+      "confirmation_penalty": -0.03,
+      "position_sizing": {
+        "confidence": 0.5250971696137651,
+        "target_R": 0.0,
+        "notes": [
+          "below floor"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      }
+    },
+    {
+      "symbol": "AAPL",
+      "symbol_type": "stock",
+      "market_hours_state": "CLOSED",
+      "divergence": 0.099,
+      "confidence": 0.505,
+      "volume_z": 0.365,
+      "price_move_pct": -2.13,
+      "action": "HOLD",
+      "summary": "Analysis for AAPL",
+      "detail": "Basic analysis completed for AAPL",
+      "timestamp": "2025-08-11T13:28:14.715191",
+      "source_diversity": {
+        "unique": 1,
+        "top_source_share": 0.47,
+        "counts": {
+          "source1": 2
+        },
+        "adjustment": 0.015
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.24,
+        "price_move_pct": 2.1325159775661993,
+        "max_volume_z": 0.3647800217381558,
+        "tag": "HYPE_ONLY",
+        "confidence_delta": 0.0
+      },
+      "contrarian_viewport": "POTENTIAL_CROWD_MISTAKE",
+      "timescale_scores": {
+        "short": {
+          "divergence": 0.079,
+          "price_move_pct": 0.6397547932698597,
+          "volume_z": 0.3647800217381558
+        },
+        "mid": {
+          "divergence": 0.109,
+          "price_move_pct": 1.2795095865397195,
+          "volume_z": 0.29182401739052466
+        },
+        "long": {
+          "divergence": 0.089,
+          "price_move_pct": 2.1325159775661993,
+          "volume_z": 0.2188680130428935
+        },
+        "combined_divergence": 0.099,
+        "aligned_horizons": 2,
+        "alignment_flag": true,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": false,
+          "delta": -0.02
+        },
+        {
+          "name": "volume_support",
+          "passed": false,
+          "delta": 0.0
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": true,
+          "delta": 0.0
+        }
+      ],
+      "confirmation_penalty": -0.02,
+      "position_sizing": {
+        "confidence": 0.5046747860631325,
+        "target_R": 0.0,
+        "notes": [
+          "below floor"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      }
+    }
+  ],
+  "version": "v3.1"
+}
