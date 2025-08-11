@@ -624,3 +624,166 @@ Dev log update
 	•	Added optional runtime toggle (–no-human-digest) and environment variable support (TB_HUMAN_DIGEST) to enable/disable human digest without code changes.
 	•	Verification
 	•	Test run confirmed human digest generation and Telegram delivery; artifacts still written to universe_runs/.
+
+
+  ------------------------------------------------
+  # Tracer Bullet — Comprehensive Roadmap Update (what’s done, what’s planned, and alignment)
+
+Below is a consolidated, milestone-based roadmap compiled from our conversation history, organized by version, with explicit completion status, what shipped in each version, what’s next, and a clear alignment verdict versus the initial vision.
+
+## Executive verdict
+
+- Alignment: The project remains aligned with the original “Tracer Bullet” approach and the objective to build an interpretable, evidence-driven alpha engine that blends narrative with price/volume and ships incrementally with auditability and guardrails. We are not building “something else”; we’ve deepened exactly what we set out to do: reliability first, explainability, multi-asset foundations, and human-readable outputs.  
+- Scope adjustments: Two timeline corrections were made for clarity, not direction changes:  
+  - 24/7 cloud scheduling is now explicitly a later milestone (v6) after full testing, rather than earlier.  
+  - v3.3 expands to all available crypto alts (not a small subset).  
+
+## Completed milestones
+
+### v1 — Hardening & Reliability [DONE]
+- Preflight/health checks to validate environment and Telegram reachability; automatic directory setup for artifacts.  
+- CLI wrapper with clear precedence (CLI > env > .env > defaults), centralized structured logging, INFO/DEBUG modes.  
+- Robust Telegram delivery: plain-text default, truncation safeguards, graceful handling of 200/400/429, opt-out via flag.  
+- Artifact retention: pruning runs/ and bars/ by most-recent N files; configurable via env.  
+- Tests and CI: unit tests for divergence, payload schema, Telegram formatting, directory checks; CI lint/test flow.  
+- Documentation: README, RUNBOOK, CONTRIBUTING, .env.example, payload docs.  
+
+Why this matters: Establishes a dependable, reproducible core loop with safe ops, visibility, and clean artifacts.
+
+### v2 — Crowd Immunity [DONE]
+- Source Diversity Engine: shapes confidence by unique sources and penalizes “echo chambers”; artifacts added to payload.  
+- Cascade/HYPE Detector: flags repetitive narrative lacking quant confirmation; bounded confidence deltas; payload enriched.  
+- Contrarian Viewport: informational tag for potential crowd mistakes under certain narrative/price conditions; included in payload and one-liners.  
+- Tests for diversity/cascade/contrarian presence and behavior.
+
+Why this matters: Reduces herd-driven noise; improves robustness and interpretability of narrative signals.
+
+### v3 — Bias Immunity + Sizing [DONE]
+- Multi-timescale scoring: short/mid/long metrics and combined view with alignment gating.  
+- Negative-confirmation checks: structured penalty logic with clamps; transparent reasons in payload.  
+- Informational position sizing: confidence-to-R mapping, optional vol-normalization; reported without forcing trades.  
+- Telegram lines reflect timescales, penalties, and sizing guidance; tests cover blending, clamps, and boundaries.
+
+Why this matters: Adds disciplined structure to confidence, avoids over-trust in contradictory evidence, and connects confidence to position logic.
+
+### v3.1 — Multi-Asset Foundations (Crypto + Stocks) [DONE]
+- Universe configuration for symbols; symbol utilities for normalization and type detection.  
+- Trading-hours awareness (crypto 24/7 vs equities RTH/extended/closed).  
+- Stock bars adapter scaffold (with safe fallbacks), orchestration for multi-symbol scan, top-N ranking, digest utilities.  
+- Payload extensions: symbol_type, market_hours_state, timescale presence.  
+- Universe runs written to universe_runs/ with timestamping; optional mirroring to runs/.  
+- Git integration hooks implemented behind env gates (off by default) for mirror/commit/push; robust try/except and logging.  
+- Tests: universe loader, symbol utils, trading hours, stock adapter shape/safety, ranking determinism.
+
+Why this matters: Enables consistent multi-asset scanning and reporting without breaking single-asset flow.
+
+### v3.1.x — Human Digest Integration (crypto-first, number-free) [DONE]
+- Added number-free, conversational digest formatter producing a consistent crypto-first report (BTC/ETH prioritized), including levels-to-watch (descriptive), entries/exits, and risk-based sizing bands.  
+- Integrated into single-run flow: produced after artifacts are written, sent to Telegram, and printed to console; analyzer logic remains unchanged.  
+- Optional prompt/style reference file; optional toggle to enable/disable digest output; safe defaults preserved.  
+
+Why this matters: Delivers a human-ready narrative output without exposing raw metrics, boosting usability for decision-making while keeping the quantitative engine intact.
+
+## In progress
+
+### v3.1.x — Auto-commit/push hardening [IN PROGRESS]
+- Goal: Ensure universe_runs/*.json and universe_runs/metrics.csv are staged, committed, and pushed automatically when env gates are on.  
+- Current status: Commit/push plumbing exists behind env flags, but defaults are OFF; some terminals may miss staging for metrics.csv; logs need explicit “Auto-commit done.” / “Pushed.” confirmations.  
+- Next steps: Confirm staging includes both JSON and metrics; add explicit result logs; verify non-interactive push across environments.
+
+Why this matters: Eliminates manual staging/pushing and keeps repo artifacts consistent across runs and environments.
+
+## Planned milestones
+
+### v3.2 — Reliability Hardening (agent, non-24/7)
+- Retries/backoff for transient providers; structured error handling and graceful skips.  
+- Schema checks and digest self-check for thin or missing inputs; produce useful outputs even when evidence is sparse.  
+- Clear alert notes when runs are skipped or degraded.
+
+Why this matters: Improves run resilience and developer/operator trust before moving to continuous scheduling.
+
+### v3.3 — Full Crypto Alt Coverage + Evidence Lines
+- Expand coverage to all available liquid crypto alts (not just a few), using the same number-free template.  
+- Add brief “why now” evidence lines per BTC/ETH and key alts, describing sentiment/news/structure vs price in plain English (no numbers, no links).  
+- Maintain crypto-first priority and keep equities de-emphasized.
+
+Why this matters: Completes crypto breadth while preserving interpretability, providing rationale for attention and bias.
+
+### v3.4 — Execution Quality (paper/dry-run)
+- Microstructure-aware tactics (market vs limit vs slices by spread/volatility) and cool-downs to avoid clustering.  
+- Volatility-aware sizing with conservative caps.  
+- Measure slippage versus baseline to confirm improvements.
+
+Why this matters: Turns good signals into better realized outcomes while staying in a safe, non-live mode.
+
+### v4 — Backtesting & Governance
+- Event-ordered replay for bars+headlines; walk-forward validation; cohort analytics (asset/time-of-day/volatility regime).  
+- Parameter governance cadence with documented thresholds from out-of-sample.  
+- Reproducible backtests with clear in/out-of-sample splits.
+
+Why this matters: Converts plausible intuition into evidence-backed settings and reduces hidden look-ahead risk.
+
+### v4.1 — Paper Execution & Risk Controls
+- Paper order lifecycle with audit logs; portfolio caps; kill-switches and guardrails.  
+- Idempotency, reproducibility tags per decision/version.
+
+Why this matters: Operational discipline before any live risk, ensuring safe failure modes.
+
+### v5 — Data Breadth & Explainability+
+- Optional attention/crowd proxies as secondary evidence (controlled, never primary).  
+- Source credibility learning; compact case files per signal for audits/postmortems.
+
+Why this matters: Improves precision and review speed without sacrificing interpretability.
+
+### v6 — 24/7 Cloud Agent Run (after full testing)
+- GitHub Actions (or equivalent) scheduled workflows: crypto-only every 15 minutes; mixed hourly with staggered minute.  
+- Secrets management; non-interactive push; deterministic cadence; Telegram delivery.  
+- Monitoring/rollback for the scheduler jobs.
+
+Why this matters: Moves to truly autonomous operation only after we’ve finished hardening, coverage, and testing.
+
+### v7 — Live Capital (small, guarded)
+- Strict loss limits, circuit breakers, anomaly alerts, version tagging; limited deployment scope.  
+- Rollback rehearsed; postmortem-ready artifacts.
+
+Why this matters: Begin live exposure safely, learning from real frictions without over-scaling.
+
+## Are we on plan?
+
+- Yes, with a clarified timeline: Up through v3.1.x we are on track and consistent with the tracer-bullet philosophy—thin end-to-end, then harden, then expand coverage, then automate scheduling, then consider live.  
+- The only course correction was to explicitly place 24/7 scheduling at v6 after testing, and to broaden v3.3 to cover all available alts; both are alignment fixes, not directional changes.
+
+## Operational notes (scheduling and automation guardrails)
+
+- When we reach v6, scheduled workflows can use cron-based triggers with sensible intervals; GitHub Actions supports 5-minute minimum cadence and may delay around top-of-hour loads, so staggered minutes are recommended to reduce contention[1][2][3].  
+- If we explore interim in-app scheduling for dev or server use, APScheduler’s cron/interval triggers and background schedulers are a robust option before moving to managed schedules[4][5][6][7][8].  
+
+## What to do next (immediate focus)
+
+- Finish v3.1.x hardening: confirm staging includes metrics.csv and JSON; add explicit commit/push logs; test non-interactive push.  
+- Start v3.2: implement retries/backoff and schema/digest self-checks; ensure graceful degradation and actionable logs when inputs are thin.  
+- Prepare v3.3 backlog for “all alts + evidence lines” with the digest template unchanged in tone and structure.
+
+These steps preserve our reliability-first approach and set us up for a smooth v6 shift to 24/7 automation after full testing.
+
+Sources
+[1] Why does my cron configured GitHub Action not run every 2 minutes? https://stackoverflow.com/questions/63192132/why-does-my-cron-configured-github-action-not-run-every-2-minutes
+[2] How to Schedule Workflows in GitHub Actions - DEV Community https://dev.to/cicube/how-to-schedule-workflows-in-github-actions-1neb
+[3] Run your GitHub Actions workflow on a schedule - Jason Etcovitch https://jasonet.co/posts/scheduled-actions/
+[4] User guide — APScheduler 3.11.0.post1 documentation https://apscheduler.readthedocs.io/en/3.x/userguide.html
+[5] Job Scheduling in Python with APScheduler | Better Stack Community https://betterstack.com/community/guides/scaling-python/apscheduler-scheduled-tasks/
+[6] Scheduled Jobs with Custom Clock Processes in Python with ... https://devcenter.heroku.com/articles/clock-processes-python
+[7] Python Job Scheduling: Methods and Overview in 2025 https://research.aimultiple.com/python-job-scheduling/
+[8] I Replaced Cron Jobs with Python Schedulers | by Muhammad Umar https://python.plainenglish.io/i-replaced-cron-jobs-with-python-schedulers-6a25f94bd642
+[9] Tracer Bullets - C2 wiki https://wiki.c2.com/?TracerBullets
+[10] How Tracer Bullets Speed Up Software Development | Built In https://builtin.com/software-engineering-perspectives/what-are-tracer-bullets
+[11] Tracer-Bullet — Why we should build features during discovery https://thedigitalbusinessanalyst.co.uk/tracer-bullet-why-we-must-build-features-during-discover-952df9c5a65b
+[12] bullet-scraper/scrapes/afbulletsafe.txt at master - GitHub https://github.com/AF-VCD/bullet-scraper/blob/master/scrapes/afbulletsafe.txt
+[13] Caitlin Hudon - Tracer bullets + working backwards - YouTube https://www.youtube.com/watch?v=vNZY0zhg3Do
+[14] How do you make a workflow run randomly within a given time period? https://github.com/orgs/community/discussions/131450
+[15] [PDF] Go: Building Web Applications - anarcho-copy https://edu.anarcho-copy.org/Programming%20Languages/Go/Go%20building%20web%20application.pdf
+[16] [PDF] EXPRESSION OF INTEREST - BECIL https://www.becil.com/uploads/topics/17193916113963.pdf
+[17] GitHub Actions Cron Schedule for Running Once in 2 Weeks #158356 https://github.com/orgs/community/discussions/158356
+[18] The Evolving Landscape of Antibody–Drug Conjugates: In Depth ... https://pubs.acs.org/doi/10.1021/acs.bioconjchem.3c00374
+[19] [PDF] DOT&E FY2021 Annual Report https://www.dote.osd.mil/Portals/97/pub/reports/FY2021/other/2021DOTEAnnualReport.pdf
+[20] Apscheduler is skipping my task. How to eliminate this? https://stackoverflow.com/questions/73343854/apscheduler-is-skipping-my-task-how-to-eliminate-this
