@@ -529,3 +529,323 @@ Sources
 [18] The Evolving Landscape of Antibody–Drug Conjugates: In Depth ... https://pubs.acs.org/doi/10.1021/acs.bioconjchem.3c00374
 [19] [PDF] DOT&E FY2021 Annual Report https://www.dote.osd.mil/Portals/97/pub/reports/FY2021/other/2021DOTEAnnualReport.pdf
 [20] Apscheduler is skipping my task. How to eliminate this? https://stackoverflow.com/questions/73343854/apscheduler-is-skipping-my-task-how-to-eliminate-this
+
+------------------------------
+updated roadmap
+
+Here’s the revised, full, end-to-end, milestone-based roadmap, incorporating everything we’ve shipped, what’s in progress, what’s planned, and exactly where the Polymarket read-only viewport fits. It respects your directive: 24/7 scheduling at v6 (after full testing), v3.3 covers all available crypto alts, and execution on Polymarket is out-of-scope until ≥6 months of evaluation.
+
+Executive summary
+- We are on plan with the tracer-bullet philosophy: thin end-to-end → harden → breadth → evidence → evaluate → automate → (later) live.
+- Completed through v3.1.x (including human digest). Auto-commit/push hardening is in progress.
+- Polymarket read-only viewport is added in v3.3; evaluation in v3.4; any scheduling only at v6; live bets only after ≥6 months if metrics justify.
+
+Versioned milestones (with status)
+
+v1 — Hardening & Reliability [DONE]
+- What:
+  - Preflight/health checks (creates runs/ and bars/, Telegram reachability).
+  - CLI precedence (CLI > env > .env > defaults), centralized logging (INFO/DEBUG).
+  - Robust Telegram delivery (plain text default, truncation, 200/400/429 handling), TB_NO_TELEGRAM.
+  - Artifact retention: prune runs/ and bars/ by mtime via TB_ARTIFACTS_KEEP.
+  - Tests & CI (divergence, payload schema, Telegram, dir checks; lint/format).
+  - Docs: README, RUNBOOK, CONTRIBUTING, .env.example, payload docs.
+- Why: Stable, auditable baseline.
+
+v2 — Crowd Immunity [DONE]
+- What:
+  - Source Diversity Engine (confidence shaping, echo penalties).
+  - Cascade/HYPE Detector (repetition vs quant confirmation; bounded deltas).
+  - Contrarian Viewport tag (informational).
+  - Telegram one-liners; tests for modules and schema presence.
+- Why: Reduce herd noise; keep confidence explainable.
+
+v3 — Bias Immunity + Sizing [DONE]
+- What:
+  - Multi-timescale scoring (short/mid/long + combined with alignment requirement).
+  - Negative-confirmation checks with clamps; transparent reasons.
+  - Informational position sizing (confidence→R, floors/caps; optional vol-normalization).
+  - Telegram lines for timescales/penalties/sizing.
+  - Tests for blending/clamps/boundaries.
+- Why: Disciplined, interpretable confidence and sizing guidance.
+
+v3.1 — Multi-Asset Foundations (Crypto + Stocks) [DONE]
+- What:
+  - Universe config (config/universe.yaml); symbol normalization/type detection.
+  - Trading-hours awareness (crypto 24/7; equities RTH/EXT/CLOSED).
+  - Stock bars adapter scaffold with safe fallbacks.
+  - Orchestrator (scan_universe.py): fan-out, rank Top-N (deterministic), digest_utils.
+  - Payload additions: symbol_type, market_hours_state.
+  - Universe artifacts: universe_runs/*.json and metrics.csv; optional mirror to runs/.
+  - Git hooks behind env gates (OFF by default): mirror/commit/push; robust try/except and logging.
+  - Tests: universe loader, symbol utils, trading hours, adapter shape/safety, ranking determinism.
+- Why: Scale to multi-asset without breaking single-asset flow.
+
+v3.1.x — Human Digest Integration (crypto-first, number-free) [DONE]
+- What:
+  - Digest formatter (scripts/digest_formatter.py) producing crypto-first, conversational, number-free digest:
+    - BTC/ETH prioritized; entries/exits; levels-to-watch (descriptive); risk bands; Playbook footer; equities de-emphasized.
+    - Qualitative bands from internal signals (polarity, confidence band, volume state, alignment, quality tags, readiness, sizing).
+  - Integrated post-artifact write; Telegram + console; optional toggle/env.
+- Why: Immediate human usability without exposing raw metrics.
+
+v3.1.x — Auto-commit/push hardening [IN PROGRESS]
+- What (to finish):
+  - Ensure staging includes universe_runs/*.json and universe_runs/metrics.csv.
+  - Explicit logs: “[Universe] Auto-commit done.” / “[Universe] Pushed.” or clear skip reason.
+  - Verify non-interactive push across environments (SSH/PAT/credential helper).
+- Why: Fully hands-off artifact versioning when enabled; defaults remain safe (OFF).
+
+v3.2 — Reliability Hardening (agent, non-24/7) [PLANNED]
+- What:
+  - Retries/backoff, timeouts, and structured error categories for providers.
+  - Schema and digest self-checks; graceful degradation for thin inputs.
+  - Clear alert/skip notes; no crashes on partial data.
+- DoD:
+  - Transient failures recover; digest emits helpful fallbacks; logs actionable.
+- Why: Strength before expanding breadth/outputs.
+
+v3.3 — Full Crypto Alt Coverage + Evidence Lines + Polymarket (read-only) [PLANNED]
+- Crypto breadth:
+  - Include all available liquid crypto alts in the digest using the same number-free template.
+  - One-liners per alt: bias/readiness/action; qualitative levels; brief rationale.
+- Evidence lines:
+  - BTC/ETH and key alts: 1–2 sentence “why now” in plain English (sentiment/news/structure vs price; no numbers).
+- Polymarket (read-only) viewport:
+  - Adapter (polymarket_adapter.py): list crypto-related markets (question, outcomes, implied probs, end_time, status, resolution source).
+  - Bridge (polymarket_bridge.py): map TB’s qualitative read to stance (Engage/Stalk/Stand Aside), readiness (Now/Near/Later), edge label (market cheap/rich/in-line) expressed number-free; rationale line.
+  - Digest: “Polymarket (crypto)” section with up to N curated markets (number-free).
+  - Artifacts: store implied probs and TB internal probabilities for evaluation only; never shown in chat digest.
+  - Toggles: TB_ENABLE_POLYMARKET=1, TB_POLYMARKET_MAX_ITEMS (default 3), TB_POLYMARKET_MIN_QUALITY.
+- DoD:
+  - Digest shows all alts; Polymarket section appears when enabled/quality met; artifacts carry eval fields.
+- Why: Comprehensive crypto coverage + external odds comparison without execution or numeric leak.
+
+v3.4 — Evaluation Pipeline (Polymarket + system reliability) [PLANNED]
+- What:
+  - Weekly evaluator: Brier score, log-loss, calibration curves, win-rate by edge label/cohorts; lead/lag analysis.
+  - Event-ordered records; capture resolved outcomes; CSV/JSON summaries per week.
+  - Reliability polish: ensure evaluation never breaks production runs; separate pipeline or safe post-process.
+- DoD:
+  - Stable weekly metrics; clear dashboards/tables; repeatable replay.
+- Why: Build ≥6 months of evidence before any talk of live bets or scheduling.
+
+v3.5 — Equities Bars Provider (background) [PLANNED]
+- What:
+  - Integrate a stable equities bar provider (Polygon/Alpaca/Yahoo) with throttling and fallbacks.
+  - Remove fallback noise; improve equities structure read while keeping equities de-emphasized in digest.
+- DoD:
+  - Cleaner equities sections; no provider warning noise.
+- Why: Quality uplift without changing crypto-first focus.
+
+v4 — Backtesting & Governance (leak-free) [PLANNED]
+- What:
+  - Event-ordered replay of bars+headlines; lagged features only; forward returns evaluation windows.
+  - Walk-forward validation; cohort analytics (asset, time-of-day, volatility regime, event type).
+  - Parameter governance cadence; documented thresholds from OOS.
+- DoD:
+  - Reproducible backtests with clear splits; published settings with evidence.
+- Why: Evidence-backed parameters; protect against look-ahead.
+
+v4.1 — Paper Execution & Risk Controls (dry-run) [PLANNED]
+- What:
+  - Paper order lifecycle; portfolio caps; kill-switches/guardrails; audit logs; idempotency and version tags.
+- DoD:
+  - Operational discipline rehearsed; zero live risk; reproducible traces.
+- Why: Prove operational readiness before live exposure.
+
+v5 — Data Breadth & Explainability+ [PLANNED]
+- What:
+  - Optional attention/crowd proxies (secondary only).
+  - Source credibility learning; compact “case files” per signal for audits/postmortems.
+- DoD:
+  - Higher precision without opacity; faster reviews.
+- Why: Richer, explainable context while staying interpretable.
+
+v6 — 24/7 Cloud Agent Run (after full testing) [PLANNED]
+- What:
+  - Scheduled workflows (GitHub Actions or equivalent):
+    - Crypto-only every 15 minutes; mixed hourly (stagger minute).
+  - Secrets management; contents:write permissions; non-interactive push.
+  - Include read-only Polymarket viewport in schedule if metrics are satisfactory.
+  - Monitoring, alerting, and rollback for scheduler jobs.
+- DoD:
+  - Cadence runs deterministic; artifacts/digests on schedule; safe rollback.
+- Why: Autonomous operation only after reliability and evaluation are proven.
+
+v7 — Live Capital (small, guarded) [PLANNED]
+- What:
+  - Strict daily loss limits, per-trade caps, circuit breakers, anomaly alerts, heartbeats; full version tagging.
+  - If Polymarket ever advances to execution: separate, hard-gated adapter after ≥6 months of strong evaluation metrics; tiny notional pilot; separate risk caps.
+- DoD:
+  - Stable live trial; reproducible decisions; rollback rehearsed.
+- Why: Learn real-world frictions safely.
+
+Cross-cutting workstreams (ongoing)
+- Documentation: keep README, RUNBOOK, ROADMAP, payload schema, digest spec, universe orchestrator docs, configuration, reliability, testing, git automation pages current.
+- Observability: per-run metrics logs and compact CSV (universe_runs/metrics.csv), plus weekly evaluation outputs (v3.4).
+- Safety: strict schema checks, graceful degradation, circuit-breakers for providers, TB_NO_TELEGRAM safe mode.
+- Governance: version tags in artifacts and (later) in signals/trades; monthly review of parameters; quarterly regime review.
+
+Immediate next actions
+- Finish v3.1.x: staging for universe_runs/*.json + metrics.csv; explicit commit/push logs; validate non-interactive push.
+- Start v3.2: retries/backoff, timeouts, schema/digest self-checks, graceful skips, alert notes.
+- Prep v3.3 backlog:
+  - All alts coverage in digest (template blocks and symbol list expansion).
+  - Evidence lines (plain-English “why now”).
+  - Polymarket read-only: adapter, bridge, digest section, artifact fields, toggles.
+
+Definition of done roll-up
+- v3.1.x: Human digest integrated [DONE]; auto-commit/push hardened [IN PROGRESS].
+- v3.2: Runs resilient under transient failures; digest self-checks; clear skips.
+- v3.3: All liquid alts appear; evidence lines added; Polymarket read-only section live; artifacts include evaluation fields (no numbers in chat).
+- v3.4: Weekly Brier/log-loss/calibration delivered; event-ordered; robust.
+- v6: 24/7 schedule active only after above proofs; rollbacks tested.
+
+This is the authoritative plan going forward. If you want, I can also generate a one-page “Now → Near → Next” visual and add precise acceptance checklists per milestone.
+
+--------------------------------------------------------------
+
+Updated Roadmap 1.0
+
+Here’s the fully revised, very detailed, crypto-only, milestone-based roadmap with the renumbering you approved:
+- v4 = Data Breadth & Explainability+ (moved up from old v5)
+- v5 = 24/7 Cloud Agent Run (from old v6)
+- v6 = Paper Execution & Risk Controls (from old v4.1; starts after v5 cadence is proven)
+- v7 = Live Capital
+Polymarket is read-only and limited to BTC/ETH in v3.3; evaluation in v3.4. Stocks are removed/parked.
+
+Status summary
+- Done: v1, v2, v3, v3.1, v3.1.x (digest shipped; reliability hardening in progress)
+- Current focus: finish v3.1.x (auto-commit/push + retries/backoff/self-checks)
+- Next: v3.3 (all-liquid crypto alts + evidence lines + Polymarket BTC/ETH read-only), v3.4 (evaluation), then v4 (explainability+), v5 (24/7), v6 (paper), v7 (live)
+
+Milestones in detail
+
+v1 — Hardening & Reliability [DONE]
+- Scope:
+  - Preflight/health checks; creates runs/ and bars/; validates Telegram; fail-fast on misconfig
+  - CLI precedence (CLI > env > .env > defaults); centralized logging; INFO/DEBUG
+  - Telegram robustness: plain text default, 4k truncation, 200/400/429 handling; TB_NO_TELEGRAM
+  - Artifact retention: prune runs/ and bars/ by mtime; TB_ARTIFACTS_KEEP
+  - Tests & CI: divergence, payload schema, Telegram formatting, dir checks; lint/format
+  - Docs: README, RUNBOOK, CONTRIBUTING, .env.example, payload docs
+- DoD: Fresh checkout runs clean; CI green
+- Instrumentation: structured logs; retention counters; Telegram send status
+
+v2 — Crowd Immunity [DONE]
+- Scope:
+  - Source Diversity Engine (unique sources; echo penalties; confidence cap)
+  - Cascade/HYPE Detector (repetition vs quant confirm; bounded deltas; hype tag)
+  - Contrarian Viewport (informational tag)
+  - Telegram one-liners; tests and schema presence
+- DoD: Fields present; tests green
+
+v3 — Bias Immunity + Sizing [DONE]
+- Scope:
+  - Multi-timescale scoring (short/mid/long + combined with alignment gate)
+  - Negative-confirmation checks with clamp; transparent reasons
+  - Informational sizing (confidence→R; floors/caps; optional vol-normalization)
+  - Telegram lines for timescales/penalties/sizing
+  - Tests for blending/clamps/boundaries
+- DoD: Payload fields populated; digest lines when applicable; tests green
+
+v3.1 — Crypto Foundations (universe) [DONE]
+- Scope:
+  - Crypto-only universe config (config/universe.yaml)
+  - Symbol utils for crypto normalization/type detection
+  - Orchestrator (scan_universe.py): fan-out; deterministic top-N ranking
+  - Artifacts: universe_runs/*.json + universe_runs/metrics.csv; optional mirror to runs/
+  - Git hooks (OFF by default): TB_UNIVERSE_MIRROR_TO_RUNS, TB_UNIVERSE_GIT_AUTOCOMMIT, TB_UNIVERSE_GIT_PUSH (robust try/except, clear logs)
+  - Tests: universe loader; symbol utils; ranking determinism; adapter safety
+- DoD: Multi-symbol crypto run emits artifacts; ranking stable; tests green
+
+v3.1.x — Human Digest + Reliability Hardening [IN PROGRESS]
+- Shipped:
+  - Human digest: crypto-first (BTC/ETH prioritized), number-free; entries/exits; levels-to-watch (descriptive); risk bands; Playbook; Telegram + console; TB_HUMAN_DIGEST toggle
+- To finish:
+  - Auto-commit/push hardening:
+    - Stage explicitly: universe_runs/*.json and universe_runs/metrics.csv
+    - Clear logs: “[Universe] Auto-commit done.” / “[Universe] Pushed.”; explicit skip reasons (env off, nothing to commit, auth failure)
+    - Verify non-interactive push (SSH or PAT/credential helper)
+  - Core reliability:
+    - Retries/backoff + timeouts for external fetches
+    - Schema self-checks; digest self-checks for thin inputs; graceful skips with alert notes
+- DoD:
+  - 3-day burn-in: zero crashes; <1% runs degraded with helpful digest notes
+  - If enabled, commit/push logs consistent; repo reflects cadence
+
+v3.3 — Full Crypto Alts (phased) + Evidence Lines + Polymarket BTC/ETH (read-only) [PLANNED]
+- Crypto breadth (phased):
+  - Include all liquid alts in artifacts; digest surfaces top-K by rank/quality (config-gated rollout to avoid noise)
+- Evidence lines:
+  - BTC/ETH + top alts get a 1–2 sentence “why now” (sentiment/news/structure vs price), strictly number-free
+- Polymarket (read-only, BTC/ETH only):
+  - Adapter: discover BTC/ETH markets with strict filters (clear resolution source, near/mid-dated, minimum-liquidity proxy)
+  - Bridge: map TB qualitative read to stance (Engage/Stalk/Stand Aside), readiness (Now/Near/Later), edge label (market cheap/rich/in-line); rationale (no numbers)
+  - Digest: “Polymarket (crypto)” section with up to 2 markets (BTC/ETH)
+  - Artifacts: store implied probs and TB-internal probabilities for evaluation only
+  - Toggles: TB_ENABLE_POLYMARKET=1; TB_POLYMARKET_MAX_ITEMS=2; TB_POLYMARKET_MIN_QUALITY
+- DoD: Digest shows top-K alts with evidence lines; Polymarket BTC/ETH appears when filters pass; artifacts carry eval fields
+
+v3.4 — Evaluation Pipeline (Polymarket + System) [PLANNED]
+- Scope:
+  - Weekly evaluator (manual or non-24/7 schedule):
+    - Brier score, log-loss, calibration curves for Polymarket BTC/ETH predictions (TB internal p vs resolved outcomes)
+    - Win-rate by edge label/cohorts; lead/lag vs odds convergence
+  - Event-ordered snapshots; resolved outcomes captured; reproducible weekly CSV/JSON
+  - Isolation so evaluation cannot break production runs
+- DoD: Weekly metrics emitted; ≥50 resolved observations before drawing conclusions
+
+v4 — Data Breadth & Explainability+ [PLANNED]  (renumbered from old v5)
+- Scope:
+  - Optional attention/crowd proxies (secondary only; never primary gates)
+  - Source credibility learning (lightweight, interpretable reweighting over time)
+  - Compact per-signal “case files” (human-readable bundles for audits/postmortems)
+- DoD: Precision uplift on targeted cohorts; faster audits; preserve interpretability
+
+v5 — 24/7 Cloud Agent Run (after full testing) [PLANNED]  (renumbered from old v6)
+- Scope:
+  - Scheduled workflows (GitHub Actions or equivalent):
+    - Crypto-only cadence every 15 minutes; stagger minute to avoid top-of-hour congestion
+  - Secrets: Telegram token/chat; push rights (GITHUB_TOKEN contents:write or PAT/SSH)
+  - Include Polymarket BTC/ETH viewport if v3.4 metrics are stable; still read-only
+  - Monitoring + rollback: failure alerts, retries, manual disable switch, safe stop
+- DoD: Deterministic cadence for multi-weeks; artifacts and digests on schedule; rollback rehearsed
+
+v6 — Paper Execution & Risk Controls (dry-run) [PLANNED]  (renumbered from old v4.1; starts after v5)
+- Scope:
+  - Paper order lifecycle simulator (market/limit/slice by spread/volatility); idempotent order IDs; audit logs
+  - Portfolio caps; per-asset exposure limits; circuit breakers; kill-switches
+  - Version tags (code/prompt/params) embedded in every decision trace
+  - Runs on the same 24/7 cadence established in v5
+- DoD: Stable dry-run at 24/7 cadence; consistent audit logs; caps/guards verified
+
+v7 — Live Capital (small, guarded) [PLANNED]
+- Scope:
+  - Strict daily loss limits; per-trade caps; circuit breakers; anomaly alerts; heartbeats; full version tagging
+  - If Polymarket execution is ever considered: only after ≥6 months strong evaluation; hard-flagged; tiny notional; separate caps; dedicated monitoring
+- DoD: 4–6 week stable live trial; reproducible decisions; rollback rehearsed
+
+Cross-cutting (ongoing)
+- Docs: keep Roadmap, Runbook, Payload Schema, Digest Spec, Universe Orchestrator, Configuration, Reliability, Testing, Git Automation current
+- Observability: per-run metrics CSV (universe_runs/metrics.csv); weekly evaluation outputs (v3.4); degraded-run markers
+- Safety: strict schema/versioning; graceful degradation; TB_NO_TELEGRAM safe mode; provider circuit breakers
+- Governance: version tags in artifacts; monthly parameter review; quarterly regime review; change logs
+
+Immediate next actions
+- Finish v3.1.x:
+  - Stage universe_runs/*.json + universe_runs/metrics.csv; add explicit commit/push logs; verify SSH/PAT push
+  - Add retries/backoff + timeouts; schema/digest self-checks; graceful skip alerts
+  - 3-day burn-in; target <1% degraded runs
+- Prep v3.3:
+  - Config-gate all-liquid alts; define top-K digest surface
+  - Implement evidence line generator template (plain-English)
+  - Polymarket BTC/ETH-only: adapter, bridge, strict filters; artifact-only numeric fields; digest section; TB_ENABLE_POLYMARKET flag
+- Scaffold v3.4:
+  - Define evaluator schema, cohorts, and weekly CSV/JSON outputs; event-ordered archive layout
+
+This is the authoritative, renumbered roadmap reflecting all confirmed updates.
+
+
+
