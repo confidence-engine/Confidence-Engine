@@ -609,3 +609,18 @@ V3.1 universe mirroring + git integration feat(v3.1): universe scan mirroring 
 	•	Default flow unchanged (no mirror/commit)
 	•	Full test suite remains green
 
+Dev log update
+	•	Added number-free, crypto-first human digest
+	•	Created scripts/digest_formatter.py to render a conversational digest with BTC/ETH first, entries/exits, levels-to-watch, and risk-based sizing.
+	•	Maps internal metrics to qualitative bands (polarity, confidence, volume state, alignment, quality tags, readiness, sizing) without exposing numbers.
+	•	Includes Playbook footer and equities-as-background section.
+	•	Integrated formatter into single-run flow
+	•	Edited scripts/scan_universe.py to call render_digest(summary) after writing universe artifacts.
+	•	Prioritizes sending the human digest to Telegram; also prints to console.
+	•	Honors existing artifacts write; no analyzer logic changes.
+	•	Optional prompt/style reference
+	•	Added scripts/prompts/digest_prompt.md documenting template, tone, and rules for the digest.
+	•	CLI/env control
+	•	Added optional runtime toggle (–no-human-digest) and environment variable support (TB_HUMAN_DIGEST) to enable/disable human digest without code changes.
+	•	Verification
+	•	Test run confirmed human digest generation and Telegram delivery; artifacts still written to universe_runs/.

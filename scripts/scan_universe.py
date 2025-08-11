@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 
 from bars_stock import get_bars_stock
 from digest_utils import format_universe_digest, validate_digest_length, truncate_digest
+from scripts.digest_formatter import render_digest
 from symbol_utils import normalize_symbol, get_symbol_type, validate_universe_config
 from trading_hours import trading_hours_state
 import tracer_bullet
@@ -504,23 +505,45 @@ def run_universe_scan(
                 print("[Universe] Pushed.")
         except Exception as e:
             print(f"[Universe] Auto-commit failed: {e}")
-    # Digest
+    # Technical digest (original format)
     digest = format_universe_digest(ranked_payloads, top_k, header_prefix=version, ts=ts_utc_iso)
     if not validate_digest_length(digest):
         digest = truncate_digest(digest)
-        print("Warning: Digest truncated to fit Telegram limits")
+        print("Warning: Technical digest truncated to fit Telegram limits")
+    
+    # Human-readable digest (new format)
+    human_digest_enabled = os.getenv("TB_HUMAN_DIGEST", "1") != "0"
+    human_digest = ""
+    if human_digest_enabled:
+        summary_data = {
+            "timestamp_iso": ts_utc_iso,
+            "timestamp_compact": ts_compact,
+            "total_symbols": len(ranked_payloads),
+            "version": version,
+            "payloads": ranked_payloads
+        }
+        human_digest = render_digest(summary_data)
+        print("\nHuman Digest:")
+        print("------------")
+        print(human_digest)
+        print("------------")
+    
     # Telegram default ON unless disabled by flag or env
     no_telegram = bool(no_telegram) or (os.getenv("TB_NO_TELEGRAM", "0") == "1")
     if not no_telegram and ranked_payloads:
         # Prefer existing telegram_bot if available; fallback to direct requests
         try:
-            success = telegram_bot.send_message(digest)
+            # Send human digest if enabled, otherwise send technical digest
+            message_to_send = human_digest if human_digest_enabled and human_digest else digest
+            success = telegram_bot.send_message(message_to_send)
             print(f"[Telegram] Universe digest sent: {bool(success)}")
         except Exception:
             token = os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TB_TELEGRAM_BOT_TOKEN")
             chat_id = os.getenv("TELEGRAM_CHAT_ID") or os.getenv("TB_TELEGRAM_CHAT_ID")
             if token and chat_id:
-                sent = send_telegram_text(token, chat_id, digest)
+                # Send human digest if enabled, otherwise send technical digest
+                message_to_send = human_digest if human_digest_enabled and human_digest else digest
+                sent = send_telegram_text(token, chat_id, message_to_send)
                 print(f"[Telegram] Universe digest sent: {bool(sent)}")
             else:
                 print("[Telegram] skipped: missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID")
@@ -534,6 +557,7 @@ def run_universe_scan(
         "top_k": top_k,
         "version": version,
         "digest": digest,
+        "human_digest": human_digest if human_digest_enabled else "",
         "symbols": symlist
     }
 
