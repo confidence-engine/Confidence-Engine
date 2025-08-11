@@ -23,6 +23,8 @@ from time_utils import minutes_since
 from explain import strength_label, volume_label, divergence_label, explain_term
 from timescales import compute_timescale_scores
 from confirmation import run_confirmation_checks
+from symbol_utils import get_symbol_type
+from trading_hours import trading_hours_state
 
 # Persistence and exports
 from db import init_db, save_run
@@ -243,6 +245,12 @@ def main():
         "pplx_provenance": json.dumps(pplx_items, ensure_ascii=False),
         "pplx_last_error": pplx_err or ""
     }
+
+    # Add symbol type and market hours state
+    symbol_type = get_symbol_type(symbol)
+    market_hours = trading_hours_state(symbol)
+    payload["symbol_type"] = symbol_type
+    payload["market_hours_state"] = market_hours["state"]
 
     # Position sizing (informational only in V3)
     try:

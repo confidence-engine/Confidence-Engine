@@ -1,0 +1,92 @@
+{
+  "timestamp": "2025-08-11T12:24:18.420620",
+  "total_symbols": 1,
+  "payloads": [
+    {
+      "symbol": "BTC/USD",
+      "symbol_type": "crypto",
+      "market_hours_state": "24x7",
+      "divergence": 0.574,
+      "confidence": 0.736,
+      "volume_z": -0.162,
+      "price_move_pct": -0.42,
+      "action": "HOLD",
+      "summary": "Analysis for BTC/USD",
+      "detail": "Basic analysis completed for BTC/USD",
+      "timestamp": "2025-08-11T12:24:18.420425",
+      "source_diversity": {
+        "unique": 3,
+        "top_source_share": 0.55,
+        "counts": {
+          "source1": 3
+        },
+        "adjustment": 0.032
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.44,
+        "price_move_pct": 0.4164362098502657,
+        "max_volume_z": 0.16153123984469975,
+        "tag": "",
+        "confidence_delta": 0.0
+      },
+      "contrarian_viewport": "",
+      "timescale_scores": {
+        "short": {
+          "divergence": 0.46,
+          "price_move_pct": 0.1249308629550797,
+          "volume_z": -0.16153123984469975
+        },
+        "mid": {
+          "divergence": 0.632,
+          "price_move_pct": 0.2498617259101594,
+          "volume_z": -0.1292249918757598
+        },
+        "long": {
+          "divergence": 0.517,
+          "price_move_pct": 0.4164362098502657,
+          "volume_z": -0.09691874390681984
+        },
+        "combined_divergence": 0.574,
+        "aligned_horizons": 1,
+        "alignment_flag": true,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": false,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": true,
+          "delta": 0.0
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": true,
+          "delta": 0.0
+        }
+      ],
+      "confirmation_penalty": 0.0,
+      "position_sizing": {
+        "confidence": 0.7355080732761275,
+        "target_R": 0.49,
+        "notes": [
+          "linear scaling"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      }
+    }
+  ]
+}

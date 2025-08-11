@@ -66,3 +66,10 @@ import json
   - target_R=0 when confidence < conf_floor
   - Linear interpolation from [conf_floor, conf_cap] to [min_R, max_R]
   - Optional vol normalization (disabled by default)
+
+## V3.1 additions
+
+### symbol_type and market_hours_state
+- symbol_type: "crypto" | "stock" | "unknown"
+- market_hours_state: "RTH" | "CLOSED" | "24x7" | "UNKNOWN"
+- Added to payload when available from symbol analysis

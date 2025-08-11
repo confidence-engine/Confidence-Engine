@@ -29,6 +29,29 @@
 - Telegram: appended timescales, confirmation penalty, and sizing lines when applicable.
 - Tests: added tests for timescales, confirmation, sizing; all passing.
 
+## [v3.1-multi-asset] - 2025-08-11
+- Multi-asset universe support:
+  - config/universe.yaml for crypto and stock symbols
+  - symbol_utils.py for normalization and type detection
+  - trading_hours.py for market hours awareness (RTH/CLOSED/24x7)
+  - bars_stock.py adapter with stub data support
+- Universe orchestrator:
+  - scripts/scan_universe.py for multi-symbol analysis
+  - ranking by divergence strength and confidence
+  - digest_utils.py for formatted summaries
+  - universe_runs/ output with timestamped results
+- Payload additions:
+  - symbol_type (crypto/stock/unknown)
+  - market_hours_state (RTH/CLOSED/24x7)
+- Tests: comprehensive test suite for all new components.
+- Non-breaking: single-symbol scripts/run.py remains fully functional.
+- Auto-commit and mirroring:
+  - TB_UNIVERSE_MIRROR_TO_RUNS=1: copy universe files to runs/
+  - TB_UNIVERSE_GIT_AUTOCOMMIT=1: git add and commit universe results
+  - TB_UNIVERSE_GIT_PUSH=1: git push after auto-commit (requires AUTOCOMMIT=1)
+  - All git operations wrapped in try/except with clear logging
+  - Defaults: all flags off to avoid surprise commits
+
 # Project Tracer Bullet: Development Log
 
 This log will be updated at the end of each development session to track our progress.
@@ -538,4 +561,41 @@ If you want these dropped into files via a ready Cursor prompt, say “cursor do
 
 Sources
 
+Commit message — V3.1 Multi-asset foundations (code only)
+feat(v3.1): multi-asset foundations — universe scan, stocks, market-hours, digest
+
+- Add multi-asset universe support:
+  - config/universe.yaml with crypto + stock symbols
+  - scripts/scan_universe.py orchestrator to fan-out runs, rank Top-N, and emit digest
+- Symbol + market-hours utilities:
+  - symbol_utils.py for normalization and type detection (is_crypto/is_stock/get_symbol_type)
+  - trading_hours.py for US equities RTH/EXT/CLOSED and crypto 24x7
+- Stock data adapter:
+  - bars_stock.py with provider hook, retries, and TB_ALLOW_STUB_BARS=1 fallback
+- Digest:
+  - digest_utils.py for compact Top-N Telegram/console digest (gap, conf, VolZ, diversity adj, cascade tag, timescale align, sizing)
+- Pipeline integration:
+  - tracer_bullet: non-breaking additions to set symbol_type and market_hours_state when invoked by orchestrator
+- Tests (green):
+  - tests/test_universe_loader.py (config loader)
+  - tests/test_symbol_utils.py (normalize, type detection; strict UNKNOWN handling)
+  - tests/test_trading_hours.py (RTH boundaries, crypto 24x7)
+  - tests/test_bars_stock.py (adapter shape/order; zero-lookback guard)
+  - tests/test_orchestrator_rank.py (deterministic ranking: |gap| desc, conf desc, symbol asc)
+- Fixes/cleanups:
+  - Resolved recursion in symbol_utils (normalize_symbol ↔ is_crypto)
+  - Deterministic ranking keys and stable sort
+  - Trading hours edge cases at session boundaries
+  - DASH/UNKNOWN classification made stricter
+  - bars_stock zero-division and empty-window safeguards
+- CLI examples:
+  - TB_NO_TELEGRAM=1 TB_ALLOW_STUB_BARS=1 python3 scripts/scan_universe.py --config config/universe.yaml --top 5 --debug
+  - python3 scripts/scan_universe.py --symbols "BTC/USD,AAPL,MSFT" --top 3
+
+Notes:
+- Single-symbol scripts/run.py remains unchanged and fully functional
+- No documentation updates in this commit (docs will be consolidated later)
+- Full test suite passing locally
+
+Sources
 

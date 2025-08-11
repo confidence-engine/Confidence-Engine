@@ -1,0 +1,178 @@
+{
+  "timestamp": "2025-08-11T11:00:37.190645",
+  "total_symbols": 2,
+  "payloads": [
+    {
+      "symbol": "BTC/USD",
+      "symbol_type": "crypto",
+      "market_hours_state": "24x7",
+      "divergence": -0.447,
+      "confidence": 0.842,
+      "volume_z": -0.82,
+      "price_move_pct": -0.63,
+      "action": "HOLD",
+      "summary": "Analysis for BTC/USD",
+      "detail": "Basic analysis completed for BTC/USD",
+      "timestamp": "2025-08-11T11:00:37.188392",
+      "source_diversity": {
+        "unique": 2,
+        "top_source_share": 0.69,
+        "counts": {
+          "source1": 3
+        },
+        "adjustment": 0.006
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.05,
+        "price_move_pct": 0.6263666521795463,
+        "max_volume_z": 0.82001430785553,
+        "tag": "",
+        "confidence_delta": -0.03
+      },
+      "contrarian_viewport": "",
+      "timescale_scores": {
+        "short": {
+          "divergence": -0.357,
+          "price_move_pct": 0.1879099956538639,
+          "volume_z": -0.82001430785553
+        },
+        "mid": {
+          "divergence": -0.491,
+          "price_move_pct": 0.3758199913077278,
+          "volume_z": -0.656011446284424
+        },
+        "long": {
+          "divergence": -0.402,
+          "price_move_pct": 0.6263666521795463,
+          "volume_z": -0.492008584713318
+        },
+        "combined_divergence": -0.447,
+        "aligned_horizons": 3,
+        "alignment_flag": false,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": false,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": false,
+          "delta": -0.01
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": true,
+          "delta": -0.02
+        }
+      ],
+      "confirmation_penalty": -0.03,
+      "position_sizing": {
+        "confidence": 0.8419642354871497,
+        "target_R": 0.25,
+        "notes": [
+          "linear scaling"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      }
+    },
+    {
+      "symbol": "AAPL",
+      "symbol_type": "stock",
+      "market_hours_state": "CLOSED",
+      "divergence": -0.12,
+      "confidence": 0.814,
+      "volume_z": -0.858,
+      "price_move_pct": -1.83,
+      "action": "HOLD",
+      "summary": "Analysis for AAPL",
+      "detail": "Basic analysis completed for AAPL",
+      "timestamp": "2025-08-11T11:00:37.190558",
+      "source_diversity": {
+        "unique": 3,
+        "top_source_share": 0.36,
+        "counts": {
+          "source1": 3
+        },
+        "adjustment": 0.04
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.11,
+        "price_move_pct": 1.8335406980551445,
+        "max_volume_z": 0.8576929770450015,
+        "tag": "",
+        "confidence_delta": 0.0
+      },
+      "contrarian_viewport": "",
+      "timescale_scores": {
+        "short": {
+          "divergence": -0.096,
+          "price_move_pct": 0.5500622094165434,
+          "volume_z": -0.8576929770450015
+        },
+        "mid": {
+          "divergence": -0.132,
+          "price_move_pct": 1.1001244188330868,
+          "volume_z": -0.6861543816360012
+        },
+        "long": {
+          "divergence": -0.108,
+          "price_move_pct": 1.8335406980551445,
+          "volume_z": -0.5146157862270009
+        },
+        "combined_divergence": -0.12,
+        "aligned_horizons": 1,
+        "alignment_flag": true,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": true,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": true,
+          "delta": -0.01
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": true,
+          "delta": 0.0
+        }
+      ],
+      "confirmation_penalty": -0.01,
+      "position_sizing": {
+        "confidence": 0.8139922586846915,
+        "target_R": 0.56,
+        "notes": [
+          "linear scaling"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      }
+    }
+  ]
+}

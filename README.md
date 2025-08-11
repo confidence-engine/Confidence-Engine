@@ -567,3 +567,39 @@ TB_CONF_PRICE_VS_NARR=-0.03 TB_CONF_TS_ALIGN=-0.03 python3 scripts/run.py --symb
 ```
 TB_SIZE_CONF_FLOOR=0.66 TB_SIZE_MIN_R=0.30 python3 scripts/run.py --symbol BTC/USD --lookback 240 --no-telegram
 ```
+
+## V3.1 Multi-Asset Universe
+
+### Universe scanning
+- Multi-asset analysis across crypto and stocks
+- Market hours awareness (RTH/CLOSED for stocks, 24x7 for crypto)
+- Configurable universe via `config/universe.yaml`
+- Top-N ranking and digest generation
+
+### Usage
+- Scan universe:
+```
+TB_NO_TELEGRAM=1 TB_ALLOW_STUB_BARS=1 python3 scripts/scan_universe.py --config config/universe.yaml --top 5 --debug
+```
+- Override symbols:
+```
+python3 scripts/scan_universe.py --symbols "BTC/USD,AAPL,MSFT" --top 3
+```
+- Custom config:
+```
+python3 scripts/scan_universe.py --config my_universe.yaml --top 10
+```
+
+### Auto-commit and mirroring
+- Mirror universe results to runs/:
+```
+TB_UNIVERSE_MIRROR_TO_RUNS=1 python3 scripts/scan_universe.py --config config/universe.yaml --top 5
+```
+- Auto-commit universe results:
+```
+TB_UNIVERSE_GIT_AUTOCOMMIT=1 python3 scripts/scan_universe.py --config config/universe.yaml --top 5
+```
+- Auto-commit and push:
+```
+TB_UNIVERSE_GIT_AUTOCOMMIT=1 TB_UNIVERSE_GIT_PUSH=1 python3 scripts/scan_universe.py --config config/universe.yaml --top 5
+```
