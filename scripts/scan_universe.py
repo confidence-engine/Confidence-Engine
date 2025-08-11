@@ -319,6 +319,23 @@ def _sanitize_version_tag(s: str) -> str:
     return s2
 
 
+def send_telegram_text(token: str, chat_id: str, text: str) -> bool:
+    try:
+        import requests
+        r = requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data={"chat_id": chat_id, "text": text, "disable_web_page_preview": True},
+            timeout=15,
+        )
+        ok = (r.status_code == 200) and (r.json().get("ok") is True)
+        if not ok:
+            print(f"[Telegram] send failed: {r.status_code} {r.text}")
+        return ok
+    except Exception as e:
+        print(f"[Telegram] send failed: {e}")
+        return False
+
+
 def run_universe_scan(
     config_path: str = None,
     symbols: list = None,
@@ -492,15 +509,21 @@ def run_universe_scan(
     if not validate_digest_length(digest):
         digest = truncate_digest(digest)
         print("Warning: Digest truncated to fit Telegram limits")
-    if not no_telegram and not os.getenv("TB_NO_TELEGRAM"):
+    # Telegram default ON unless disabled by flag or env
+    no_telegram = bool(no_telegram) or (os.getenv("TB_NO_TELEGRAM", "0") == "1")
+    if not no_telegram and ranked_payloads:
+        # Prefer existing telegram_bot if available; fallback to direct requests
         try:
             success = telegram_bot.send_message(digest)
-            if success:
-                print("✓ Digest sent to Telegram")
+            print(f"[Telegram] Universe digest sent: {bool(success)}")
+        except Exception:
+            token = os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TB_TELEGRAM_BOT_TOKEN")
+            chat_id = os.getenv("TELEGRAM_CHAT_ID") or os.getenv("TB_TELEGRAM_CHAT_ID")
+            if token and chat_id:
+                sent = send_telegram_text(token, chat_id, digest)
+                print(f"[Telegram] Universe digest sent: {bool(sent)}")
             else:
-                print("✗ Failed to send digest to Telegram")
-        except Exception as e:
-            print(f"✗ Error sending to Telegram: {e}")
+                print("[Telegram] skipped: missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID")
     else:
         print("Telegram send disabled")
     return {
