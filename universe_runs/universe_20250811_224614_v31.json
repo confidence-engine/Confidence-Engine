@@ -1,0 +1,807 @@
+{
+  "meta": {
+    "version": "v3.1",
+    "timestamp_iso": "2025-08-11T22:46:14Z",
+    "timestamp_compact": "20250811_224614",
+    "total_symbols": 5
+  },
+  "universe": {
+    "symbols": [
+      "AAPL",
+      "ETH/USD",
+      "SPY",
+      "BTC/USD",
+      "MSFT"
+    ],
+    "selection_reason": "crypto-only"
+  },
+  "assets": {
+    "AAPL": {
+      "symbol": "AAPL",
+      "symbol_type": "stock",
+      "market_hours_state": "CLOSED",
+      "divergence": 0.954,
+      "confidence": 0.56,
+      "volume_z": -0.206,
+      "price_move_pct": -1.43,
+      "action": "HOLD",
+      "summary": "Analysis for AAPL",
+      "detail": "Basic analysis completed for AAPL",
+      "timestamp": "2025-08-12T04:16:27.079481",
+      "source_diversity": {
+        "unique": 3,
+        "top_source_share": 0.56,
+        "counts": {
+          "source1": 3
+        },
+        "adjustment": 0.03
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.56,
+        "price_move_pct": 1.4257684761281928,
+        "max_volume_z": 0.20648465960141604,
+        "tag": "",
+        "confidence_delta": 0.0
+      },
+      "contrarian_viewport": "POTENTIAL_CROWD_MISTAKE",
+      "timescale_scores": {
+        "short": {
+          "divergence": 0.763,
+          "price_move_pct": 0.42773054283845785,
+          "volume_z": -0.20648465960141604
+        },
+        "mid": {
+          "divergence": 1.049,
+          "price_move_pct": 0.8554610856769157,
+          "volume_z": -0.16518772768113285
+        },
+        "long": {
+          "divergence": 0.859,
+          "price_move_pct": 1.4257684761281928,
+          "volume_z": -0.12389079576084962
+        },
+        "combined_divergence": 0.954,
+        "aligned_horizons": 2,
+        "alignment_flag": false,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": true,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": false,
+          "delta": -0.01
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": true,
+          "delta": 0.0
+        }
+      ],
+      "confirmation_penalty": -0.01,
+      "position_sizing": {
+        "confidence": 0.5599363051598445,
+        "target_R": 0.0,
+        "notes": [
+          "below floor"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            "0.00-0.00 (fade)"
+          ],
+          "invalidation": "0.00 (1h close below)",
+          "targets": {
+            "tp1": "0.00",
+            "tp2": "0.00",
+            "stretch": "0.00"
+          }
+        },
+        "4h": {
+          "entries": [
+            "<0.00 (after 4h close)"
+          ],
+          "invalidation": "0.00 (4h close below)",
+          "targets": {
+            "tp1": "0.00",
+            "tp2": "0.00",
+            "stretch": "0.00"
+          }
+        }
+      },
+      "structure_tags": {
+        "regime": "bullish",
+        "notes": "Higher lows forming with increasing volume"
+      },
+      "weekly_anchor": "Hold above weekly support",
+      "spot": {
+        "price": "0.00",
+        "drift_pct": 0.2
+      },
+      "sizing_guidance": {
+        "band": "high",
+        "principle_text": "Size to invalidation distance; reduce if late or TFs diverge",
+        "constraints_text": "Reduce size if volume is below average"
+      },
+      "thesis": {
+        "bias": "neutral",
+        "risk_band": "medium",
+        "readiness": "later",
+        "summary_text": "not available"
+      },
+      "evidence": {
+        "timescale_alignment": {
+          "short_tf": "neutral",
+          "mid_tf": "neutral",
+          "daily_tf": "neutral",
+          "alignment_text": "not available"
+        },
+        "crowd_immunity": {
+          "source_diversity_text": "not available",
+          "hype_text": "not available",
+          "contrarian_text": "not available"
+        },
+        "price_vs_story_text": "not available",
+        "participation_text": "not available",
+        "volatility_text": "not available",
+        "catalyst_watch": []
+      },
+      "digest_snippets": {
+        "headline": "not available",
+        "bullet_points": []
+      }
+    },
+    "ETH/USD": {
+      "symbol": "ETH/USD",
+      "symbol_type": "crypto",
+      "market_hours_state": "24x7",
+      "divergence": 0.944,
+      "confidence": 0.626,
+      "volume_z": 0.301,
+      "price_move_pct": 1.35,
+      "action": "HOLD",
+      "summary": "Analysis for ETH/USD",
+      "detail": "Basic analysis completed for ETH/USD",
+      "timestamp": "2025-08-12T04:16:14.716397",
+      "source_diversity": {
+        "unique": 1,
+        "top_source_share": 0.58,
+        "counts": {
+          "source1": 1
+        },
+        "adjustment": -0.049
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.19,
+        "price_move_pct": 1.3453229946488212,
+        "max_volume_z": 0.30126214832083087,
+        "tag": "HYPE_ONLY",
+        "confidence_delta": 0.0
+      },
+      "contrarian_viewport": "",
+      "timescale_scores": {
+        "short": {
+          "divergence": 0.755,
+          "price_move_pct": 0.40359689839464635,
+          "volume_z": 0.30126214832083087
+        },
+        "mid": {
+          "divergence": 1.039,
+          "price_move_pct": 0.8071937967892927,
+          "volume_z": 0.2410097186566647
+        },
+        "long": {
+          "divergence": 0.85,
+          "price_move_pct": 1.3453229946488212,
+          "volume_z": 0.18075728899249852
+        },
+        "combined_divergence": 0.944,
+        "aligned_horizons": 2,
+        "alignment_flag": true,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": true,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": true,
+          "delta": -0.01
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": false,
+          "delta": -0.02
+        }
+      ],
+      "confirmation_penalty": -0.03,
+      "position_sizing": {
+        "confidence": 0.6259327944538656,
+        "target_R": 0.0,
+        "notes": [
+          "below floor"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            "0.00-0.00 (fade)"
+          ],
+          "invalidation": "0.00 (1h close below)",
+          "targets": {
+            "tp1": "0.00",
+            "tp2": "0.00",
+            "stretch": "0.00"
+          }
+        },
+        "4h": {
+          "entries": [
+            "<0.00 (after 4h close)"
+          ],
+          "invalidation": "0.00 (4h close below)",
+          "targets": {
+            "tp1": "0.00",
+            "tp2": "0.00",
+            "stretch": "0.00"
+          }
+        }
+      },
+      "structure_tags": {
+        "regime": "bullish",
+        "notes": "Higher lows forming with increasing volume"
+      },
+      "weekly_anchor": "Hold above weekly support",
+      "spot": {
+        "price": "0.00",
+        "drift_pct": 0.2
+      },
+      "sizing_guidance": {
+        "band": "high",
+        "principle_text": "Size to invalidation distance; reduce if late or TFs diverge",
+        "constraints_text": "Reduce size if volume is below average"
+      },
+      "thesis": {
+        "bias": "neutral",
+        "risk_band": "medium",
+        "readiness": "later",
+        "summary_text": "not available"
+      },
+      "evidence": {
+        "timescale_alignment": {
+          "short_tf": "neutral",
+          "mid_tf": "neutral",
+          "daily_tf": "neutral",
+          "alignment_text": "not available"
+        },
+        "crowd_immunity": {
+          "source_diversity_text": "not available",
+          "hype_text": "not available",
+          "contrarian_text": "not available"
+        },
+        "price_vs_story_text": "not available",
+        "participation_text": "not available",
+        "volatility_text": "not available",
+        "catalyst_watch": []
+      },
+      "digest_snippets": {
+        "headline": "not available",
+        "bullet_points": []
+      }
+    },
+    "SPY": {
+      "symbol": "SPY",
+      "symbol_type": "stock",
+      "market_hours_state": "CLOSED",
+      "divergence": 0.89,
+      "confidence": 0.823,
+      "volume_z": 0.091,
+      "price_move_pct": -1.54,
+      "action": "HOLD",
+      "summary": "Analysis for SPY",
+      "detail": "Basic analysis completed for SPY",
+      "timestamp": "2025-08-12T04:16:20.803483",
+      "source_diversity": {
+        "unique": 1,
+        "top_source_share": 0.34,
+        "counts": {
+          "source1": 3
+        },
+        "adjustment": -0.05
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.51,
+        "price_move_pct": 1.5414022104050826,
+        "max_volume_z": 0.09095578382614233,
+        "tag": "",
+        "confidence_delta": 0.0
+      },
+      "contrarian_viewport": "POTENTIAL_CROWD_MISTAKE",
+      "timescale_scores": {
+        "short": {
+          "divergence": 0.712,
+          "price_move_pct": 0.46242066312152474,
+          "volume_z": 0.09095578382614233
+        },
+        "mid": {
+          "divergence": 0.978,
+          "price_move_pct": 0.9248413262430495,
+          "volume_z": 0.07276462706091387
+        },
+        "long": {
+          "divergence": 0.801,
+          "price_move_pct": 1.5414022104050826,
+          "volume_z": 0.0545734702956854
+        },
+        "combined_divergence": 0.89,
+        "aligned_horizons": 2,
+        "alignment_flag": true,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": true,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": false,
+          "delta": 0.0
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": false,
+          "delta": 0.0
+        }
+      ],
+      "confirmation_penalty": 0.0,
+      "position_sizing": {
+        "confidence": 0.8231835703758804,
+        "target_R": 0.65,
+        "notes": [
+          "linear scaling"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            "0.00-0.00 (fade)"
+          ],
+          "invalidation": "0.00 (1h close below)",
+          "targets": {
+            "tp1": "0.00",
+            "tp2": "0.00",
+            "stretch": "0.00"
+          }
+        },
+        "4h": {
+          "entries": [
+            "<0.00 (after 4h close)"
+          ],
+          "invalidation": "0.00 (4h close below)",
+          "targets": {
+            "tp1": "0.00",
+            "tp2": "0.00",
+            "stretch": "0.00"
+          }
+        }
+      },
+      "structure_tags": {
+        "regime": "bullish",
+        "notes": "Higher lows forming with increasing volume"
+      },
+      "weekly_anchor": "Hold above weekly support",
+      "spot": {
+        "price": "0.00",
+        "drift_pct": 0.2
+      },
+      "sizing_guidance": {
+        "band": "high",
+        "principle_text": "Size to invalidation distance; reduce if late or TFs diverge",
+        "constraints_text": "Reduce size if volume is below average"
+      },
+      "thesis": {
+        "bias": "neutral",
+        "risk_band": "medium",
+        "readiness": "later",
+        "summary_text": "not available"
+      },
+      "evidence": {
+        "timescale_alignment": {
+          "short_tf": "neutral",
+          "mid_tf": "neutral",
+          "daily_tf": "neutral",
+          "alignment_text": "not available"
+        },
+        "crowd_immunity": {
+          "source_diversity_text": "not available",
+          "hype_text": "not available",
+          "contrarian_text": "not available"
+        },
+        "price_vs_story_text": "not available",
+        "participation_text": "not available",
+        "volatility_text": "not available",
+        "catalyst_watch": []
+      },
+      "digest_snippets": {
+        "headline": "not available",
+        "bullet_points": []
+      }
+    },
+    "BTC/USD": {
+      "symbol": "BTC/USD",
+      "symbol_type": "crypto",
+      "market_hours_state": "24x7",
+      "divergence": -0.434,
+      "confidence": 0.649,
+      "volume_z": 0.126,
+      "price_move_pct": -0.45,
+      "action": "HOLD",
+      "summary": "Analysis for BTC/USD",
+      "detail": "Basic analysis completed for BTC/USD",
+      "timestamp": "2025-08-12T04:16:14.715333",
+      "source_diversity": {
+        "unique": 1,
+        "top_source_share": 0.72,
+        "counts": {
+          "source1": 3
+        },
+        "adjustment": 0.006
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.21,
+        "price_move_pct": 0.45345130492475033,
+        "max_volume_z": 0.1255855284202836,
+        "tag": "",
+        "confidence_delta": -0.03
+      },
+      "contrarian_viewport": "",
+      "timescale_scores": {
+        "short": {
+          "divergence": -0.347,
+          "price_move_pct": 0.1360353914774251,
+          "volume_z": 0.1255855284202836
+        },
+        "mid": {
+          "divergence": -0.477,
+          "price_move_pct": 0.2720707829548502,
+          "volume_z": 0.10046842273622687
+        },
+        "long": {
+          "divergence": -0.391,
+          "price_move_pct": 0.45345130492475033,
+          "volume_z": 0.07535131705217014
+        },
+        "combined_divergence": -0.434,
+        "aligned_horizons": 2,
+        "alignment_flag": false,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": false,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": false,
+          "delta": 0.0
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": false,
+          "delta": -0.02
+        }
+      ],
+      "confirmation_penalty": -0.02,
+      "position_sizing": {
+        "confidence": 0.6487719793782092,
+        "target_R": 0.0,
+        "notes": [
+          "below floor"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            "0.00-0.00 (fade)"
+          ],
+          "invalidation": "0.00 (1h close above)",
+          "targets": {
+            "tp1": "0.00",
+            "tp2": "0.00",
+            "stretch": "0.00"
+          }
+        },
+        "4h": {
+          "entries": [
+            "<0.00 (after 4h close)"
+          ],
+          "invalidation": "0.00 (4h close above)",
+          "targets": {
+            "tp1": "0.00",
+            "tp2": "0.00",
+            "stretch": "0.00"
+          }
+        }
+      },
+      "structure_tags": {
+        "regime": "bearish",
+        "notes": "Lower highs with bearish divergence"
+      },
+      "weekly_anchor": "Respect weekly resistance",
+      "spot": {
+        "price": "0.00",
+        "drift_pct": 0.2
+      },
+      "sizing_guidance": {
+        "band": "medium",
+        "principle_text": "Size to invalidation distance; reduce if late or TFs diverge",
+        "constraints_text": "Reduce size if volume is below average"
+      },
+      "thesis": {
+        "bias": "neutral",
+        "risk_band": "medium",
+        "readiness": "later",
+        "summary_text": "not available"
+      },
+      "evidence": {
+        "timescale_alignment": {
+          "short_tf": "neutral",
+          "mid_tf": "neutral",
+          "daily_tf": "neutral",
+          "alignment_text": "not available"
+        },
+        "crowd_immunity": {
+          "source_diversity_text": "not available",
+          "hype_text": "not available",
+          "contrarian_text": "not available"
+        },
+        "price_vs_story_text": "not available",
+        "participation_text": "not available",
+        "volatility_text": "not available",
+        "catalyst_watch": []
+      },
+      "digest_snippets": {
+        "headline": "not available",
+        "bullet_points": []
+      }
+    },
+    "MSFT": {
+      "symbol": "MSFT",
+      "symbol_type": "stock",
+      "market_hours_state": "CLOSED",
+      "divergence": -0.038,
+      "confidence": 0.869,
+      "volume_z": -0.503,
+      "price_move_pct": -1.79,
+      "action": "HOLD",
+      "summary": "Analysis for MSFT",
+      "detail": "Basic analysis completed for MSFT",
+      "timestamp": "2025-08-12T04:16:33.148260",
+      "source_diversity": {
+        "unique": 2,
+        "top_source_share": 0.58,
+        "counts": {
+          "source1": 1
+        },
+        "adjustment": 0.006
+      },
+      "cascade_detector": {
+        "repetition_ratio": 0.98,
+        "price_move_pct": 1.7910350021282953,
+        "max_volume_z": 0.5028313366883612,
+        "tag": "HYPE_ONLY",
+        "confidence_delta": -0.03
+      },
+      "contrarian_viewport": "POTENTIAL_CROWD_MISTAKE",
+      "timescale_scores": {
+        "short": {
+          "divergence": -0.03,
+          "price_move_pct": 0.5373105006384885,
+          "volume_z": -0.5028313366883612
+        },
+        "mid": {
+          "divergence": -0.041,
+          "price_move_pct": 1.074621001276977,
+          "volume_z": -0.402265069350689
+        },
+        "long": {
+          "divergence": -0.034,
+          "price_move_pct": 1.7910350021282953,
+          "volume_z": -0.30169880201301674
+        },
+        "combined_divergence": -0.038,
+        "aligned_horizons": 3,
+        "alignment_flag": false,
+        "weights": {
+          "short": 0.5,
+          "mid": 0.35,
+          "long": 0.15
+        }
+      },
+      "confirmation_checks": [
+        {
+          "name": "price_vs_narrative",
+          "passed": true,
+          "delta": 0.0
+        },
+        {
+          "name": "volume_support",
+          "passed": true,
+          "delta": 0.0
+        },
+        {
+          "name": "timescale_alignment",
+          "passed": false,
+          "delta": 0.0
+        }
+      ],
+      "confirmation_penalty": 0.0,
+      "position_sizing": {
+        "confidence": 0.8691012803509119,
+        "target_R": 0.39,
+        "notes": [
+          "linear scaling"
+        ],
+        "params": {
+          "conf_floor": 0.65,
+          "conf_cap": 0.85,
+          "min_R": 0.25,
+          "max_R": 1.0,
+          "used_vol_norm": null
+        }
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            "0.00-0.00 (fade)"
+          ],
+          "invalidation": "0.00 (1h close above)",
+          "targets": {
+            "tp1": "0.00",
+            "tp2": "0.00",
+            "stretch": "0.00"
+          }
+        },
+        "4h": {
+          "entries": [
+            "<0.00 (after 4h close)"
+          ],
+          "invalidation": "0.00 (4h close above)",
+          "targets": {
+            "tp1": "0.00",
+            "tp2": "0.00",
+            "stretch": "0.00"
+          }
+        }
+      },
+      "structure_tags": {
+        "regime": "bearish",
+        "notes": "Lower highs with bearish divergence"
+      },
+      "weekly_anchor": "Respect weekly resistance",
+      "spot": {
+        "price": "0.00",
+        "drift_pct": 0.2
+      },
+      "sizing_guidance": {
+        "band": "low",
+        "principle_text": "Size to invalidation distance; reduce if late or TFs diverge",
+        "constraints_text": "Reduce size if volume is below average"
+      },
+      "thesis": {
+        "bias": "neutral",
+        "risk_band": "medium",
+        "readiness": "later",
+        "summary_text": "not available"
+      },
+      "evidence": {
+        "timescale_alignment": {
+          "short_tf": "neutral",
+          "mid_tf": "neutral",
+          "daily_tf": "neutral",
+          "alignment_text": "not available"
+        },
+        "crowd_immunity": {
+          "source_diversity_text": "not available",
+          "hype_text": "not available",
+          "contrarian_text": "not available"
+        },
+        "price_vs_story_text": "not available",
+        "participation_text": "not available",
+        "volatility_text": "not available",
+        "catalyst_watch": []
+      },
+      "digest_snippets": {
+        "headline": "not available",
+        "bullet_points": []
+      }
+    }
+  },
+  "weekly_context": {
+    "regime": "Cautiously bullish with volatility expected",
+    "anchors": [
+      "BTC holding above key support levels",
+      "Market sentiment improving after recent consolidation"
+    ],
+    "plan_text": "Focus on high-conviction setups with clear invalidation levels",
+    "catalysts": [
+      "FOMC meeting next week",
+      "Options expiry Friday"
+    ]
+  },
+  "engine_analysis": {
+    "thesis_text": "Crypto market showing signs of strength with improving fundamentals",
+    "evidence_bullets": [
+      "Increasing spot demand across major exchanges",
+      "Reduced selling pressure from miners"
+    ],
+    "compact_stats_text": {
+      "setup_mix": "Balanced mix of continuation and reversal setups",
+      "trigger_quality": "Medium to high across major assets",
+      "calibration_note": "Last week's signals performed within expected parameters",
+      "risk_discipline": "Maintain strict invalidation levels"
+    },
+    "action_hint": "Prioritize setups with clear invalidation and multiple timeframe alignment"
+  },
+  "evaluation": {
+    "polymarket": {
+      "enabled": false,
+      "markets": []
+    }
+  }
+}
