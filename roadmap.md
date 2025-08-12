@@ -847,5 +847,217 @@ Immediate next actions
 
 This is the authoritative, renumbered roadmap reflecting all confirmed updates.
 
+--------------------------------------------
+
+Alright — here’s the **full authoritative, renumbered roadmap** with the two new milestones (**v4.2 Backtesting & Governance** and **v4.3 Reliability Ops Hardening**) explicitly included, and all current status noted.  
+This supersedes the previous version — you can treat this as the single source of truth going forward.  
+
+***
+
+# **Tracer Bullet — Authoritative Milestone‑Based Roadmap (Crypto‑Only)**  
+*(Polymarket read‑only BTC/ETH in v3.3, live execution deferred; stocks removed/parked)*
+
+***
+
+## **Status Summary**
+- **✅ Done**: v1, v2, v3, v3.1, v3.1.x (human digest shipped; some reliability items moved to v4.3)  
+- **🚧 Current focus**: Finish v3.1.x ops hardening → stage/push polish + retries/backoff/self‑checks (now v4.3)  
+- **📅 Next major features**: v3.3 (all‑liquid alts + evidence lines + Polymarket BTC/ETH read‑only), v3.4 (evaluation), then v4 series.
+
+***
+
+## **Detailed Milestones**
+
+### **v1 — Hardening & Reliability** ✅  
+**Scope**
+- Preflight/health checks; directory creation; Telegram reachability.  
+- CLI precedence (CLI > env > .env > defaults), centralized structured logging.  
+- Robust Telegram delivery (plain text default, truncation safeguard, 200/400/429 handling).  
+- Artifact retention (`runs/`, `bars/`) by mtime via `TB_ARTIFACTS_KEEP`.  
+- Tests & CI for divergence calc, schema validation, Telegram, directory checks, lint/format.  
+- Documentation: README, RUNBOOK, CONTRIBUTING, payload spec.  
+
+**DoD**: Fresh checkout runs clean; CI green; artifacts + logs stable.
+
+***
+
+### **v2 — Crowd Immunity** ✅  
+**Scope**
+- **Source Diversity Engine**: unique source count, echo penalties, confidence cap.  
+- **Cascade/HYPE Detector**: repetition vs quant confirmation; bounded deltas.  
+- **Contrarian Viewport**: tag potential crowd mistakes.  
+- Telegram one‑liners for above; schema/tests in place.
+
+**DoD**: Fields populated in payload; tests pass.
+
+***
+
+### **v3 — Bias Immunity + Sizing** ✅  
+**Scope**
+- Multi‑timescale scoring (short/mid/long) + combined w/ alignment gating.  
+- Negative‑confirmation penalties (clamped), with transparent reasons in payload.  
+- Confidence → R mapping, floors/caps, optional vol‑normalization.  
+- Telegram lines for timescales/penalties/sizing; blending/clamp/boundary tests.
+
+**DoD**: Informational sizing stable; tests pass.
+
+***
+
+### **v3.1 — Crypto Foundations (Universe)** ✅  
+**Scope**
+- Crypto‑only universe config (`config/universe.yaml`); symbol utils for type detect/normalize.  
+- Orchestrator: multi‑symbol fan‑out, deterministic Top‑N ranking.  
+- Artifacts: `universe_runs/*.json`, `metrics.csv`; optional mirror to `runs/`.  
+- Git hooks (OFF by default): mirror/commit/push with safe logging.  
+- Tests for loader, utils, ranking stability, adapter safety.
+
+**DoD**: Multi‑symbol run stable; artifacts complete; tests pass.
+Got it ✅ — we can fold the **“Telegram alternative” work** directly into the **v3.1.x** milestone so it’s part of the current line‑of‑effort, instead of pushing it to a later version.
+
+Here’s how the updated **v3.1.x** scope will look:
+
+***
+
+ **v3.1.x — Human Digest + Delivery Hardening** *(updated)*
+
+**Scope**
+- **Crypto‑only Human Digest** *(already shipped)*:
+  - BTC/ETH prioritised; full TFs (1h, 4h, 1D, 1W, 1M).
+  - Stocks hidden from TG but kept in artifacts.
+
+- **Telegram enhancements** *(already live)*:
+  - Multi‑part send with [i/N] headers.
+  - Weekly/Engine sections preserved.
+
+- **🚀 New: Alternative delivery channel**:
+  - Integrate **Discord webhook sender** with rich embeds for full digest delivery without size truncation.
+  - Map digest sections to Discord embeds:
+    - Embed 1: Header + Executive Take
+    - Embed 2: Weekly + Engine
+    - Embeds 3+: One per asset with all TFs
+  - Automatic splitting across multiple messages if embeds exceed limits (≤10 embeds / ≤6,000 chars per message).
+  - Configurable via `TB_ENABLE_DISCORD` and `DISCORD_WEBHOOK_URL` env vars.
+  - Keep TG send in parallel (for short-form digest or redundancy) while Discord becomes primary full‑length channel.
+
+- **Ops hardening** *(already planned in 3.1.x)*:
+  - Auto‑commit/push artifacts (`universe_runs/*.json` + `metrics.csv`); explicit logs for commit/push.
+  - Reliability layer with retries/backoff and schema/digest self‑checks.
+  - Graceful degraded‑run notes.
+
+**DoD**
+- Discord channel receives full, single‑send digest (no truncation, all TFs).
+- TG still receives shortened version (or crypto‑only as per flags) if enabled.
+- 3‑day burn‑in: zero crashes, <1% degraded runs, consistent artifact pushes.
+
+
+
+***
+
+### **v3.1.x — Human Digest (Crypto‑Only)** ✅ (core shipped)  
+**Scope**
+- TG digest: **crypto‑only** (BTC/ETH prioritised), full TFs (1h, 4h, 1D, 1W, 1M).  
+- Stocks hidden from TG but present in artifacts.  
+- Multi‑part TG sending with [i/N] headers.  
+- Weekly/Engine sections preserved; provider rotation unchanged.
+
+**Shipped**: Above features live.  
+**Reliability tasks → moved to v4.3**.
+
+***
+
+### **v3.3 — Full Crypto Alts + Evidence Lines + Polymarket BTC/ETH Read‑Only** 📅  
+**Scope**
+- All liquid alts in artifacts; digest shows top‑K (config‑gated).  
+- Evidence lines: BTC/ETH + top alts get 1–2 sentence “why now” (sentiment/news/structure; number‑free).  
+- Polymarket adapter/bridge (BTC/ETH only): strict filters, stance/readiness/edge label, rationale; number‑free in TG, numeric in artifacts.  
+- Toggles: `TB_ENABLE_POLYMARKET`, `TB_POLYMARKET_MAX_ITEMS`, `TB_POLYMARKET_MIN_QUALITY`.
+
+**DoD**: Digest shows alts + evidence; Polymarket section appears when quality met.
+
+***
+
+### **v3.4 — Evaluation Pipeline (Polymarket + System)** 📅  
+**Scope**
+- Weekly evaluator: Brier score, log‑loss, calibration curves (BTC/ETH).  
+- Cohort win‑rates; lead/lag vs odds convergence.  
+- Event‑ordered snapshots and resolved outcome capture to CSV/JSON archives.  
+- Evaluation isolated from production run stability.
+
+**DoD**: ≥50 resolved obs before drawing conclusions; metrics reproducible.
+
+***
+
+### **v4 — Data Breadth & Explainability+** 📅  
+**Scope**
+- Optional attention/crowd proxies (secondary only).  
+- Source credibility learning over time (lightweight, interpretable).  
+- Compact per‑signal “case files” for audits/postmortems.
+
+**DoD**: Detectable precision uplift; faster reviews; interpretability preserved.
+
+***
+
+### **v4.2 — Backtesting & Governance** 📅 *(newly explicit)*  
+**Scope**
+- Event‑ordered replay of bars + headlines; point‑in‑time features only.  
+- Walk‑forward validation; rolling IS/OOS splits.  
+- Cohort analytics by asset/time/volatility/event type.  
+- Governance cadence: monthly parameter review/update.
+
+**DoD**: No look‑ahead leaks; thresholds documented from OOS; cohort report produced.
+
+***
+
+### **v4.3 — Reliability Ops Hardening** 📅 *(newly explicit)*  
+**Scope**
+- **Auto‑commit/push polish**: Stage JSON + CSV, explicit commit/push logs, skip reasons, verify non‑interactive push.  
+- **Core reliability**: Retries/backoff, timeouts, schema/digest self‑checks, graceful skips with alerts.  
+- **Acceptance**: 3‑day burn‑in; <1 % degraded runs; zero crashes.
+
+***
+
+### **v5 — 24/7 Cloud Agent Run** 📅  
+**Scope**
+- Scheduled GH Actions (crypto‑only 15m cadence; staggered).  
+- Secrets mgmt; deterministic cadence; monitored with rollback.  
+- Include Polymarket BTC/ETH if v3.4 metrics are stable.
+
+**DoD**: Multi‑week stable schedule; safe pause/rollback.
+
+***
+
+### **v6 — Paper Execution & Risk Controls** 📅  
+**Scope**
+- Dry‑run execution sim; portfolio caps; per‑asset limits; circuit breakers/kill‑switches.  
+- Version tagging per decision; runs on v5’s cadence.
+
+**DoD**: Stable dry‑run; guards verified.
+
+***
+
+### **v7 — Live Capital (Small, Guarded)** 📅  
+**Scope**
+- Small trial; strict loss limits; anomaly alerts; rollback rehearsed.  
+- Polymarket execution only if ≥6mo strong eval; hard‑flags; tiny notional.
+
+***
+
+## **Cross‑Cutting Workstreams (Ongoing)**
+- **Docs**: Keep roadmap/runbook/schema digest spec current.  
+- **Observability**: Metrics CSV per run; weekly eval outputs; degraded‑run markers.  
+- **Safety**: Schema versioning, graceful degradation, provider circuit breakers.  
+- **Governance**: Version tags in artifacts; monthly param review; quarterly regime review.
+
+***
+
+## **Immediate Next Actions**
+1. Finish **v4.3** tasks (auto‑commit/push + retries/backoff/self‑checks).  
+2. Prep **v3.3** backlog (alts expansion, evidence lines, Polymarket adapter).  
+3. Build **v3.4** evaluator scaffolding (schema, archives, metrics functions).  
+
+***
+
+If you want, I can also give you a **Now → Near → Next** visual of this roadmap so it’s easier to track at a glance while we work through v4.3 → v3.3 → v3.4 in parallel. Want me to do that?
+
 
 

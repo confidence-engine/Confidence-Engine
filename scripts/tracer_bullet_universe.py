@@ -15,6 +15,8 @@ from typing import Dict, List
 from scripts import tg_weekly_engine
 from scripts import tg_digest_formatter as tg_fmt
 from scripts.tg_sender import send_telegram_text
+from scripts.discord_sender import send_discord_digest
+from scripts.discord_formatter import digest_to_discord_embeds
 from alpaca import recent_bars as alpaca_recent_bars
 
 def main():
@@ -212,8 +214,8 @@ def main():
                 "action": ("Buy" if (p.get("divergence", 0) > 0 and p.get("confidence", 0) > 0.7) else ("Sell" if (p.get("divergence", 0) < 0 and p.get("confidence", 0) > 0.7) else "Watch")),
             }
             is_crypto = (p.get("symbol_type") == "crypto")
-            # Compute spot via rotations (helpers unchanged)
-            spot_price = get_crypto_spot_price(sym) if is_crypto else get_stock_spot_price(sym)
+            # Compute spot via rotations for crypto only; skip stocks to avoid provider noise
+            spot_price = get_crypto_spot_price(sym) if is_crypto else None
 
             # Build plans
             if is_crypto:
@@ -282,14 +284,74 @@ def main():
         print(text)
         print("-----------------------")
 
-        # Conditional Telegram send (multi-part if needed)
-        if os.getenv("TB_HUMAN_DIGEST", "1") == "1":
-            if not args.no_telegram and os.getenv("TB_NO_TELEGRAM", "0") != "1":
-                from scripts.tg_sender import send_telegram_text_multi
-                sent = send_telegram_text_multi(text)
-                print(f"[Telegram] Human digest sent (multi): {bool(sent)}")
+        # Unified send gating: try to send to both if creds/flags allow
+        HUMAN_DIGEST = os.getenv("TB_HUMAN_DIGEST", "1") == "1"
+        SEND_TG = (
+            os.getenv("TB_NO_TELEGRAM", "0") == "0"
+            and os.getenv("TELEGRAM_BOT_TOKEN")
+            and os.getenv("TELEGRAM_CHAT_ID")
+            and (not args.no_telegram)
+        )
+        SEND_DISCORD = (
+            os.getenv("TB_ENABLE_DISCORD", "1") == "1"
+            and os.getenv("DISCORD_WEBHOOK_URL")
+        )
+
+        if HUMAN_DIGEST:
+            # Build structured digest_data once
+            exec_take = ""
+            if isinstance(engine, str) and engine:
+                for ln in engine.splitlines():
+                    if ln.strip():
+                        exec_take = ln.strip()
+                        break
+            if not exec_take and isinstance(weekly, str) and weekly:
+                for ln in weekly.splitlines():
+                    if ln.strip():
+                        exec_take = ln.strip()
+                        break
+
+            assets_list = []
+            for sym in assets_ordered:
+                a = assets_data.get(sym, {})
+                th = a.get("thesis") or {}
+                assets_list.append({
+                    "symbol": sym,
+                    "spot": a.get("spot"),
+                    "structure": a.get("structure"),
+                    "risk": th.get("risk_band") or "Medium",
+                    "readiness": th.get("readiness") or "Later",
+                    "action": th.get("action") or "Watch",
+                    "plan": a.get("plan") or {},
+                })
+
+            digest_data = {
+                "timestamp": summary.get("timestamp_iso") or "",
+                "executive_take": exec_take,
+                "weekly": weekly or "",
+                "engine": engine or "",
+                "assets": assets_list,
+            }
+
+            if SEND_TG:
+                try:
+                    from scripts.tg_sender import send_telegram_text_multi
+                    sent = send_telegram_text_multi(text)
+                    print(f"[TG] Sent (multi): {bool(sent)}")
+                except Exception as e:
+                    print(f"[TG] Error: {e}")
             else:
-                print(f"[Telegram] Skipped sending (skip={args.no_telegram or os.getenv('TB_NO_TELEGRAM','0')=='1'})")
+                print("[TG] Skipped — missing credentials or disabled")
+
+            if SEND_DISCORD:
+                try:
+                    embeds = digest_to_discord_embeds(digest_data)
+                    d_ok = send_discord_digest(embeds)
+                    print(f"[Discord] Sent: {bool(d_ok)}")
+                except Exception as e:
+                    print(f"[Discord] Error: {e}")
+            else:
+                print("[Discord] Skipped — missing webhook or disabled")
 
 if __name__ == "__main__":
     main()

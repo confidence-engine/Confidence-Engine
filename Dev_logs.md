@@ -986,3 +986,67 @@ Known gaps / next steps
 - Optional: Discord webhook mirroring if you want an additional channel.
 
 Sources
+
+
+-------
+
+Here’s what I’d log for this run/fix cycle 👇  
+
+***
+
+## **Commit message**
+
+```
+v3.1.x: Unified TG+Discord send, removed stock spot fetch, fixed Discord embed error
+
+- Replaced separate Telegram/Discord send blocks in tracer_bullet_universe.py 
+  with unified "send both if creds present" logic (opt‑out via env flags).
+- Telegram and Discord now both send automatically per run when configured; 
+  skips gracefully if creds missing.
+- Removed stock spot price fetch (set spot=None for non‑crypto) to eliminate 
+  Alpaca/PPLX warnings for SPY/AAPL/MSFT during universe scans.
+- Hardened discord_formatter.py:
+  • Safe coercion of executive_take/weekly/engine to strings.
+  • String‑only embed field names/values, avoid .strip() on non‑strings.
+  • TF block formatting to strings; added defaults for missing data.
+- Discord send now posts complete digest as embeds without type errors; 
+  multi‑message split if >10 embeds or >6k chars.
+- Verified human digest to TG (crypto‑only) and full digest to Discord in same run.
+```
+
+***
+
+## **Dev log — 2025‑08‑12**
+
+**Context:**  
+Telegram digest worked, but Discord embed send was failing with `'dict' object has no attribute 'strip'`. Also, repeated Alpaca stock fetch warnings for equities in universe scan, and TG/Discord had to be manually toggled per run.
+
+**Work done:**
+1. **Unified Channel Send Logic**
+   - Removed manual flag‑flip requirement: both TG and Discord now auto‑send in one run if creds are present.
+   - Unified gate: digest built once, sent to both channels; logs skip reasons if disabled/missing creds.
+
+2. **Discord Delivery Fixes**
+   - Root cause: type coercion missing in discord_formatter.py → dicts/None reaching embed fields.
+   - Added safe conversion of executive_take, weekly, engine, TF block data to strings; default to `""` or `"-"` for empty.
+   - Verified embed chunker in discord_sender.py handles only string lengths and splits correctly.
+
+3. **Stock Spot Fetch Removed**
+   - In tracer_bullet_universe.py: set spot=None for non‑crypto symbols instead of calling stock price API.
+   - Eliminated repeated `[WARN] Alpaca stock price fetch failed …` logs.
+
+4. **Verification**
+   - Ran universe scan:  
+     -  TG crypto‑only digest sent successfully, multi‑part where needed.  
+     -  Discord full digest delivered as embed set, split into multiple messages if limit exceeded.  
+     -  No embed format errors, no stock spot warnings.
+
+**Next steps:**  
+- 72h burn‑in on dual‑channel delivery to ensure stability.  
+- Then proceed to v3.3 scope (all‑alts, evidence lines, Polymarket BTC/ETH).
+
+***
+
+Do you want me to also prep a **concise “Now → Near → Next”** tracker so we log this and keep the roadmap sequence in one quick‑glance view? That would make it easier to track progress as we enter v3.3.
+
+Sources
