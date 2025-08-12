@@ -97,6 +97,8 @@ def render_digest(
     drift_warn = float(os.getenv("TB_DIGEST_DRIFT_WARN_PCT", options.get("drift_warn_pct", 0.5)))
     max_tfs = int(os.getenv("TB_DIGEST_MAX_TFS", options.get("max_tfs", 2)))
     include_prices = (os.getenv("TB_DIGEST_INCLUDE_PRICES", "1") == "1") or bool(options.get("include_prices", False))
+    include_stock_prices = os.getenv("TB_DIGEST_INCLUDE_STOCK_PRICES", "0") == "1"
+    ordered_tfs = ["1h", "4h", "1D", "1W", "1M"]
 
     def header(sym: str, a: dict) -> str:
         th = a.get("thesis") or {}
@@ -131,42 +133,64 @@ def render_digest(
                 lines.append("Structure: " + a["structure"])
             # Timeframes
             shown = 0
-            for tf in tf_order:
+            for tf in ordered_tfs:
                 if shown >= max_tfs:
                     break
                 plan = (a.get("plan") or {}).get(tf)
                 if not plan:
                     continue
                 lines.append(f"{tf}: ")
-                # Entries: support zones (L–H) or single triggers
+                # Determine if numeric allowed for this asset (crypto always gated by include_prices; stocks require include_stock_prices)
+                allow_numeric = include_prices if is_crypto(sym) else (include_prices and include_stock_prices)
+                # Entries can be legacy (number or [lo,hi]) or new schema list of dicts
                 ent = plan.get("entries")
                 if ent is not None:
-                    if include_prices and isinstance(ent, (list, tuple)) and len(ent) == 2 and all(isinstance(x,(int,float)) for x in ent):
-                        lines.append(f"  Entries: {ent[0]:.2f}–{ent[1]:.2f}")
-                    elif include_prices and isinstance(ent, (int, float)):
-                        lines.append(f"  Entries: {ent:.2f}")
+                    rendered_entries: List[str] = []
+                    if isinstance(ent, list) and ent and isinstance(ent[0], dict):
+                        for item in ent:
+                            etype = item.get("type")
+                            zot = item.get("zone_or_trigger")
+                            if allow_numeric and isinstance(zot, (int, float)):
+                                s = f"{zot:.2f}"
+                            elif allow_numeric and isinstance(zot, (list, tuple)) and len(zot) == 2 and all(isinstance(x,(int,float)) for x in zot):
+                                s = f"{zot[0]:.2f}–{zot[1]:.2f}"
+                            else:
+                                s = "set"
+                            if etype:
+                                s += f" ({etype})"
+                            rendered_entries.append(s)
                     else:
-                        # narrative fallback
-                        lines.append("  Entries: set")
+                        # legacy formats
+                        if allow_numeric and isinstance(ent, (list, tuple)) and len(ent) == 2 and all(isinstance(x,(int,float)) for x in ent):
+                            rendered_entries.append(f"{ent[0]:.2f}–{ent[1]:.2f}")
+                        elif allow_numeric and isinstance(ent, (int, float)):
+                            rendered_entries.append(f"{ent:.2f}")
+                        elif isinstance(ent, str):
+                            rendered_entries.append(ent)
+                        else:
+                            rendered_entries.append("set")
+                    if rendered_entries:
+                        lines.append("  Entries: " + "; ".join(rendered_entries))
                 # Invalidation
                 inv = plan.get("invalidation") or plan.get("invalid")
                 if inv is not None:
-                    if include_prices and isinstance(inv, dict) and isinstance(inv.get("price"),(int,float)):
+                    if allow_numeric and isinstance(inv, dict) and isinstance(inv.get("price"),(int,float)):
                         cond = inv.get("condition") or "breach"
                         lines.append(f"  Invalidation: {inv['price']:.2f} ({cond})")
-                    elif include_prices and isinstance(inv, (int, float)):
+                    elif allow_numeric and isinstance(inv, (int, float)):
                         lines.append(f"  Invalidation: {inv:.2f}")
                     else:
                         lines.append("  Invalidation: set")
                 # Targets
                 tg = plan.get("targets")
                 if tg:
-                    if include_prices:
+                    if allow_numeric:
                         parts = []
                         if isinstance(tg, (list, tuple)):
                             for i, t in enumerate(tg, 1):
                                 if isinstance(t, dict) and isinstance(t.get("price"),(int,float)):
-                                    parts.append(f"TP{i} {t['price']:.2f}")
+                                    label = t.get("label") or f"TP{i}"
+                                    parts.append(f"{label} {t['price']:.2f}")
                                 elif isinstance(t, (int, float)):
                                     parts.append(f"TP{i} {t:.2f}")
                         if parts:
@@ -196,6 +220,11 @@ def render_digest(
             lines.append("Drift: guard with invalidation")
         else:
             # Stocks: header only plus optional notes
+            # Spot (stocks): printed only if stock numeric allowed
+            allow_stock_numeric = include_prices and include_stock_prices
+            sspot = a.get("spot")
+            if allow_stock_numeric and isinstance(sspot, (int, float)):
+                lines.append(f"Spot: {sspot:.2f}")
             if a.get("structure"):
                 lines.append("Structure: " + a["structure"])
             if a.get("sizing_text"):

@@ -138,6 +138,69 @@ def main():
                 print(f"[WARN] PPLX price fetch failed for {symbol}: {e}")
             return None
 
+        def get_stock_spot_price(symbol: str):
+            # Stocks: Alpaca primary, PPLX fallback (no Binance)
+            try:
+                price = alpaca_spot_price(symbol)
+                if price:
+                    return price
+            except Exception as e:
+                print(f"[WARN] Alpaca stock price fetch failed for {symbol}: {e}")
+            try:
+                price = pplx_spot_price(symbol)
+                if price:
+                    return price
+            except Exception as e:
+                print(f"[WARN] PPLX stock price fetch failed for {symbol}: {e}")
+            return None
+
+        # ---- Crypto TF plan helpers (do NOT change rotation helpers above) ----
+        ORDERED_TFS = ["1h", "4h", "1D", "1W", "1M"]
+
+        def build_tf_plan_from_levels(levels: dict):
+            if not levels:
+                return None
+            entries = []
+            trg = levels.get("entry_trigger")
+            zone = levels.get("entry_zone")
+            e_type = levels.get("entry_type") or ("trigger" if isinstance(trg, (int, float)) else "fade")
+
+            if isinstance(trg, (int, float)):
+                entries.append({"type": e_type, "zone_or_trigger": float(trg)})
+            elif isinstance(zone, (list, tuple)) and len(zone) == 2 and all(isinstance(x, (int, float)) for x in zone):
+                lo, hi = zone
+                entries.append({"type": e_type, "zone_or_trigger": [float(lo), float(hi)]})
+
+            invalidation = None
+            if isinstance(levels.get("invalid_price"), (int, float)):
+                invalidation = {
+                    "price": float(levels["invalid_price"]),
+                    "condition": levels.get("invalid_condition", "close below"),
+                }
+
+            targets = []
+            for i, tp in enumerate(levels.get("targets") or [], start=1):
+                if isinstance(tp, (int, float)):
+                    targets.append({"label": f"TP{i}", "price": float(tp)})
+                elif isinstance(tp, dict) and isinstance(tp.get("price"), (int, float)):
+                    targets.append({"label": tp.get("label") or f"TP{i}", "price": float(tp["price"])})
+
+            if not entries and not invalidation and not targets:
+                return None
+            return {"entries": entries, "invalidation": invalidation, "targets": targets}
+
+        def collect_tf_levels(symbol: str, tf: str, analysis_map: dict):
+            per_tf = (analysis_map.get("levels") or {}).get(tf)
+            return build_tf_plan_from_levels(per_tf)
+
+        def build_plan_all_tfs(symbol: str, analysis_map: dict):
+            plan = {}
+            for tf in ORDERED_TFS:
+                tf_plan = collect_tf_levels(symbol, tf, analysis_map)
+                if tf_plan:
+                    plan[tf] = tf_plan
+            return plan
+
         for p in ordered_payloads:
             sym = p.get("symbol")
             if not sym:
@@ -149,48 +212,44 @@ def main():
                 "action": ("Buy" if (p.get("divergence", 0) > 0 and p.get("confidence", 0) > 0.7) else ("Sell" if (p.get("divergence", 0) < 0 and p.get("confidence", 0) > 0.7) else "Watch")),
             }
             is_crypto = (p.get("symbol_type") == "crypto")
-            # Plans per timeframe
-            base_plan = {"1h": {}, "4h": {}, "daily": {}}
-            spot_price = get_crypto_spot_price(sym) if is_crypto else None
-            if is_crypto and spot_price:
-                # Simple numeric heuristics per bias
-                if thesis["bias"] == "up":
-                    entries = spot_price * 1.005  # breakout trigger
-                    invalid = {"price": spot_price * 0.975, "condition": "close below"}
-                    targets = [
-                        {"price": spot_price * 1.02},
-                        {"price": spot_price * 1.04},
-                    ]
-                elif thesis["bias"] == "down":
-                    entries = [spot_price * 0.995, spot_price * 0.985]  # fade into supply lower-highs
-                    invalid = {"price": spot_price * 1.015, "condition": "close above"}
-                    targets = [
-                        {"price": spot_price * 0.98},
-                        {"price": spot_price * 0.96},
-                    ]
-                else:
-                    entries = spot_price  # wait/trigger around spot
-                    invalid = {"price": spot_price * 0.98, "condition": "breach"}
-                    targets = [{"price": spot_price * 1.01}]
-                for tf in base_plan.keys():
-                    base_plan[tf] = {
-                        "entries": entries,
-                        "invalidation": invalid,
-                        "targets": targets,
-                    }
+            # Compute spot via rotations (helpers unchanged)
+            spot_price = get_crypto_spot_price(sym) if is_crypto else get_stock_spot_price(sym)
+
+            # Build plans
+            if is_crypto:
+                # Prefer existing analysis-derived levels per TF
+                base_plan = build_plan_all_tfs(sym, p)
+                if not base_plan:
+                    # Fallback: minimal heuristic across TFs if we have a spot
+                    base_plan = {}
+                    if spot_price:
+                        if thesis["bias"] == "up":
+                            entries_items = [{"type": "trigger", "zone_or_trigger": spot_price * 1.005}]
+                            invalid = {"price": spot_price * 0.975, "condition": "close below"}
+                            targets = [
+                                {"label": "TP1", "price": spot_price * 1.02},
+                                {"label": "TP2", "price": spot_price * 1.04},
+                            ]
+                        elif thesis["bias"] == "down":
+                            entries_items = [{"type": "fade", "zone_or_trigger": [spot_price * 0.995, spot_price * 0.985]}]
+                            invalid = {"price": spot_price * 1.015, "condition": "close above"}
+                            targets = [
+                                {"label": "TP1", "price": spot_price * 0.98},
+                                {"label": "TP2", "price": spot_price * 0.96},
+                            ]
+                        else:
+                            entries_items = [{"type": "trigger", "zone_or_trigger": spot_price}]
+                            invalid = {"price": spot_price * 0.98, "condition": "breach"}
+                            targets = [{"label": "TP1", "price": spot_price * 1.01}]
+                        for tf in ORDERED_TFS:
+                            base_plan[tf] = {"entries": entries_items, "invalidation": invalid, "targets": targets}
+                    else:
+                        base_plan = {}
             else:
-                # Narrative scaffolding (no numbers)
-                if is_crypto:
-                    entry_text = "breakout trigger" if thesis["bias"] == "up" else ("fade into supply" if thesis["bias"] == "down" else "wait for trigger")
-                    targets_text = "trail into strength" if thesis["bias"] == "up" else ("cover into weakness" if thesis["bias"] == "down" else "define profit path")
-                    for tf in base_plan.keys():
-                        base_plan[tf] = {
-                            "entries": entry_text,
-                            "invalidation": None,
-                            "targets": [targets_text],
-                        }
+                # Stocks: do NOT auto-populate TF plans; only provide spot and preserve any existing plan if present
+                base_plan = p.get("plan") or {}
             assets_data[sym] = {
-                "spot": (spot_price if is_crypto else None),
+                "spot": spot_price,
                 "thesis": thesis,
                 "structure": tg_fmt.__name__ and "trend / range context",
                 "plan": base_plan,
@@ -223,10 +282,14 @@ def main():
         print(text)
         print("-----------------------")
 
-        # Conditional Telegram send
+        # Conditional Telegram send (multi-part if needed)
         if os.getenv("TB_HUMAN_DIGEST", "1") == "1":
-            sent = send_telegram_text(text) if not args.no_telegram else False
-            print(f"[Telegram] Human digest sent: {bool(sent)} (skip={args.no_telegram or os.getenv('TB_NO_TELEGRAM','0')=='1'})")
+            if not args.no_telegram and os.getenv("TB_NO_TELEGRAM", "0") != "1":
+                from scripts.tg_sender import send_telegram_text_multi
+                sent = send_telegram_text_multi(text)
+                print(f"[Telegram] Human digest sent (multi): {bool(sent)}")
+            else:
+                print(f"[Telegram] Skipped sending (skip={args.no_telegram or os.getenv('TB_NO_TELEGRAM','0')=='1'})")
 
 if __name__ == "__main__":
     main()
