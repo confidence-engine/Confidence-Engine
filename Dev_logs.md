@@ -852,3 +852,77 @@ Follow-ups
 - If you don’t want run artifacts tracked, add universe_runs/ to .gitignore.
 
 Sources
+
+Commit message (conventional)
+feat(digest): crypto numeric prices in Telegram digest; keep stocks narrative-only
+
+- formatter: show Spot/Entries/Invalidation/Targets for crypto; suppress numeric levels for stocks
+-  wire crypto spot/levels into assets_data; format per-tf numeric entries (price or L–H), invalidation (price+condition), targets (TPn)
+- sender: gated Telegram send with retries and backoff; respects TB_NO_TELEGRAM
+- ordering: BTC, ETH, other crypto, then stocks
+- env: enable TB_DIGEST_INCLUDE_PRICES; keep weekly/engine toggles (weekly not yet implemented)
+
+Developer log (detailed)
+Summary
+- Implemented numeric pricing for crypto assets in the Telegram Human Digest. Stocks remain header/notes only with no numeric levels.
+- Digest renders Spot price, per-timeframe Entries/Invalidation/Targets for BTC/ETH using current provider integration. Weekly overview is not implemented yet (placeholder/stub still prints regime/plan text if present); Engine in One Minute section remains narrative.
+
+What changed
+- tg_digest_formatter.py
+  - is_crypto() used to branch rendering: crypto prints numeric Spot and plan levels; stocks print only structure/sizing narrative.
+  - Crypto per-timeframe:
+    - Entries: supports numeric trigger price or L–H zone.
+    - Invalidation: prints numeric price with condition suffix (e.g., “1h close below”).
+    - Targets: prints TP labels with numeric prices.
+  - Spot line: prints numeric price for crypto; optional drift warning if threshold exceeded.
+  - Stocks path: header + Structure + Sizing only; no Spot/Entries/Targets/Weekly/Drift lines.
+
+- tracer_bullet_universe.py
+  - Assembles assets_data with numeric fields for crypto:
+    - spot: float
+    - plan[tf].entries: trigger price or zone [low, high]
+    - plan[tf].invalidation.price: float + condition string
+    - plan[tf].targets[].price: floats
+  - Maintains ordering: BTC, ETH, other crypto, then stocks.
+  - Telegram send call remains gated by TB_HUMAN_DIGEST and TB_NO_TELEGRAM.
+
+- tg_sender.py
+  - send_telegram_text(text): skips when TB_NO_TELEGRAM=1 or creds missing; retries 3x with incremental backoff; honors Retry-After on 429.
+
+Environment
+- Ensure these are present in .env/.env.example (weekly not yet wired end-to-end):
+  - TB_HUMAN_DIGEST=1
+  - TB_NO_TELEGRAM=1 (set 0 to send)
+  - TB_DIGEST_INCLUDE_PRICES=1
+  - TB_DIGEST_INCLUDE_WEEKLY=1 (weekly section pending full implementation)
+  - TB_DIGEST_INCLUDE_ENGINE=1
+  - TB_DIGEST_MAX_TFS=2
+  - TB_DIGEST_DRIFT_WARN_PCT=0.5
+  - TELEGRAM_BOT_TOKEN=
+  - TELEGRAM_CHAT_ID=
+
+Current behavior (confirmed by latest run)
+- Crypto:
+  - BTC/USD shows Spot, numeric Entries, numeric Invalidation (with side/condition), numeric Targets.
+  - ETH/USD shows Spot, numeric L–H entry zone, numeric Invalidation, numeric Targets.
+- Stocks: SPY/MSFT/AAPL show only header + structure/sizing narrative; no numeric prices or levels.
+- Executive Take and Engine sections render; Weekly shown only if data provided (full logic pending).
+- Telegram digest text is generated; sending controlled by env.
+
+Known gaps / next steps
+- Weekly Overview: implement actual weekly regime/anchors extraction; currently minimal/placeholder. Wire build_weekly_overview to real signals and pass anchors (supply/demand [low, high]) when available.
+- Numeric rounding: consider compact formatting (e.g., 118,877.07 → 118.88K) via formatter option.
+- Drift guard: ensure drift computation uses snapshot vs. current spot consistently; expose threshold from env.
+
+How to test
+- Local print only:
+  - TB_HUMAN_DIGEST=1 TB_NO_TELEGRAM=1 TB_DIGEST_INCLUDE_PRICES=1 python3 scripts/tracer_bullet_universe.py
+  - Expect BTC/ETH numeric Spot/Entries/Invalidation/Targets; stocks without numbers.
+- Send to Telegram:
+  - TB_HUMAN_DIGEST=1 TB_NO_TELEGRAM=0 TB_DIGEST_INCLUDE_PRICES=1 TELEGRAM_BOT_TOKEN=xxx TELEGRAM_CHAT_ID=yyy python3 scripts/tracer_bullet_universe.py
+
+Roll-back plan
+- Toggle TB_DIGEST_INCLUDE_PRICES=0 to suppress numeric printing while keeping digest structure intact.
+- Revert to previous digest by disabling the new formatter path in tracer_bullet_universe.py (guard by env flag if needed).
+
+Sources

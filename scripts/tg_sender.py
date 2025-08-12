@@ -28,7 +28,7 @@ def send_telegram_text(text: str) -> bool:
     delays = [0.5, 1.0, 2.0]
     for attempt, delay in enumerate(delays, start=1):
         try:
-            r = requests.post(url, data=data, timeout=15)
+            r = requests.post(url, json=data, timeout=15)
             if 200 <= r.status_code < 300:
                 return True
             if r.status_code == 429:
@@ -36,6 +36,14 @@ def send_telegram_text(text: str) -> bool:
                 try:
                     body = r.json()
                     retry_after = int(body.get("parameters", {}).get("retry_after", 0))
+                except Exception:
+                    pass
+                # Fallback to Retry-After header if present
+                try:
+                    if not retry_after:
+                        ra_hdr = r.headers.get("Retry-After")
+                        if ra_hdr:
+                            retry_after = int(ra_hdr)
                 except Exception:
                     pass
                 time.sleep(max(retry_after, delay))

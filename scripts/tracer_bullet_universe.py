@@ -5,6 +5,7 @@ Canonical multi-asset universe entrypoint for Tracer Bullet.
 import sys
 import os
 import argparse
+import requests
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.scan_universe import run_universe_scan
@@ -14,6 +15,7 @@ from typing import Dict, List
 from scripts import tg_weekly_engine
 from scripts import tg_digest_formatter as tg_fmt
 from scripts.tg_sender import send_telegram_text
+from alpaca import recent_bars as alpaca_recent_bars
 
 def main():
     parser = argparse.ArgumentParser(description="Tracer Bullet Universe Scanner")
@@ -66,6 +68,76 @@ def main():
 
         # Map payloads to assets_data with minimal fields available
         assets_data: Dict[str, dict] = {}
+        # Helper: live spot for crypto via Binance public API (primary)
+        def _map_to_binance(sym: str) -> str:
+            s = (sym or "").upper()
+            base, _, quote = s.partition("/")
+            q = quote or "USDT"
+            if q in ("USD", "USDC"):
+                q = "USDT"
+            return f"{base}{q}"
+
+        def binance_spot_price(sym: str):
+            try:
+                bsym = _map_to_binance(sym)
+                url = f"https://api.binance.com/api/v3/ticker/price?symbol={bsym}"
+                r = requests.get(url, timeout=10)
+                if r.status_code == 200:
+                    return float(r.json().get("price"))
+            except Exception as e:
+                # Defer handling to rotation wrapper
+                raise e
+
+        def _normalize_crypto_symbol(sym: str) -> str:
+            # Convert BTCUSD -> BTC/USD; preserve BTC/USD as-is
+            if "/" in sym:
+                return sym
+            if len(sym) >= 6:
+                base = sym[:-3]
+                quote = sym[-3:]
+                return f"{base}/{quote}"
+            return sym
+
+        def alpaca_spot_price(sym: str):
+            # Use existing alpaca recent_bars to get the last close
+            try:
+                norm = _normalize_crypto_symbol(sym)
+                df = alpaca_recent_bars(norm, minutes=5)
+                if df is not None and len(df) > 0 and "close" in df.columns:
+                    return float(df["close"].iloc[-1])
+            except Exception as e:
+                raise e
+            return None
+
+        def pplx_spot_price(sym: str):
+            # Placeholder: no direct price fetcher available; return None
+            # Hook for future Perplexity Pro price provider integration
+            return None
+
+        def get_crypto_spot_price(symbol: str):
+            # Try Binance first
+            try:
+                price = binance_spot_price(symbol)
+                if price:
+                    return price
+            except Exception as e:
+                print(f"[WARN] Binance price fetch failed for {symbol}: {e}")
+            # Fallback to Alpaca
+            try:
+                price = alpaca_spot_price(symbol)
+                if price:
+                    return price
+            except Exception as e:
+                print(f"[WARN] Alpaca price fetch failed for {symbol}: {e}")
+            # Fallback to Perplexity Pro (placeholder)
+            try:
+                price = pplx_spot_price(symbol)
+                if price:
+                    return price
+            except Exception as e:
+                print(f"[WARN] PPLX price fetch failed for {symbol}: {e}")
+            return None
+
         for p in ordered_payloads:
             sym = p.get("symbol")
             if not sym:
@@ -77,19 +149,48 @@ def main():
                 "action": ("Buy" if (p.get("divergence", 0) > 0 and p.get("confidence", 0) > 0.7) else ("Sell" if (p.get("divergence", 0) < 0 and p.get("confidence", 0) > 0.7) else "Watch")),
             }
             is_crypto = (p.get("symbol_type") == "crypto")
-            # Narrative plan scaffolding (no numbers), for crypto only
+            # Plans per timeframe
             base_plan = {"1h": {}, "4h": {}, "daily": {}}
-            if is_crypto:
-                entry_text = "breakout trigger" if thesis["bias"] == "up" else ("fade into supply" if thesis["bias"] == "down" else "wait for trigger")
-                targets_text = "trail into strength" if thesis["bias"] == "up" else ("cover into weakness" if thesis["bias"] == "down" else "define profit path")
+            spot_price = get_crypto_spot_price(sym) if is_crypto else None
+            if is_crypto and spot_price:
+                # Simple numeric heuristics per bias
+                if thesis["bias"] == "up":
+                    entries = spot_price * 1.005  # breakout trigger
+                    invalid = {"price": spot_price * 0.975, "condition": "close below"}
+                    targets = [
+                        {"price": spot_price * 1.02},
+                        {"price": spot_price * 1.04},
+                    ]
+                elif thesis["bias"] == "down":
+                    entries = [spot_price * 0.995, spot_price * 0.985]  # fade into supply lower-highs
+                    invalid = {"price": spot_price * 1.015, "condition": "close above"}
+                    targets = [
+                        {"price": spot_price * 0.98},
+                        {"price": spot_price * 0.96},
+                    ]
+                else:
+                    entries = spot_price  # wait/trigger around spot
+                    invalid = {"price": spot_price * 0.98, "condition": "breach"}
+                    targets = [{"price": spot_price * 1.01}]
                 for tf in base_plan.keys():
                     base_plan[tf] = {
-                        "entries": entry_text,
-                        "invalid": True,
-                        "targets": [targets_text],
+                        "entries": entries,
+                        "invalidation": invalid,
+                        "targets": targets,
                     }
+            else:
+                # Narrative scaffolding (no numbers)
+                if is_crypto:
+                    entry_text = "breakout trigger" if thesis["bias"] == "up" else ("fade into supply" if thesis["bias"] == "down" else "wait for trigger")
+                    targets_text = "trail into strength" if thesis["bias"] == "up" else ("cover into weakness" if thesis["bias"] == "down" else "define profit path")
+                    for tf in base_plan.keys():
+                        base_plan[tf] = {
+                            "entries": entry_text,
+                            "invalidation": None,
+                            "targets": [targets_text],
+                        }
             assets_data[sym] = {
-                "spot": (1 if is_crypto else None),  # placeholder to enable Spot line without printing numbers
+                "spot": (spot_price if is_crypto else None),
                 "thesis": thesis,
                 "structure": tg_fmt.__name__ and "trend / range context",
                 "plan": base_plan,
@@ -107,6 +208,7 @@ def main():
             "include_engine": os.getenv("TB_DIGEST_INCLUDE_ENGINE", "1") == "1",
             "max_tfs": int(os.getenv("TB_DIGEST_MAX_TFS", "2")),
             "drift_warn_pct": float(os.getenv("TB_DIGEST_DRIFT_WARN_PCT", "0.5")),
+            "include_prices": os.getenv("TB_DIGEST_INCLUDE_PRICES", "1") == "1",
         }
         text = tg_fmt.render_digest(
             timestamp_utc=summary.get("timestamp_iso") or "",

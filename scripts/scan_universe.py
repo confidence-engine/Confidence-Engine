@@ -445,8 +445,9 @@ def run_universe_scan(
     # Mirroring/auto-commit/push (same as before, but use universe_file, ts_utc_iso, etc)
     import shutil, subprocess
     mirror_flag = os.getenv("TB_UNIVERSE_MIRROR_TO_RUNS", "0") == "1"
-    autoc = os.getenv("TB_UNIVERSE_GIT_AUTOCOMMIT", "0") == "1"
-    pushc = os.getenv("TB_UNIVERSE_GIT_PUSH", "0") == "1"
+    # Default to ON so artifacts are committed and pushed every run
+    autoc = os.getenv("TB_UNIVERSE_GIT_AUTOCOMMIT", "1") == "1"
+    pushc = os.getenv("TB_UNIVERSE_GIT_PUSH", "1") == "1"
     push_default = os.getenv("TB_UNIVERSE_GIT_PUSH_DEFAULT", "0") == "1"
     if autoc and not pushc and push_default:
         pushc = True

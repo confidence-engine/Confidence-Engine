@@ -54,12 +54,18 @@ def render_digest(
             for a in anchors:
                 t = a.get("type", "zone")
                 z = a.get("zone", [])
-                if t == "supply":
-                    parts.append("supply L–H")
-                elif t == "demand":
-                    parts.append("demand L–H")
+                # Numeric weekly levels if available
+                if isinstance(z, (list, tuple)) and len(z) == 2 and all(isinstance(x, (int, float)) for x in z):
+                    lo, hi = z
+                    label = t if t in ("supply", "demand") else "zone"
+                    parts.append(f"{label} {lo:.0f}–{hi:.0f}")
                 else:
-                    parts.append("zone L–H")
+                    if t == "supply":
+                        parts.append("supply L–H")
+                    elif t == "demand":
+                        parts.append("demand L–H")
+                    else:
+                        parts.append("zone L–H")
             lines.append("Weekly Levels: " + "; ".join(parts))
         plan_text = weekly.get("plan_text")
         if plan_text:
@@ -90,6 +96,7 @@ def render_digest(
     # Asset blocks
     drift_warn = float(os.getenv("TB_DIGEST_DRIFT_WARN_PCT", options.get("drift_warn_pct", 0.5)))
     max_tfs = int(os.getenv("TB_DIGEST_MAX_TFS", options.get("max_tfs", 2)))
+    include_prices = (os.getenv("TB_DIGEST_INCLUDE_PRICES", "1") == "1") or bool(options.get("include_prices", False))
 
     def header(sym: str, a: dict) -> str:
         th = a.get("thesis") or {}
@@ -108,10 +115,17 @@ def render_digest(
             spot = a.get("spot")
             drift = a.get("drift_since_snapshot_pct")
             if spot is not None:
-                if drift is not None and abs(drift) >= drift_warn:
-                    lines.append("Spot: price with drift warning")
+                if include_prices and isinstance(spot, (int, float)):
+                    spot_line = f"Spot: {spot:.2f}"
+                    if drift is not None and abs(drift) >= drift_warn:
+                        spot_line += f" (re-check; drift >{drift_warn:.1f}%)"
+                    lines.append(spot_line)
                 else:
-                    lines.append("Spot: price stable")
+                    # Redacted numeric spot
+                    if drift is not None and abs(drift) >= drift_warn:
+                        lines.append("Spot: price with drift warning")
+                    else:
+                        lines.append("Spot: price stable")
             # Structure
             if a.get("structure"):
                 lines.append("Structure: " + a["structure"])
@@ -124,25 +138,58 @@ def render_digest(
                 if not plan:
                     continue
                 lines.append(f"{tf}: ")
+                # Entries: support zones (L–H) or single triggers
                 ent = plan.get("entries")
-                if ent:
-                    if isinstance(ent, list):
-                        lines.append("  Entries: " + "; ".join(str(x) for x in ent))
+                if ent is not None:
+                    if include_prices and isinstance(ent, (list, tuple)) and len(ent) == 2 and all(isinstance(x,(int,float)) for x in ent):
+                        lines.append(f"  Entries: {ent[0]:.2f}–{ent[1]:.2f}")
+                    elif include_prices and isinstance(ent, (int, float)):
+                        lines.append(f"  Entries: {ent:.2f}")
                     else:
-                        lines.append("  Entries: " + str(ent))
-                if plan.get("invalid"):
-                    lines.append("  Invalidation: set")
+                        # narrative fallback
+                        lines.append("  Entries: set")
+                # Invalidation
+                inv = plan.get("invalidation") or plan.get("invalid")
+                if inv is not None:
+                    if include_prices and isinstance(inv, dict) and isinstance(inv.get("price"),(int,float)):
+                        cond = inv.get("condition") or "breach"
+                        lines.append(f"  Invalidation: {inv['price']:.2f} ({cond})")
+                    elif include_prices and isinstance(inv, (int, float)):
+                        lines.append(f"  Invalidation: {inv:.2f}")
+                    else:
+                        lines.append("  Invalidation: set")
+                # Targets
                 tg = plan.get("targets")
                 if tg:
-                    if isinstance(tg, list):
-                        lines.append("  Targets: " + "; ".join(str(x) for x in tg))
+                    if include_prices:
+                        parts = []
+                        if isinstance(tg, (list, tuple)):
+                            for i, t in enumerate(tg, 1):
+                                if isinstance(t, dict) and isinstance(t.get("price"),(int,float)):
+                                    parts.append(f"TP{i} {t['price']:.2f}")
+                                elif isinstance(t, (int, float)):
+                                    parts.append(f"TP{i} {t:.2f}")
+                        if parts:
+                            lines.append("  Targets: " + ", ".join(parts))
                     else:
-                        lines.append("  Targets: " + str(tg))
+                        lines.append("  Targets: set")
                 shown += 1
             # Weekly anchor
             wk = a.get("weekly_anchor") or {}
             if wk.get("supply_zone") or wk.get("demand_zone"):
-                lines.append("Weekly: supply L–H; demand L–H")
+                parts = []
+                if include_prices and isinstance(wk.get("supply_zone"),(list,tuple)) and len(wk["supply_zone"])==2:
+                    lo,hi = wk["supply_zone"]
+                    parts.append(f"supply {lo:.0f}–{hi:.0f}")
+                elif wk.get("supply_zone"):
+                    parts.append("supply L–H")
+                if include_prices and isinstance(wk.get("demand_zone"),(list,tuple)) and len(wk["demand_zone"])==2:
+                    lo,hi = wk["demand_zone"]
+                    parts.append(f"demand {lo:.0f}–{hi:.0f}")
+                elif wk.get("demand_zone"):
+                    parts.append("demand L–H")
+                if parts:
+                    lines.append("Weekly: " + "; ".join(parts))
             # Sizing and drift guard
             if a.get("sizing_text"):
                 lines.append("Sizing: " + a["sizing_text"])
