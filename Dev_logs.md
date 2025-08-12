@@ -787,3 +787,68 @@ Sources
 [18] The Evolving Landscape of Antibody–Drug Conjugates: In Depth ... https://pubs.acs.org/doi/10.1021/acs.bioconjchem.3c00374
 [19] [PDF] DOT&E FY2021 Annual Report https://www.dote.osd.mil/Portals/97/pub/reports/FY2021/other/2021DOTEAnnualReport.pdf
 [20] Apscheduler is skipping my task. How to eliminate this? https://stackoverflow.com/questions/73343854/apscheduler-is-skipping-my-task-how-to-eliminate-this
+
+Here you go.
+
+Commit message (conventional, concise)
+feat(digest): add Weekly + Engine Telegram digest with crypto-only prices; stocks headers-only
+
+- env: add TB_HUMAN_DIGEST, TB_NO_TELEGRAM, TB_DIGEST_INCLUDE_WEEKLY, TB_DIGEST_INCLUDE_ENGINE, TB_DIGEST_MAX_TFS, TB_DIGEST_DRIFT_WARN_PCT, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+- formatter: new scripts/tg_digest_formatter.py (Weekly/Engine sections; crypto shows spot/entries/targets; stocks suppress prices/levels)
+- weekly/engine: new scripts/tg_weekly_engine.py (build_weekly_overview, build_engine_minute)
+- telegram: new scripts/tg_sender.py (gated send with retries, respects TB_NO_TELEGRAM)
+- runner: wire scripts/tracer_bullet_universe.py to assemble assets_data/order, render digest, optional send
+- scan: return payloads for downstream digest formatting
+- docs: .env.example updated
+
+dev logs update
+Summary
+- Implemented a new plain-text Telegram digest including Weekly Overview and Engine in One Minute.
+- Crypto assets (BTC/ETH first) show spot narrative and plans (entries/targets/invalidation). Stocks show headers/notes only—no prices/levels.
+- Telegram sending added with env gating and simple retry/backoff.
+
+Details
+- Env
+  - Added flags to .env.example:
+    - TB_HUMAN_DIGEST (enable human digest behavior)
+    - TB_NO_TELEGRAM (gate sending; default skip)
+    - TB_DIGEST_INCLUDE_WEEKLY / TB_DIGEST_INCLUDE_ENGINE
+    - TB_DIGEST_MAX_TFS (default 2)
+    - TB_DIGEST_DRIFT_WARN_PCT (default 0.5)
+    - TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID
+- New modules
+  - scripts/tg_weekly_engine.py
+    - build_weekly_overview(): derives regime, up to two anchors, plan_text, optional catalysts from existing signals
+    - build_engine_minute(): thesis/evidence/action and compact narrative stats (no numbers/probabilities)
+  - scripts/tg_digest_formatter.py
+    - is_crypto() helper
+    - render_digest(): Title, Executive Take, Weekly, Engine, per-asset blocks (crypto full; stocks headers-only), Playbook
+    - Drift warning applied when abs(drift) > TB_DIGEST_DRIFT_WARN_PCT
+  - scripts/tg_sender.py
+    - send_telegram_text(): POST with retries (0.5s/1s/2s), respects TB_NO_TELEGRAM and 429 Retry-After
+- Wiring
+  - scripts/tracer_bullet_universe.py updated to:
+    - Build assets_data and assets_ordered (BTC, ETH, other crypto, then stocks)
+    - Generate weekly/engine
+    - Render digest and print
+    - If TB_HUMAN_DIGEST=1 and TB_NO_TELEGRAM=0, send via Telegram
+  - scripts/scan_universe.py returns payloads for downstream formatter consumption; internal Telegram disabled to avoid double-send
+- Behavior notes
+  - No refactor of analyzers; formatter degrades gracefully on missing fields
+  - No numeric model metrics/probabilities printed in digest
+  - Equities remain in universe; they render without prices/levels by design
+- Quick test (print-only)
+  - TB_HUMAN_DIGEST=1 TB_NO_TELEGRAM=1 python3 scripts/tracer_bullet_universe.py
+  - Observed: Weekly + Engine sections; BTC/ETH with spot and plans; SPY/AAPL/MSFT headers/notes only; send skipped as expected
+- How to send
+  - export TB_HUMAN_DIGEST=1
+  - export TB_NO_TELEGRAM=0
+  - export TELEGRAM_BOT_TOKEN=...
+  - export TELEGRAM_CHAT_ID=...
+  - python3 scripts/tracer_bullet_universe.py
+
+Follow-ups
+- Optional tests: ensure stocks never print numeric lines; ensure crypto blocks include entries/targets when present.
+- If you don’t want run artifacts tracked, add universe_runs/ to .gitignore.
+
+Sources

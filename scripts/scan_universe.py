@@ -558,7 +558,8 @@ def run_universe_scan(
         "version": version,
         "digest": digest,
         "human_digest": human_digest if human_digest_enabled else "",
-        "symbols": symlist
+        "symbols": symlist,
+        "payloads": ranked_payloads
     }
 
 
