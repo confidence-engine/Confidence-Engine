@@ -119,7 +119,14 @@ def send_telegram_text_multi(text: str) -> bool:
     - Adds a header like "[i/N]" when multiple chunks are sent.
     """
     try:
-        chunks = _split_text(text, max_len=4000)
+        # Optional env to force smaller splits for testing; clamp to [500, 4000]
+        try:
+            cfg_len = int(os.getenv("TB_TG_SPLIT_MAX_LEN", "4000"))
+        except Exception:
+            cfg_len = 4000
+        max_len = max(500, min(4000, cfg_len))
+
+        chunks = _split_text(text, max_len=max_len)
         total = len(chunks)
         ok_all = True
         for idx, chunk in enumerate(chunks, start=1):

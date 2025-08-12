@@ -926,3 +926,63 @@ Roll-back plan
 - Revert to previous digest by disabling the new formatter path in tracer_bullet_universe.py (guard by env flag if needed).
 
 Sources
+
+
+Commit message (conventional)
+feat(digest): crypto-only TG digest with full TFs (1h/4h/1D/1W/1M) + robust message splitting
+
+- formatter: add crypto-only toggle (TB_DIGEST_TELEGRAM_CRYPTO_ONLY) to omit stocks from Telegram output
+- formatter: ensure ordered TFs ["1h","4h","1D","1W","1M"] render for crypto, capped by TB_DIGEST_MAX_TFS
+- runner: leave provider rotation and scan/artifacts unchanged; populate crypto TF plans; set stock Spot but skip in TG when crypto-only
+- sender: add multi-message split/send to respect Telegram length limits (≤ ~4k chars per chunk) with [i/N] headers
+- env: document TB_DIGEST_TELEGRAM_CRYPTO_ONLY, TB_DIGEST_MAX_TFS, TB_DIGEST_INCLUDE_PRICES, TB_DIGEST_DRIFT_WARN_PCT
+
+Developer log
+Summary
+- Delivered a Telegram digest focused on crypto only, hiding stocks, while rendering all requested timeframes (1h, 4h, 1D, 1W, 1M).
+- Implemented safe multi-part Telegram sending to avoid message length failures without altering Weekly/Engine or provider rotation.
+
+What changed
+- scripts/tg_digest_formatter.py
+  - Added TELEGRAM_CRYPTO_ONLY gate via TB_DIGEST_TELEGRAM_CRYPTO_ONLY=1 to filter out stock blocks from Telegram output.
+  - Confirmed fixed timeframe order ["1h","4h","1D","1W","1M"] with TB_DIGEST_MAX_TFS cap; crypto TF blocks render Entries (trigger or L–H with type), Invalidation (price+condition), and Targets (TPn).
+  - Stocks remain in artifacts/universe scan but are omitted from TG when the flag is set.
+
+- scripts/tracer_bullet_universe.py
+  - Left provider rotation intact: crypto (Binance → Alpaca → PPLX), equities (Alpaca → PPLX).
+  - Ensured crypto assets’ plan includes higher TFs where analysis provides levels.
+  - Kept stock assembly unchanged but TG output hides them under the crypto-only flag.
+  - Telegram send path switched to multi-sender for chunked delivery.
+
+- scripts/tg_sender.py
+  - Added _split_text to chunk long messages (<4000 chars each) with logical splits and hard fallback.
+  - Added send_telegram_text_multi to send chunks sequentially with [i/N] headers; uses existing send_telegram_text per chunk.
+
+Environment
+- Append/update in .env.example:
+  - TB_HUMAN_DIGEST=1
+  - TB_NO_TELEGRAM=1
+  - TB_DIGEST_INCLUDE_PRICES=1
+  - TB_DIGEST_MAX_TFS=5
+  - TB_DIGEST_DRIFT_WARN_PCT=0.5
+  - TB_DIGEST_TELEGRAM_CRYPTO_ONLY=1
+  - TELEGRAM_BOT_TOKEN=
+  - TELEGRAM_CHAT_ID=
+- TB_DIGEST_INCLUDE_STOCK_PRICES remains supported but ignored when crypto-only is enabled.
+
+Testing
+- Local print (no send):
+  - TB_HUMAN_DIGEST=1 TB_NO_TELEGRAM=1 TB_DIGEST_TELEGRAM_CRYPTO_ONLY=1 TB_DIGEST_INCLUDE_PRICES=1 TB_DIGEST_MAX_TFS=5 python3 scripts/tracer_bullet_universe.py
+  - Expect: Only crypto blocks with 1h/4h/1D/1W/1M where levels exist; Weekly/Engine present.
+
+- Telegram send:
+  - TB_HUMAN_DIGEST=1 TB_NO_TELEGRAM=0 TB_DIGEST_TELEGRAM_CRYPTO_ONLY=1 TB_DIGEST_INCLUDE_PRICES=1 TB_DIGEST_MAX_TFS=5 TELEGRAM_BOT_TOKEN=xxx TELEGRAM_CHAT_ID=yyy python3 scripts/tracer_bullet_universe.py
+  - Expect: Multi-part messages with [i/N] headers if long.
+
+Known gaps / next steps
+- Ensure analysis produces levels for 1D/1W/1M; formatter shows only TFs present in plan.
+- Optional: add compact numeric formatting (K/M) behind an env toggle.
+- Optional: add slight inter-chunk delay (e.g., 200–300ms) in multi-sender if rate limits are encountered.
+- Optional: Discord webhook mirroring if you want an additional channel.
+
+Sources

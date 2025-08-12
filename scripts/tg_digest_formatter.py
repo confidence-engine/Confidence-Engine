@@ -99,6 +99,7 @@ def render_digest(
     include_prices = (os.getenv("TB_DIGEST_INCLUDE_PRICES", "1") == "1") or bool(options.get("include_prices", False))
     include_stock_prices = os.getenv("TB_DIGEST_INCLUDE_STOCK_PRICES", "0") == "1"
     ordered_tfs = ["1h", "4h", "1D", "1W", "1M"]
+    TELEGRAM_CRYPTO_ONLY = os.getenv("TB_DIGEST_TELEGRAM_CRYPTO_ONLY", "0") == "1"
 
     def header(sym: str, a: dict) -> str:
         th = a.get("thesis") or {}
@@ -109,7 +110,10 @@ def render_digest(
 
     tf_order = ["1h", "4h", "daily"]
 
-    for sym in assets_ordered:
+    # Apply crypto-only filter if enabled
+    render_symbols = [s for s in assets_ordered if (not TELEGRAM_CRYPTO_ONLY or is_crypto(s))]
+
+    for sym in render_symbols:
         a = assets_data.get(sym, {})
         lines.append(header(sym, a))
         if is_crypto(sym):
