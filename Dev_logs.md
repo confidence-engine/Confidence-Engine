@@ -1049,4 +1049,65 @@ Telegram digest worked, but Discord embed send was failing with `'dict' object h
 
 Do you want me to also prep a **concise “Now → Near → Next”** tracker so we log this and keep the roadmap sequence in one quick‑glance view? That would make it easier to track progress as we enter v3.3.
 
+
+Got it ✅ — here’s the **commit message** and **dev log entry** for **v3.3 / Step 1** so it’s recorded cleanly before we move on to Step 2.
+
+***
+
+## **Commit message**
+```
+v3.3 Step 1: Universe expansion + Top‑K alts gating + Discord weekly/engine fix
+
+- Expanded `config/universe.yaml` to include liquid crypto alts (BNB, ARB, OP, POL, etc.) while retaining BTC/ETH.
+- Updated `symbol_utils.py` to validate and normalise new alt symbols.
+- Added TB_DIGEST_TOP_ALTS env flag and implemented top‑K gating in `tracer_bullet_universe.py`:
+  • Public digests (TG/Discord) now limited to BTC, ETH + configured top‑K alts.
+  • Artifacts remain full universe without gating.
+- Created helper `select_digest_symbols_public()` to centralise selection logic.
+- Fixed Discord Weekly/Engine formatting:
+  • Converted from raw JSON to human‑readable prose in `discord_formatter.py`.
+- Disabled stock `spot` fetch for non‑crypto symbols to remove noisy Alpaca/PPLX warnings.
+- Added `tests/test_digest_top_alts.py` to verify gating logic; all tests pass.
+- Verified full universe scan with 20 symbols:
+  • TG: multi‑part crypto‑only digest delivered.
+  • Discord: “[part 1/1]” with 9 embeds; no config or formatting errors.
+```
+
+***
+
+## **Dev log — v3.3 / Step 1**
+**Date:** 2025‑08‑13  
+**Milestone:** v3.3 — Full‑Liquid Crypto Alts + Evidence Lines + Polymarket BTC/ETH Read‑Only  
+**Step:** 1 / Universe expansion & top‑K gating
+
+**Changes implemented:**
+1. **Universe expansion**
+   - `config/universe.yaml` updated for full liquid alt coverage (BTC, ETH, plus BNB, ARB, OP, POL…).
+   - `symbol_utils.py` extended to handle new symbol patterns.
+
+2. **Top‑K gating for digests**
+   - Added `TB_DIGEST_TOP_ALTS` env var; gates TG/Discord outputs to BTC, ETH + top‑K ranked alts.
+   - Artifacts (`universe_runs/*.json`) remain complete without gating.
+   - Introduced helper `select_digest_symbols_public()` to centralise gating logic.
+
+3. **Formatting & noise fixes**
+   - `discord_formatter.py`: Weekly & Engine sections now render as clean text, not JSON dumps.
+   - Disabled stock price fetch for equities in `tracer_bullet_universe.py` to eliminate provider failure spam.
+
+4. **Testing & verification**
+   - Added `tests/test_digest_top_alts.py` for gating unit test — passed (exit code 0).
+   - Full `scripts/tracer_bullet_universe.py` run:
+     - 20 symbols scanned.
+     - TG: multi‑part crypto‑only digest sent.
+     - Discord: 1 message, 9 embeds; no formatting errors.
+     - No stock price fetch warnings.
+
+**Status:** ✅ Step 1 complete. Core universe config + gating logic stable. Ready to proceed to Step 2 (Evidence Line Generator).
+
+***
+
+If you confirm, I’ll mark **Step 1** as *committed in repo* and move straight into **Step 2**’s implementation for evidence lines.  
+Do you want me to proceed with Step 2 build now?
+
 Sources
+

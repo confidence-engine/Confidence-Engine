@@ -19,6 +19,14 @@ from scripts.discord_sender import send_discord_digest
 from scripts.discord_formatter import digest_to_discord_embeds
 from alpaca import recent_bars as alpaca_recent_bars
 
+# Public helper for tests: select BTC/ETH + top-K alts (payloads already ranked)
+def select_digest_symbols_public(payloads_list: List[Dict], k_alts: int) -> List[str]:
+    b = [p for p in payloads_list if (p.get("symbol", "").upper().startswith("BTC/"))]
+    e = [p for p in payloads_list if (p.get("symbol", "").upper().startswith("ETH/"))]
+    others = [p for p in payloads_list if (p.get("symbol_type") == "crypto") and p not in b + e]
+    selected = b + e + others[: max(0, int(k_alts))]
+    return [p.get("symbol") for p in selected if p.get("symbol")]
+
 def main():
     parser = argparse.ArgumentParser(description="Tracer Bullet Universe Scanner")
     parser.add_argument("--config", default="config/universe.yaml", help="Universe config file")
@@ -63,10 +71,21 @@ def main():
             return (p.get("symbol_type") == "crypto")
         btc = [p for p in payloads if p.get("symbol", "").upper().startswith("BTC/")]
         eth = [p for p in payloads if p.get("symbol", "").upper().startswith("ETH/")]
-        other_crypto = [p for p in payloads if is_crypto(p) and p not in btc + eth]
+        other_crypto_all = [p for p in payloads if is_crypto(p) and p not in btc + eth]
         stocks = [p for p in payloads if not is_crypto(p)]
-        ordered_payloads = (btc + eth + other_crypto + stocks)
-        assets_ordered: List[str] = [p.get("symbol") for p in ordered_payloads if p.get("symbol")]
+        ordered_payloads = (btc + eth + other_crypto_all + stocks)
+        assets_ordered_all: List[str] = [p.get("symbol") for p in ordered_payloads if p.get("symbol")]
+
+        # Select digest-surfaced symbols: BTC/ETH + top-K alts (no stocks)
+        _top_env = os.getenv("TB_DIGEST_TOP_ALTS", os.getenv("TB_DIGEST_MAX_ALTS", "5"))
+        try:
+            if isinstance(_top_env, str) and _top_env.strip().lower() in ("all", "-1"):
+                top_k_alts = len(other_crypto_all)
+            else:
+                top_k_alts = int(_top_env)
+        except Exception:
+            top_k_alts = 5
+        assets_ordered_digest: List[str] = select_digest_symbols_public(ordered_payloads, top_k_alts)
 
         # Map payloads to assets_data with minimal fields available
         assets_data: Dict[str, dict] = {}
@@ -275,7 +294,7 @@ def main():
             timestamp_utc=summary.get("timestamp_iso") or "",
             weekly=weekly,
             engine=engine,
-            assets_ordered=assets_ordered,
+            assets_ordered=assets_ordered_digest,
             assets_data=assets_data,
             options=options,
         )
@@ -312,7 +331,7 @@ def main():
                         break
 
             assets_list = []
-            for sym in assets_ordered:
+            for sym in assets_ordered_digest:
                 a = assets_data.get(sym, {})
                 th = a.get("thesis") or {}
                 assets_list.append({
