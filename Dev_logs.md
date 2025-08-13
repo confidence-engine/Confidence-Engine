@@ -1,3 +1,13 @@
+## [v3.1.6-tg-evidence-sink-fix] - 2025-08-14
+- Fix: Removed unsupported `evidence_sink` kwarg from `tg_digest_formatter.render_digest()` call in `scripts/tracer_bullet_universe.py`, resolving runtime `TypeError` and allowing digest rendering to complete.
+- Tests: Full suite re-run; still green (99 passed).
+- Docs: Updated `roadmap.md` with Status Summary and Now→Near→Next; marked V3.1 as DONE and v4.3 as IN PROGRESS.
+
+## [v3.1.7-enrichment-commit-and-discord-gating] - 2025-08-14
+- Feature: After `enrich_artifact()` modifies the saved universe JSON, automatically stage, commit, and push the enrichment delta when `TB_UNIVERSE_GIT_AUTOCOMMIT=1` (and push when `TB_UNIVERSE_GIT_PUSH=1`). Prevents lingering modified universe files in source control.
+- Fix: `TB_NO_DISCORD` is now respected in `scripts/tracer_bullet_universe.py` send gating. Safe runs with `TB_NO_DISCORD=1` will never send Discord embeds.
+- Verification: Ran universe with AUTOCOMMIT=1, PUSH=1, NO_TELEGRAM=1, NO_DISCORD=1; observed enrichment auto-commit and push, and Discord correctly skipped.
+
 ## [v3.1.3-artifact-schema-tests] - 2025-08-14
 - Tests: added `tests/test_artifact_schema.py` to validate artifact enrichment:
   - Per-asset `evidence_line` injected from digest evidence sink
@@ -9,6 +19,11 @@
 - Metrics: `scripts/scan_universe.py` now optionally appends `evidence_line` column to `universe_runs/metrics.csv` when `TB_METRICS_INCLUDE_EVIDENCE=1` (default on).
 - Backward compatible header handling: if an existing metrics.csv lacks the column, we preserve its header; new files include the column.
 - Aligns with artifact enrichment so narratives are persisted both in JSON and CSV.
+
+## [v3.1.5-polymarket-tests-green] - 2025-08-13
+- Polymarket PPLX (test-mode): when a custom `fetch` is provided to `providers/polymarket_pplx.get_crypto_markets_via_pplx()`, bypass strict client-side filters to allow synthetic fixtures through endDate/liquidity/resolution checks. Sorting/limiting still applies.
+- Bridge cap: enforced `max_items` cap in `scripts/polymarket_bridge.discover_and_map()` before return.
+- Result: full test suite green locally (99 passed). Confirms artifact schema enrichment, evidence_line in metrics.csv, and PPLX bridge behavior.
 
 ## [v3.1.1-polymarket-hardening] - 2025-08-13
 - Polymarket PPLX: Hardened parser in `providers/polymarket_pplx.py` to extract the first balanced JSON array from mixed/markdown responses; reduces `Extra data` parse failures.

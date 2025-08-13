@@ -2,7 +2,7 @@
 
 A living, milestone-driven plan from V1 tracer bullet to small live capital, emphasizing reliability, explainability, and leak-free validation.
 
-Last updated: 2025-08-08.
+Last updated: 2025-08-14.
 
 ## Guiding Objectives
 
@@ -12,6 +12,42 @@ Last updated: 2025-08-08.
 - Validate via event-ordered, leak-free backtests before scaling.
 
 ***
+
+## Status Summary (as of 2025-08-14)
+
+- V1 — Tracer Bullet: DONE
+- V2 — Crowd Immunity: DONE
+- V3 — Bias Immunity + Sizing: DONE
+- V3.1 — Multi-Asset Foundations: DONE
+- V3.3 — Evidence Lines + Polymarket (read-only): DONE
+- V3.4 — Evaluation Pipeline: NOT DONE
+- V4.2 — Backtesting & Governance: NOT DONE
+- V4.3 — Reliability Ops Hardening: IN PROGRESS
+- V5 — 24/7 Cloud Agent: NOT DONE
+- V6 — Paper Execution & Risk: NOT DONE
+- V7 — Live Capital: NOT DONE
+
+## Now → Near → Next
+
+- Now — v4.3 Reliability Ops Hardening
+  - Auto-commit/push polish (stage JSON/CSV, explicit logs, skip reasons, non-interactive push verification)
+  - Unified self-checks: schema/digest validations, degraded-run markers, circuit breakers
+  - Acceptance: 3-day burn-in; <1% degraded runs; zero crashes
+
+- Near — v3.4 Evaluation Pipeline
+  - Outcome capture: event-ordered snapshots; resolved outcomes archived to CSV/JSON
+  - Metrics: Brier/log-loss, calibration curves; cohort win-rates; odds convergence
+  - Reproducibility: ≥50 resolved obs; deterministic scripts
+
+- Next — v4.2 Backtesting & Governance
+  - Event-ordered replay of bars + headlines; point-in-time features only
+  - Walk-forward validation; rolling IS/OOS; publish selected thresholds
+  - Cohort analytics; monthly governance cadence
+
+- Later
+  - v5 24/7 Cloud Agent (GH Actions cadence, secrets mgmt, monitored rollback)
+  - v6 Paper Execution & Risk (dry-run fills, portfolio caps, kill-switches)
+  - v7 Live Capital (small guarded trial with strict loss/risk controls)
 
 ## V1 — Tracer Bullet (single-asset, end-to-end)
 
@@ -335,7 +371,7 @@ Milestone V3 — Bias Immunity + Sizing [PLANNED]
   - Telegram line only if above floor
 - Tests: blending math, penalties clamping, sizing boundaries; schema tests
 
-Milestone V3.1 — Multi-Asset Foundations (Crypto + Stocks) [PLANNED]
+Milestone V3.1 — Multi-Asset Foundations (Crypto + Stocks) [DONE]
 - Universe configuration (config/universe.yaml) for crypto and stocks
 - Stock bars adapter (e.g., Polygon/AlphaVantage/Yahoo) with same interface
 - Trading-hours awareness (RTH vs extended; volume_z handling)

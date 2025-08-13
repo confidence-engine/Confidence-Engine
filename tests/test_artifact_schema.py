@@ -77,8 +77,8 @@ def test_enrich_artifact_injects_evidence_and_polymarket(tmp_path: Path):
     assert isinstance(it.get("implied_pct"), (float, int))
     assert isinstance(it.get("liquidity_usd"), (float, int))
     assert isinstance(it.get("market_id"), str)
-    assert isinstance(it.get("quality"), (float, int))
-    assert it.get("end_date_iso") == poly_items[0]["end_date_iso"]
+    assert isinstance(it.get("quality_score"), (float, int))
+    assert it.get("event_end_date") == poly_items[0]["end_date_iso"]
 
 
 def test_backward_compat_old_artifact_without_new_fields(tmp_path: Path):

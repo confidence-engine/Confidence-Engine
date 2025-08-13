@@ -48,6 +48,52 @@ except Exception:
         return []
 from alpaca import recent_bars as alpaca_recent_bars
 
+# Public helper to enrich a saved universe artifact with per-asset evidence lines
+# and a top-level polymarket array. Pure storage change; chat outputs unchanged.
+from typing import Any
+def enrich_artifact(universe_file: str, ev_sink: Dict[str, str], poly_items: List[Dict[str, Any]]):
+    if not universe_file:
+        return
+    import json
+    data: Dict[str, Any] = {}
+    try:
+        with open(universe_file, "r") as f:
+            data = json.load(f)
+    except Exception:
+        return
+    payloads = data.get("payloads") or []
+    # Attach per-payload evidence_line; None if absent/disabled
+    ev_map = ev_sink or {}
+    for p in payloads:
+        sym = p.get("symbol")
+        p["evidence_line"] = ev_map.get(sym) if sym in ev_map else None
+    # Build top-level polymarket array from already filtered/mapped items
+    poly_out = []
+    for it in (poly_items or []):
+        try:
+            poly_out.append({
+                "market_name": it.get("title"),
+                "stance": it.get("stance"),
+                "readiness": it.get("readiness"),
+                "edge_label": it.get("edge_label"),
+                "rationale": it.get("rationale_chat"),
+                "implied_prob": it.get("implied_prob"),
+                "implied_pct": it.get("implied_pct"),
+                "tb_internal_prob": it.get("internal_prob"),
+                "liquidity_usd": it.get("liquidity_usd"),
+                "event_end_date": it.get("end_date_iso"),
+                "market_id": it.get("market_id"),
+                "quality_score": it.get("quality"),
+            })
+        except Exception:
+            continue
+    data["polymarket"] = poly_out
+    try:
+        with open(universe_file, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+
 # Public helper for tests: select BTC/ETH + top-K alts (payloads already ranked)
 def select_digest_symbols_public(payloads_list: List[Dict], k_alts: int) -> List[str]:
     b = [p for p in payloads_list if (p.get("symbol", "").upper().startswith("BTC/"))]
@@ -387,53 +433,38 @@ def main():
             assets_data=assets_data,
             options=options,
             polymarket=polymarket_items,
-            evidence_sink=evidence_sink,
         )
         print("\nTelegram Digest (Human):")
         print("-----------------------")
 
         # Enrich saved artifact with evidence lines and polymarket array (storage only; no chat change)
         try:
-            def enrich_artifact(universe_file: str, ev_sink: Dict[str, str], poly_items: List[Dict]):
-                if not universe_file:
-                    return
-                import json
-                data = {}
-                try:
-                    with open(universe_file, "r") as f:
-                        data = json.load(f)
-                except Exception:
-                    return
-                payloads = data.get("payloads") or []
-                # Attach per-payload evidence_line; None if absent/disabled
-                ev_map = ev_sink or {}
-                for p in payloads:
-                    sym = p.get("symbol")
-                    p["evidence_line"] = ev_map.get(sym) if sym in ev_map else None
-                # Build top-level polymarket array from already filtered/mapped items
-                poly_out = []
-                for it in (poly_items or []):
-                    try:
-                        poly_out.append({
-                            "market_name": it.get("title"),
-                            "stance": it.get("stance"),
-                            "readiness": it.get("readiness"),
-                            "edge_label": it.get("edge_label"),
-                            "rationale": it.get("rationale_chat"),
-                            "implied_prob": it.get("implied_prob"),
-                            "tb_internal_prob": it.get("internal_prob"),
-                            "liquidity_usd": it.get("liquidity_usd"),
-                            "event_end_date": it.get("end_date_iso"),
-                            "market_id": it.get("market_id"),
-                            "quality_score": it.get("quality"),
-                        })
-                    except Exception:
-                        continue
-                data["polymarket"] = poly_out
-                # Write back
-                with open(universe_file, "w") as f:
-                    json.dump(data, f, indent=2)
-            enrich_artifact(summary.get("universe_file"), evidence_sink, polymarket_items)
+            ufile = summary.get("universe_file")
+            enrich_artifact(ufile, evidence_sink, polymarket_items)
+            # After enrichment, the universe file is modified post scan_universe's commit.
+            # If auto-commit is enabled, commit and optionally push the enrichment changes now.
+            try:
+                autoc = os.getenv("TB_UNIVERSE_GIT_AUTOCOMMIT", "1") == "1"
+                pushc = os.getenv("TB_UNIVERSE_GIT_PUSH", "1") == "1"
+                if autoc and ufile:
+                    import subprocess
+                    # Stage the modified universe file and metrics.csv if present
+                    subprocess.run(["git", "add", ufile, "universe_runs/metrics.csv"], check=False)
+                    msg = f"universe: enrichment (evidence_line + polymarket) for {os.path.basename(ufile)}"
+                    # Commit only if there is something to commit
+                    r = subprocess.run(["git", "commit", "-m", msg], check=False)
+                    if r.returncode == 0:
+                        print("[Universe] Enrichment auto-commit done.")
+                        if pushc:
+                            try:
+                                subprocess.run(["git", "push"], check=True)
+                                print("[Universe] Enrichment pushed.")
+                            except Exception as pe:
+                                print(f"[Universe] Enrichment push failed: {pe}")
+                    else:
+                        print("[Universe] Enrichment commit skipped (no changes).")
+            except Exception as ge:
+                print(f"[Universe] Enrichment auto-commit skipped: {ge}")
         except Exception as e:
             print(f"[Artifact] Enrichment skipped: {e}")
         print(text)
@@ -448,7 +479,8 @@ def main():
             and (not args.no_telegram)
         )
         SEND_DISCORD = (
-            os.getenv("TB_ENABLE_DISCORD", "1") == "1"
+            os.getenv("TB_NO_DISCORD", "0") == "0"
+            and os.getenv("TB_ENABLE_DISCORD", "1") == "1"
             and os.getenv("DISCORD_WEBHOOK_URL")
         )
 

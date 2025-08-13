@@ -451,6 +451,12 @@ def discover_and_map(
             if mapped:
                 out.append(mapped)
         window_weeks = saved_window_weeks
+    # Enforce max_items cap
+    try:
+        if isinstance(max_items, int) and max_items > 0 and len(out) > max_items:
+            out = out[:max_items]
+    except Exception:
+        pass
     return out
 
 
