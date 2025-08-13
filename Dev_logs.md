@@ -1202,3 +1202,48 @@ Do you want me to **prep the Step 3 implementation prompt** so we can move str
 
 
 
+
+***
+
+## **Dev log — v3.3 / Step 3 (Calibration & Debug Enhancements)**
+**Date:** 2025‑08‑13  
+**Milestone:** v3.3 — Polymarket BTC/ETH integration tuning and observability
+
+**Changes implemented:**
+
+1. **Bridge improvements** (`scripts/polymarket_bridge.py`)
+   - Edge sensitivity: `_edge_label()` default tolerance tightened to `0.02` (env override `TB_POLY_EDGE_TOL`).
+   - Missing probability visibility: when a market lacks `implied_prob`, emit a debug note under `TB_POLYMARKET_DEBUG=1` in `discover_and_map()`.
+   - Calibration debug: `_estimate_internal_prob()` now logs detailed components when `TB_POLYMARKET_DEBUG=1`:
+     implied vs internal, keyword dir (`dir_kw`), action dir (`act`), total `shift`, and component map (`asset`, `readiness`/score, `align_score`, `risk_band`/score, `action_score`, `dir_pref`, `composite`, `dir_mult`, `max_shift`).
+
+2. **Provider normalization** (`providers/polymarket_pplx.py`)
+   - Robust `impliedProbability` derivation from: `impliedProbability`, `implied_prob`, `yesPrice`, `p_yes`, `probability`, `price`.
+   - Percent to [0,1] normalization.
+   - Heuristic fallback: binary phrasing titles (e.g., “up or down”, “above or below”) default to `0.5` to enable internal estimation when explicit prob is missing.
+   - Debug note on missing probability under `TB_POLYMARKET_DEBUG=1`.
+
+3. **Environment additions** (`.env.example`)
+   - Internal model toggles: `TB_POLYMARKET_INTERNAL_ENABLE`, `TB_POLYMARKET_INTERNAL_MODE`, `TB_POLYMARKET_INTERNAL_BIAS`, `TB_POLYMARKET_INTERNAL_ACTION_BIAS`.
+   - Calibration weights & cap: `TB_POLY_INT_ALIGN_W`, `TB_POLY_INT_READY_W`, `TB_POLY_INT_ACTION_W`, `TB_POLY_INT_RISK_W`, `TB_POLY_INT_MAX_SHIFT`.
+   - Edge sensitivity: `TB_POLY_EDGE_TOL` (default 0.02).
+   - Debugging: `TB_POLYMARKET_DEBUG`.
+   - PPLX controls: `TB_POLYMARKET_PPLX_RETRIES`, `TB_POLYMARKET_PPLX_PROMPT`.
+
+**Run/verify (dry-run, no sends):**
+```
+TB_NO_TELEGRAM=1 TB_ENABLE_DISCORD=0 TB_ENABLE_POLYMARKET=1 TB_POLYMARKET_SOURCE=pplx TB_POLYMARKET_DEBUG=1 TB_POLYMARKET_INTERNAL_ENABLE=1 \
+python3 -u scripts/tracer_bullet_universe.py --no-telegram
+```
+Observed logs (examples):
+- `[Polymarket:PPLX] note: missing impliedProbability for title='What price will Ethereum hit in August?'`
+- `[Polymarket][internal] title='Ethereum Up or Down on August 13?' implied=1.000 internal=1.000 dir_kw=+1 act=+1 shift=+0.109 comps={...}`
+
+**Impact:**
+- More reliable probability availability from PPLX results; clearer insight into internal calibration mechanics; greater sensitivity to surface “market cheap/rich”.
+
+**Tuning knobs (optional):**
+- Increase responsiveness: `TB_POLY_INT_MAX_SHIFT=0.25`, `TB_POLY_INT_ACTION_W=0.5`, `TB_POLY_INT_READY_W=0.25`.
+- Edge sensitivity: lower `TB_POLY_EDGE_TOL` if more edges are desired.
+
+**Status:** ✅ Enhancements applied and verified via debug run.

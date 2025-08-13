@@ -17,6 +17,35 @@ from scripts import tg_digest_formatter as tg_fmt
 from scripts.tg_sender import send_telegram_text
 from scripts.discord_sender import send_discord_digest
 from scripts.discord_formatter import digest_to_discord_embeds
+
+# Lightweight .env loader to ensure PPLX/TB_* envs are available when running directly
+def _load_dotenv_if_present():
+    root = Path(__file__).parent.parent
+    env_path = root / ".env"
+    if not env_path.exists():
+        return
+    try:
+        for line in env_path.read_text().splitlines():
+            s = line.strip()
+            if not s or s.startswith('#'):
+                continue
+            if '=' not in s:
+                continue
+            key, val = s.split('=', 1)
+            key = key.strip()
+            val = val.strip().strip('"').strip("'")
+            # Do not override pre-set environment variables
+            if key and (key not in os.environ or os.environ.get(key, '') == ''):
+                os.environ[key] = val
+    except Exception:
+        pass
+
+_load_dotenv_if_present()
+try:
+    from scripts.polymarket_bridge import discover_from_env as discover_polymarket
+except Exception:
+    def discover_polymarket(*args, **kwargs):
+        return []
 from alpaca import recent_bars as alpaca_recent_bars
 
 # Public helper for tests: select BTC/ETH + top-K alts (payloads already ranked)
@@ -290,6 +319,65 @@ def main():
             "drift_warn_pct": float(os.getenv("TB_DIGEST_DRIFT_WARN_PCT", "0.5")),
             "include_prices": os.getenv("TB_DIGEST_INCLUDE_PRICES", "1") == "1",
         }
+        # Polymarket (optional)
+        polymarket_items = []
+        try:
+            # Build richer context for BTC/ETH from current signals
+            def _first_by_prefix(d: Dict[str, dict], pref: str) -> dict:
+                for k, v in d.items():
+                    if isinstance(k, str) and k.upper().startswith(pref):
+                        return v or {}
+                return {}
+
+            def _derive_align_score(info: dict) -> float:
+                # Use timescale_scores and bias to estimate alignment in [0,1]
+                th = (info.get("thesis") or {})
+                bias = str(th.get("bias") or "").lower()
+                tfs = info.get("timescale_scores") or {}
+                if not isinstance(tfs, dict) or not tfs:
+                    return 0.5
+                vals = []
+                if bias == "up":
+                    for v in tfs.values():
+                        try:
+                            vals.append(1.0 if float(v) > 0 else 0.0)
+                        except Exception:
+                            pass
+                elif bias == "down":
+                    for v in tfs.values():
+                        try:
+                            vals.append(1.0 if float(v) < 0 else 0.0)
+                        except Exception:
+                            pass
+                else:
+                    for v in tfs.values():
+                        try:
+                            x = float(v)
+                            vals.append(1.0 - abs(x))  # neutrality favors alignment when bias neutral
+                        except Exception:
+                            pass
+                if not vals:
+                    return 0.5
+                return max(0.0, min(1.0, sum(vals) / len(vals)))
+
+            def _ctx_from(info: dict) -> dict:
+                th = (info.get("thesis") or {})
+                return {
+                    "action": th.get("action") or info.get("action"),
+                    "readiness": th.get("readiness") or info.get("readiness"),
+                    "risk_band": th.get("risk_band") or info.get("risk_band"),
+                    "align_score": _derive_align_score(info),
+                }
+
+            btc_info = _first_by_prefix(assets_data, "BTC/")
+            eth_info = _first_by_prefix(assets_data, "ETH/")
+            ctx = {
+                "BTC": _ctx_from(btc_info),
+                "ETH": _ctx_from(eth_info),
+            }
+            polymarket_items = discover_polymarket(context=ctx)
+        except Exception:
+            polymarket_items = []
         text = tg_fmt.render_digest(
             timestamp_utc=summary.get("timestamp_iso") or "",
             weekly=weekly,
@@ -297,6 +385,7 @@ def main():
             assets_ordered=assets_ordered_digest,
             assets_data=assets_data,
             options=options,
+            polymarket=polymarket_items,
         )
         print("\nTelegram Digest (Human):")
         print("-----------------------")
@@ -350,6 +439,7 @@ def main():
                 "weekly": weekly or "",
                 "engine": engine or "",
                 "assets": assets_list,
+                "polymarket": polymarket_items or [],
             }
 
             if SEND_TG:

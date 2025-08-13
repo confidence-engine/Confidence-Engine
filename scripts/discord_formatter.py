@@ -106,6 +106,59 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
         "color": 0x00BFFF,
     })
 
+    # Polymarket BTC/ETH (optional)
+    pm_list = digest_data.get("polymarket") or []
+    show_empty = os.getenv("TB_POLYMARKET_SHOW_EMPTY", "0") == "1"
+    if pm_list or show_empty:
+        pm_fields: List[Dict[str, Any]] = []
+        max_items = int(os.getenv("TB_POLYMARKET_MAX_ITEMS", "2"))
+        if pm_list:
+            for pm in pm_list[:max_items]:
+                title = pm.get("title") or "Crypto market"
+                stance = pm.get("stance") or "Stand Aside"
+                readiness = pm.get("readiness") or "Later"
+                edge = pm.get("edge_label") or "in-line"
+                val_lines = [f"{stance} | {readiness} | {edge}"]
+                rat = pm.get("rationale_chat")
+                if rat:
+                    val_lines.append(rat)
+                if os.getenv("TB_POLYMARKET_SHOW_OUTCOME", "1") == "1":
+                    out_label = pm.get("outcome_label") or pm.get("implied_side") or "-"
+                    if os.getenv("TB_POLYMARKET_SHOW_PROB", "0") == "1":
+                        pct = pm.get("implied_pct")
+                        try:
+                            if isinstance(pct, int):
+                                out_label = f"{out_label} ({pct}%)"
+                            else:
+                                imp = pm.get("implied_prob")
+                                if isinstance(imp,(int,float)):
+                                    out_label = f"{out_label} ({float(imp)*100:.0f}%)"
+                        except Exception:
+                            pass
+                        try:
+                            ip = pm.get("internal_prob")
+                            imp = pm.get("implied_prob")
+                            if isinstance(ip,(int,float)) and isinstance(imp,(int,float)):
+                                ipct = round(float(ip)*100)
+                                mpct = round(float(imp)*100)
+                                if abs(ipct - mpct) >= 3:
+                                    out_label += f" | Model: {ipct}%"
+                        except Exception:
+                            pass
+                    val_lines.append(f"Outcome: {out_label}")
+                pm_fields.append({
+                    "name": title,
+                    "value": "\n".join(val_lines) or "-",
+                    "inline": False,
+                })
+        else:
+            pm_fields.append({"name": "-", "value": "No qualifying BTC/ETH markets today.", "inline": False})
+        embeds.append({
+            "title": "Polymarket BTC/ETH",
+            "fields": pm_fields or [{"name": "-", "value": "-", "inline": False}],
+            "color": 0x8A2BE2,
+        })
+
     # Assets
     for asset in digest_data.get("assets", []):
         fields = []
