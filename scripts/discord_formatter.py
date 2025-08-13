@@ -1,6 +1,7 @@
 import os
 from typing import List, Dict, Any
 from .discord_sender import MAX_DESC_CHARS
+from .evidence_lines import generate_evidence_line
 
 
 def _hdr_val(v, default):
@@ -108,6 +109,29 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
     # Assets
     for asset in digest_data.get("assets", []):
         fields = []
+        # Evidence line (number-free)
+        th = asset.get("thesis") or {}
+        action = (th.get("action") or asset.get("action") or "watch").lower()
+        if action in ("buy", "long"):
+            sentiment = "bullish"
+        elif action in ("sell", "short"):
+            sentiment = "bearish"
+        elif action in ("watch", "neutral"):
+            sentiment = "watch"
+        else:
+            sentiment = action or "mixed"
+        participation = (asset.get("participation") or "normal")
+        tf_aligned = bool(asset.get("alignment_flag") or th.get("tf_aligned") or False)
+        signal_quality = (asset.get("signal_quality") or th.get("signal_quality") or "mixed")
+        structure_txt = (asset.get("structure") or "").lower()
+        narrative_tags: List[str] = []
+        if "trend" in structure_txt:
+            narrative_tags = ["continuation", "trend"]
+        elif "range" in structure_txt or "reversion" in structure_txt:
+            narrative_tags = ["reversion"]
+        ev_line = generate_evidence_line(sentiment, participation, tf_aligned, signal_quality, narrative_tags)
+        if ev_line:
+            fields.append({"name": "Evidence", "value": ev_line, "inline": False})
         plan = asset.get("plan") or {}
         # Preserve insertion order if dicts are ordered; otherwise display sorted by common TF order
         tf_order = ["1h", "4h", "1D", "1W", "1M"]

@@ -5,6 +5,12 @@ Adds Weekly Overview and Engine in One Minute sections and per-asset blocks.
 """
 from typing import Dict, List
 import os
+try:
+    # When imported as package
+    from .evidence_lines import generate_evidence_line
+except Exception:
+    # When executed directly
+    from scripts.evidence_lines import generate_evidence_line
 
 CRYPTO_PREFIXES = (
     "BTC/", "ETH/", "SOL/", "ADA/", "BNB/", "XRP/", "DOGE/", "DOT/", "LTC/", "AVAX/",
@@ -116,6 +122,25 @@ def render_digest(
     for sym in render_symbols:
         a = assets_data.get(sym, {})
         lines.append(header(sym, a))
+        # Evidence line (number-free)
+        th = a.get("thesis") or {}
+        action = (th.get("action") or a.get("action") or "watch").lower()
+        if action in ("buy", "long"): sentiment = "bullish"
+        elif action in ("sell", "short"): sentiment = "bearish"
+        elif action in ("watch", "neutral"): sentiment = "watch"
+        else: sentiment = action or "mixed"
+        participation = (a.get("participation") or "normal")
+        tf_aligned = bool(a.get("alignment_flag") or th.get("tf_aligned") or False)
+        signal_quality = (a.get("signal_quality") or th.get("signal_quality") or "mixed")
+        structure_txt = (a.get("structure") or "").lower()
+        narrative_tags: List[str] = []
+        if "trend" in structure_txt:
+            narrative_tags = ["continuation", "trend"]
+        elif "range" in structure_txt or "reversion" in structure_txt:
+            narrative_tags = ["reversion"]
+        ev_line = generate_evidence_line(sentiment, participation, tf_aligned, signal_quality, narrative_tags)
+        if ev_line:
+            lines.append(ev_line)
         if is_crypto(sym):
             # Spot with drift note
             spot = a.get("spot")

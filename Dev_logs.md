@@ -1109,5 +1109,96 @@ v3.3 Step 1: Universe expansion + Top‑K alts gating + Discord weekly/engine 
 If you confirm, I’ll mark **Step 1** as *committed in repo* and move straight into **Step 2**’s implementation for evidence lines.  
 Do you want me to proceed with Step 2 build now?
 
-Sources
+✅ Here’s your **Step 2** verification & log entry — good news: the implementation is solid and fully wired into the universe runner.  
+
+***
+
+## **Test & Integration Check**
+
+**Tests run:**
+```bash
+python3 tests/test_digest_top_alts.py && python3 tests/test_evidence_lines.py
+```
+**Result:** All passed (exit code 0).
+
+**Verification:**
+- **`scripts/evidence_lines.py`**
+  - Functions:
+    - `generate_evidence_line(...)` → builds concise, number‑free “why now” text from `action/risk/readiness`, `participation`, `alignment_flag`, `signal_quality`, `structure`.
+    - `strip_numbers_for_chat(...)` → ensures no numeric tokens appear in chat output.
+- **Telegram (`scripts/tg_digest_formatter.py`)**
+  - Imports `generate_evidence_line`.
+  - For each asset in digest loop, inserts evidence line immediately after asset header.
+  - Numeric‑free in TG; all other numeric elements unaffected.
+- **Discord (`scripts/discord_formatter.py`)**
+  - Imports `generate_evidence_line`.
+  - Adds `"Evidence"` field to each asset embed before TF plan fields.
+  - Number‑free in evidence field; numeric levels remain for TF/target data.
+- **Universe runner (`scripts/tracer_bullet_universe.py`)**
+  - No changes needed — it already passes `assets_data` into both formatters.
+  - Evidence lines are injected at formatting stage automatically.
+
+**Observed output:**
+- TG digest: Each asset shows short evidence sentence under the header (BTC, ETH, top‑K alts, and stocks if present).
+- Discord digest: Each asset embed has an “Evidence” field between the header and the TF plan.
+- Artifacts: unchanged — numeric data preserved.
+
+***
+
+## **Commit message**
+```
+v3.3 Step 2: Evidence line generator + TG/Discord integration
+
+- Added scripts/evidence_lines.py with:
+  • generate_evidence_line(): build concise, number-free narrative from asset tags.
+  • strip_numbers_for_chat(): helper to remove numeric tokens for chat variants.
+- Telegram formatter (tg_digest_formatter.py):
+  • Insert evidence sentence under each asset header in digest.
+  • Evidence derived from action/risk/readiness, participation, alignment_flag,
+    signal_quality, and structure tags.
+  • Evidence always numeric-free; numeric data elsewhere unchanged.
+- Discord formatter (discord_formatter.py):
+  • Added "Evidence" field to each asset embed before TF plan fields.
+  • Uses same inputs; number-free in this field, numeric TF/targets remain.
+- Tests:
+  • test_digest_top_alts.py still passes, verifying top-K gating logic.
+  • Added test_evidence_lines.py verifying evidence line generation & numeric stripping.
+- Universe runner unchanged — evidence lines integrated via formatter functions.
+- Verified full pipeline: TG shows numeric-free evidence lines under each asset header;
+  Discord shows them as embed fields; artifacts untouched.
+```
+
+***
+
+## **Dev log — v3.3 / Step 2**
+**Date:** 2025‑08‑13  
+**Milestone:** v3.3 — Full‑Liquid Crypto Alts + Evidence Lines + Polymarket BTC/ETH Read‑Only  
+**Step:** 2 / Evidence Line Generator & Integration.
+
+**Changes implemented:**
+1. **Evidence line generator module**
+   - `scripts/evidence_lines.py` created.
+   - Generates 1–2 sentence, clean narrative “why now” from asset metadata.
+   - Guaranteed free of numeric values in chat; artifacts keep full numeric metrics.
+
+2. **Telegram integration**
+   - Evidence inserted right under each asset header in asset loop.
+   - Retains existing formatting for “What’s going on” and “Why we see it” sections if present.
+
+3. **Discord integration**
+   - Evidence line added as `"Evidence"` field in each asset embed (before TF plan fields).
+   - Preserves numeric TF data alongside narrative context.
+
+4. **Testing**
+   - All tests passed (top‑K gating + evidence line numeric stripping).
+   - Verified full dual‑channel run: correct new evidence sections, no formatting errors.
+
+**Status:** ✅ Step 2 complete and stable. Ready to proceed to Step 3 — Polymarket BTC/ETH read‑only integration.
+
+***
+
+Do you want me to **prep the Step 3 implementation prompt** so we can move straight into adding the Polymarket adapter and digest section next? That will complete the last major feature for v3.3.
+
+
+
 
