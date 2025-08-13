@@ -478,6 +478,52 @@ python3 scripts/eval_ingest.py --input eval_data/resolved/sample.csv
 python3 scripts/eval_runner.py
 ```
 
+***
+
+## Non‑bias design (how we keep it honest)
+
+- **Objective tape vs narrative cross‑check**
+  - Tape: `alpaca.py`, `price.py`, `bars_stock.py`, `timescales.py`
+  - Narrative: `perplexity_fetcher.py`, `pplx_fetcher.py`, `narrative_dev.py`
+  - Divergence is the explicit gap between story and price across multiple horizons.
+
+- **Semantic relevance gating** — only asset‑relevant content is scored
+  - `relevance.py`, `narrative_dev.py`
+
+- **Robust aggregation** — MAD outlier drop + trimmed means
+  - `sentiment_utils.py`
+
+- **Decay and timescale alignment** — avoid stale narratives and single‑window bias
+  - `narrative_dev.py`, `timescales.py`
+
+- **Confirmation checks (price vs narrative)** — penalize contradictions
+  - `confirmation.py`, `timescales.py`
+
+- **Source diversity and de‑duplication**
+  - `dedupe_utils.py`, `diversity.py`, `source_weights.py`, `debug_sources.py`
+
+- **Explainability & number‑free chat**
+  - `scripts/evidence_lines.py`, `scripts/tg_digest_formatter.py`, `scripts/discord_formatter.py`
+
+- **Continuous evaluation and calibration**
+  - `scripts/eval_metrics.py`, `scripts/eval_runner.py`, `scripts/eval_ingest.py`
+
+- **Operational guardrails**
+  - `autocommit.py`, `.env.example` (key rotation, push gating, retries/backoff WIP)
+
+***
+
+## Initial data sources
+
+- **Market data (objective)**: Alpaca bars/price
+  - `alpaca.py`, `price.py`, `bars_stock.py`
+- **News synthesis (structured)**: Perplexity Pro API
+  - `perplexity_fetcher.py`, `pplx_fetcher.py`
+- **Optional mainstream feed**: CoinDesk RSS
+  - `coindesk_rss.py`
+- **Prediction markets (reference)**: Polymarket via PPLX
+  - `providers/polymarket_pplx.py`, `scripts/polymarket_bridge.py`
+
 Alternative (comma-separated):
 ```
 PPLX_API_KEYS=pk_live_keyA,pk_live_keyB,pk_live_keyC,pk_live_keyD
