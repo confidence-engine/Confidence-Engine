@@ -67,9 +67,7 @@ def _is_btc_eth_market(m: Dict[str, Any]) -> bool:
 
 
 def _has_clear_resolution(m: Dict[str, Any]) -> bool:
-    # Allow bypass via env toggle
-    if os.getenv("TB_POLYMARKET_REQUIRE_RESOLUTION", "1") == "0":
-        return True
+    # Native provider: always require explicit resolution source
     res = (m.get("resolutionSource") or m.get("resolution_source") or "").strip()
     return bool(res)
 
@@ -147,12 +145,12 @@ def get_btc_eth_markets(
                 print(f"[Polymarket] skip no resolution: {t}")
             continue
         ed = _parse_end_date(m)
-        if os.getenv("TB_POLYMARKET_REQUIRE_ENDDATE", "1") == "1":
-            if not ed or ed < lo or ed > hi:
-                if debug:
-                    t = (m.get("title") or m.get("question") or m.get("name") or "").strip()
-                    print(f"[Polymarket] skip endDate window: {t}, end={ed}")
-                continue
+        # Always enforce a sane window for native provider
+        if not ed or ed < lo or ed > hi:
+            if debug:
+                t = (m.get("title") or m.get("question") or m.get("name") or "").strip()
+                print(f"[Polymarket] skip endDate window: {t}, end={ed}")
+            continue
         if _liquidity(m) < float(min_liquidity):
             if debug:
                 t = (m.get("title") or m.get("question") or m.get("name") or "").strip()
@@ -190,11 +188,10 @@ def get_btc_eth_markets(
                     continue
                 seen_ids.add(mid)
                 ed = _parse_end_date(m)
-                if os.getenv("TB_POLYMARKET_REQUIRE_ENDDATE", "1") == "1":
-                    if not ed:
-                        continue
-                    if ed < now + timedelta(weeks=max(0, int(min_weeks))) or ed > now + timedelta(weeks=max(0, int(max_weeks))):
-                        continue
+                if not ed:
+                    continue
+                if ed < now + timedelta(weeks=max(0, int(min_weeks))) or ed > now + timedelta(weeks=max(0, int(max_weeks))):
+                    continue
                 if _liquidity(m) < float(min_liquidity):
                     continue
                 if not _is_btc_eth_market(m):

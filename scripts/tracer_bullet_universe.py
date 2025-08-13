@@ -378,6 +378,7 @@ def main():
             polymarket_items = discover_polymarket(context=ctx)
         except Exception:
             polymarket_items = []
+        evidence_sink: Dict[str, str] = {}
         text = tg_fmt.render_digest(
             timestamp_utc=summary.get("timestamp_iso") or "",
             weekly=weekly,
@@ -386,9 +387,55 @@ def main():
             assets_data=assets_data,
             options=options,
             polymarket=polymarket_items,
+            evidence_sink=evidence_sink,
         )
         print("\nTelegram Digest (Human):")
         print("-----------------------")
+
+        # Enrich saved artifact with evidence lines and polymarket array (storage only; no chat change)
+        try:
+            def enrich_artifact(universe_file: str, ev_sink: Dict[str, str], poly_items: List[Dict]):
+                if not universe_file:
+                    return
+                import json
+                data = {}
+                try:
+                    with open(universe_file, "r") as f:
+                        data = json.load(f)
+                except Exception:
+                    return
+                payloads = data.get("payloads") or []
+                # Attach per-payload evidence_line; None if absent/disabled
+                ev_map = ev_sink or {}
+                for p in payloads:
+                    sym = p.get("symbol")
+                    p["evidence_line"] = ev_map.get(sym) if sym in ev_map else None
+                # Build top-level polymarket array from already filtered/mapped items
+                poly_out = []
+                for it in (poly_items or []):
+                    try:
+                        poly_out.append({
+                            "market_name": it.get("title"),
+                            "stance": it.get("stance"),
+                            "readiness": it.get("readiness"),
+                            "edge_label": it.get("edge_label"),
+                            "rationale": it.get("rationale_chat"),
+                            "implied_prob": it.get("implied_prob"),
+                            "tb_internal_prob": it.get("internal_prob"),
+                            "liquidity_usd": it.get("liquidity_usd"),
+                            "event_end_date": it.get("end_date_iso"),
+                            "market_id": it.get("market_id"),
+                            "quality_score": it.get("quality"),
+                        })
+                    except Exception:
+                        continue
+                data["polymarket"] = poly_out
+                # Write back
+                with open(universe_file, "w") as f:
+                    json.dump(data, f, indent=2)
+            enrich_artifact(summary.get("universe_file"), evidence_sink, polymarket_items)
+        except Exception as e:
+            print(f"[Artifact] Enrichment skipped: {e}")
         print(text)
         print("-----------------------")
 

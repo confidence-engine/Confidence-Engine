@@ -362,6 +362,44 @@ ALPACA_BASE_URL=https://paper-api.alpaca.markets
 
 ---
 
+### Polymarket configuration (.env)
+
+Polymarket discovery/mapping can be toggled and tuned via these env vars:
+
+```
+# Enable and choose source
+TB_ENABLE_POLYMARKET=1
+TB_POLYMARKET_SOURCE=pplx   # pplx (Perplexity-backed) recommended; native supported for tests
+
+# Scope and caps
+TB_POLYMARKET_ASSETS=BTC,ETH,SOL,XRP
+TB_POLYMARKET_MAX_ITEMS=2   # bridge will cap to this; discover_and_map also accepts max_items arg
+
+# Liquidity gating (optional; defaults off)
+TB_POLYMARKET_MIN_LIQUIDITY=1000
+TB_POLYMARKET_REQUIRE_LIQUIDITY=0  # set 1 to enforce liquidityUSD >= MIN
+
+# Quality gate (if provider supplies quality/score)
+TB_POLYMARKET_MIN_QUALITY=0.0
+
+# Time window and activity
+TB_POLYMARKET_MIN_WEEKS=0
+TB_POLYMARKET_MAX_WEEKS=52
+TB_POLYMARKET_MAX_WINDOW_DAYS=30   # additional cap used by bridge
+TB_POLYMARKET_TODAY_ACTIVE_ONLY=0  # when 1, show only currently-trading markets
+
+# Misc
+TB_POLYMARKET_SHOW_EMPTY=1
+TB_POLYMARKET_LIMIT=50
+TB_POLYMARKET_TITLE_KEYWORDS=BTC,Bitcoin,ETH,Ethereum,SOL,Solana
+TB_POLYMARKET_NUMBERS_IN_CHAT=0
+TB_POLYMARKET_DEBUG=0
+```
+
+Notes:
+- Native provider always enforces a sane end-date window and requires `resolutionSource`.
+- PPLX provider relaxes windowing by default; the bridge applies final windowing and caps and honors liquidity gating when enabled.
+
 ## 5) Runbook
 
 Pre-run:
