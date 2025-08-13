@@ -17,6 +17,15 @@
   - Polymarket PPLX provider/bridge details, key rotation, debug
   - Env flags quick reference and Git sync check runbook
 
+## [v3.4.0-eval-pipeline-scaffolding] - 2025-08-14
+- Eval metrics module: `scripts/eval_metrics.py` (Brier, log-loss, calibration curve, cohort win-rates)
+- Eval runner: `scripts/eval_runner.py` reads `eval_data/resolved/*.csv`, writes results to `eval_runs/<ts>/`
+- Tests: `tests/test_eval_metrics.py` with a lightweight runner `scripts/run_eval_tests.py` (no pytest dependency)
+- Sample dataset: `eval_data/resolved/sample.csv`
+- Verification:
+  - Ran `python3 scripts/run_eval_tests.py` -> all tests passed
+  - Ran `python3 scripts/eval_runner.py` -> wrote outputs to `eval_runs/<ts>/` (metrics.json, calibration.csv, cohorts.csv)
+
 ## [v3.1.3-artifact-schema-tests] - 2025-08-14
 - Tests: added `tests/test_artifact_schema.py` to validate artifact enrichment:
   - Per-asset `evidence_line` injected from digest evidence sink
