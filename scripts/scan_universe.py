@@ -409,7 +409,33 @@ def run_universe_scan(
         import csv
         os.makedirs("universe_runs", exist_ok=True)
         metrics_path = os.path.join("universe_runs","metrics.csv")
-        header = ["ts","symbol","type","div","combined_div","conf","volz_avg","ts_align","diversity_adj","cascade_tag","target_R"]
+
+        # Determine header and whether to include evidence_line column.
+        base_header = [
+            "ts","symbol","type","div","combined_div","conf",
+            "volz_avg","ts_align","diversity_adj","cascade_tag","target_R"
+        ]
+        want_evidence = os.getenv("TB_METRICS_INCLUDE_EVIDENCE", "1") == "1"
+        evidence_in_file = False
+        if os.path.exists(metrics_path):
+            try:
+                with open(metrics_path, "r") as rf:
+                    first = rf.readline().strip()
+                    if first:
+                        cols = [c.strip() for c in first.split(",")]
+                        evidence_in_file = ("evidence_line" in cols)
+                        # Use existing header to avoid mismatch
+                        header = cols
+                    else:
+                        header = base_header + (["evidence_line"] if want_evidence else [])
+                        evidence_in_file = want_evidence
+            except Exception:
+                header = base_header + (["evidence_line"] if want_evidence else [])
+                evidence_in_file = want_evidence
+        else:
+            header = base_header + (["evidence_line"] if want_evidence else [])
+            evidence_in_file = want_evidence
+
         need_header = not os.path.exists(metrics_path)
         with open(metrics_path, "a", newline="") as f:
             w = csv.DictWriter(f, fieldnames=header)
@@ -428,7 +454,7 @@ def run_universe_scan(
                 diversity_adj = (p.get("source_diversity") or {}).get("adjustment",0.0)
                 cascade_tag = (p.get("cascade_detector") or {}).get("tag","")
                 target_R = (p.get("position_sizing") or {}).get("target_R",0.0)
-                w.writerow({
+                row = {
                     "ts": ts_utc_iso,
                     "symbol": p.get("symbol",""),
                     "type": p.get("symbol_type",""),
@@ -440,7 +466,11 @@ def run_universe_scan(
                     "diversity_adj": diversity_adj,
                     "cascade_tag": cascade_tag,
                     "target_R": target_R,
-                })
+                }
+                if evidence_in_file:
+                    # Write evidence_line if available on payload; else empty
+                    row["evidence_line"] = p.get("evidence_line", "")
+                w.writerow(row)
         files_to_add.append(metrics_path)
     # Mirroring/auto-commit/push (same as before, but use universe_file, ts_utc_iso, etc)
     import shutil, subprocess
