@@ -4,6 +4,8 @@ A living, milestone-driven plan from V1 tracer bullet to small live capital, emp
 
 Last updated: 2025-08-14.
 
+> Prefer a concise, structured version? See [Roadmap_CLEAN.md](Roadmap_CLEAN.md).
+
 ## Guiding Objectives
 
 - Ship an end-to-end tracer quickly, then harden.
