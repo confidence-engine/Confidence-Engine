@@ -40,6 +40,11 @@
   - Digest delivery controls (Telegram/Discord) and confidence toggles
   - Reliability/safety status and quick commands recap
 
+## [docs-clean-summaries] - 2025-08-14
+- Created `README_CLEAN.md` — concise, production-ready summary of full system
+- Created `Dev_logs_CLEAN.md` — condensed development history and milestones
+- Left originals intact; clean versions can replace primaries later if desired
+
 ## [v3.1.3-artifact-schema-tests] - 2025-08-14
 - Tests: added `tests/test_artifact_schema.py` to validate artifact enrichment:
   - Per-asset `evidence_line` injected from digest evidence sink
