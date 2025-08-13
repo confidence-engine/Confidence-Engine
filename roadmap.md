@@ -1089,7 +1089,25 @@ Here’s how the updated **v3.1.x** scope will look:
 ## **Immediate Next Actions**
 1. Finish **v4.3** tasks (auto‑commit/push + retries/backoff/self‑checks).  
 2. Prep **v3.3** backlog (alts expansion, evidence lines, Polymarket adapter).  
-3. Build **v3.4** evaluator scaffolding (schema, archives, metrics functions).  
+3. Complete **v3.4** DoD (≥50 resolved obs, weekly snapshots, optional plots; evaluator MVP shipped).  
+
+***
+
+## **Now → Near → Next**
+
+- **Now (active)**
+  - v4.3 Reliability Ops Hardening (IN PROGRESS)
+    - Retries/backoff, self‑checks, degraded‑run markers
+  - v3.4 Evaluation Pipeline (IN PROGRESS)
+    - DoD: accumulate ≥50 resolved observations; weekly snapshots; optional plots
+
+- **Near (queued)**
+  - v5 — 24/7 Cloud Agent Run (after reliability/evaluation proven)
+    - Scheduled workflows, secrets, monitoring/rollback
+
+- **Next (after Near)**
+  - v6 — Paper Execution & Risk Controls (dry‑run)
+    - Order lifecycle simulator, caps/limits, circuit breakers, kill‑switches
 
 ***
 

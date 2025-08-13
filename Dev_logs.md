@@ -26,6 +26,11 @@
   - Ran `python3 scripts/run_eval_tests.py` -> all tests passed
   - Ran `python3 scripts/eval_runner.py` -> wrote outputs to `eval_runs/<ts>/` (metrics.json, calibration.csv, cohorts.csv)
 
+## [v3.4.1-eval-ingest-weekly] - 2025-08-14
+- Ingest: `scripts/eval_ingest.py` appends resolved markets into monthly CSVs under `eval_data/resolved/` with dedupe
+- Weekly wrapper: `scripts/eval_weekly.py` delegates to runner; honors TB_EVAL_GIT_* flags
+- Auto-commit: both ingest and runner support env-gated auto-commit/push of outputs (and optionally input data)
+
 ## [v3.1.3-artifact-schema-tests] - 2025-08-14
 - Tests: added `tests/test_artifact_schema.py` to validate artifact enrichment:
   - Per-asset `evidence_line` injected from digest evidence sink
