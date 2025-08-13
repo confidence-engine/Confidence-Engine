@@ -341,6 +341,143 @@ PPLX_API_KEY_4=pk_live_keyD
 PPLX_HOURS=24
 ```
 
+## Project map (what lives where)
+
+- **Core engine**
+  - `tracer_bullet.py` — end-to-end scan and messaging (earlier versions)
+  - `scripts/tracer_bullet_universe.py` — multi-asset scan, digest build, TG/Discord send
+  - `config/universe.yaml` — symbols and settings for scans
+  - `universe_runs/` — enriched universe artifacts (JSON, CSV)
+
+- **Digest delivery**
+  - `scripts/tg_digest_formatter.py`, `scripts/tg_weekly_engine.py` — digest assembly (crypto TFs, weekly/engine minute)
+  - `scripts/tg_sender.py` — Telegram safe splitter + sender (respects `TB_HUMAN_DIGEST`/`TB_NO_TELEGRAM`)
+  - `scripts/discord_formatter.py`, `scripts/discord_sender.py` — Discord embeds with chunking (respects `TB_NO_DISCORD`)
+
+- **Polymarket (BTC/ETH/SOL/XRP)**
+  - `providers/polymarket_pplx.py` — Perplexity Pro API provider (key rotation, strict JSON parse)
+  - `scripts/polymarket_bridge.py` — mapping, filtering, internal probability calibration
+
+- **Evaluation (v3.4)**
+  - `scripts/eval_metrics.py` — Brier, log‑loss, calibration, cohorts
+  - `scripts/eval_runner.py` — compute metrics from `eval_data/resolved/*.csv` → `eval_runs/<ts>/`
+  - `scripts/eval_ingest.py` — append resolved rows into monthly CSVs (`eval_data/resolved/YYYYMM.csv`)
+  - `scripts/eval_weekly.py` — weekly wrapper to run evaluator
+  - `eval_runs/` — evaluation outputs per run (metrics.json, calibration.csv, cohorts.csv)
+
+- **Ops & reliability (v4.3)**
+  - `autocommit.py` — stage/commit/push helper used by universe + evaluation
+  - Flags across senders/providers for retries/backoff and degraded‑run behavior
+
+***
+
+## Evaluation pipeline (v3.4)
+
+### Inputs
+- Source CSVs at `eval_data/resolved/*.csv` (often monthly via `eval_ingest.py`)
+- Required columns: `id,asset,title,closed_at,market_prob,internal_prob,outcome,cohort`
+
+### Metrics computed
+- Brier score, log‑loss
+- Calibration bins (to CSV), with optional plot (can be added)
+- Cohort win‑rates (by asset or provided cohort)
+
+### Usage
+- Run unit tests:
+```
+python3 scripts/run_eval_tests.py
+```
+- Ingest resolved rows (dedup, grouped by closed_at month):
+```
+python3 scripts/eval_ingest.py --input path/to/resolved_batch.csv
+```
+- Run evaluator (writes `eval_runs/<ts>/`):
+```
+python3 scripts/eval_runner.py
+```
+- Weekly wrapper (same as runner, convenient entrypoint):
+```
+python3 scripts/eval_weekly.py
+```
+
+### Auto‑commit/push of eval artifacts
+- Controlled by env flags (see below). When enabled, `eval_runner.py` and `eval_ingest.py` will stage/commit and optionally push outputs:
+  - `TB_EVAL_GIT_AUTOCOMMIT=1`
+  - `TB_EVAL_GIT_PUSH=1`
+  - `TB_EVAL_GIT_INCLUDE_DATA=1` to include `eval_data/resolved/` in the same commit
+
+***
+
+## Auto‑commit & Git ops (universe + evaluation)
+
+- Universe artifacts (JSON/CSV) — set in `.env`:
+  - `TB_UNIVERSE_GIT_AUTOCOMMIT=1`
+  - `TB_UNIVERSE_GIT_PUSH=1`
+  - Artifacts: `universe_runs/…`, plus optional mirrors to `runs/`
+
+- Evaluation artifacts (see above) — set in `.env`:
+  - `TB_EVAL_GIT_AUTOCOMMIT=1`
+  - `TB_EVAL_GIT_PUSH=1`
+  - `TB_EVAL_GIT_INCLUDE_DATA=1` (optional)
+
+Commit messages are prefixed (e.g., `eval: metrics <ts>`), and pushes are gated by the `*_PUSH` flags.
+
+***
+
+## Polymarket data path (PPLX‑only)
+
+- Provider: `providers/polymarket_pplx.py` (Perplexity Pro API)
+  - Strict JSON array extraction from mixed output
+  - Key rotation: `PPLX_API_KEY_1..N`, fallback `PPLX_API_KEY`
+  - Enforced model: `sonar`
+- Bridge: `scripts/polymarket_bridge.py`
+  - Filters by date window, liquidity (optional), keywords (configurable)
+  - Caps items, computes internal probability from asset signals (calibrated)
+- Chat number gating: hide numbers in TG/Discord via `TB_POLYMARKET_NUMBERS_IN_CHAT=0` (artifacts keep numbers)
+- Always‑render empty state if desired: `TB_POLYMARKET_SHOW_EMPTY=1`
+
+***
+
+## Digest delivery (Telegram & Discord)
+
+- Telegram:
+  - `scripts/tg_sender.py` respects `TB_HUMAN_DIGEST`/`TB_NO_TELEGRAM`; splits long messages safely
+  - Crypto‑only mode: `TB_DIGEST_TELEGRAM_CRYPTO_ONLY=1`
+- Discord:
+  - `scripts/discord_sender.py` sends chunked embeds; respects `TB_NO_DISCORD`
+- Evidence lines in chat are number‑free; artifacts retain numeric metrics
+- Confidence display can be toggled for chat:
+  - `TB_POLYMARKET_SHOW_CONFIDENCE=0`
+  - `TB_SHOW_ASSET_CONFIDENCE_IN_CHAT=0`
+
+***
+
+## Reliability & safety (v4.3)
+
+- Circuit breakers and degraded‑run markers (in progress)
+- Retries/backoff on providers/senders (in progress)
+- Key rotation for Perplexity
+- Strict parsing, schema enforcement, fallbacks
+
+***
+
+## Quick commands recap
+
+- Multi‑asset universe digest (no sends):
+```
+TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 python3 scripts/tracer_bullet_universe.py --config config/universe.yaml --top 10
+```
+- Polymarket discovery (PPLX debug):
+```
+TB_POLYMARKET_DEBUG=1 TB_ENABLE_POLYMARKET=1 python3 scripts/polymarket_bridge.py --max-items 4
+```
+- Evaluation pipeline:
+```
+python3 scripts/run_eval_tests.py
+python3 scripts/eval_ingest.py --input eval_data/resolved/sample.csv
+python3 scripts/eval_runner.py
+```
+
 Alternative (comma-separated):
 ```
 PPLX_API_KEYS=pk_live_keyA,pk_live_keyB,pk_live_keyC,pk_live_keyD

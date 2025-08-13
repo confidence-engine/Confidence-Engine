@@ -31,6 +31,15 @@
 - Weekly wrapper: `scripts/eval_weekly.py` delegates to runner; honors TB_EVAL_GIT_* flags
 - Auto-commit: both ingest and runner support env-gated auto-commit/push of outputs (and optionally input data)
 
+## [docs-readme-refresh] - 2025-08-14
+- README overhaul: added comprehensive, project-wide sections
+  - Project map (core engine, digest delivery, Polymarket, evaluation, ops)
+  - Evaluation pipeline usage (ingest, runner, weekly), metrics, and env flags
+  - Auto-commit/push behavior for universe and evaluation
+  - Polymarket provider/bridge notes and number-gating in chat
+  - Digest delivery controls (Telegram/Discord) and confidence toggles
+  - Reliability/safety status and quick commands recap
+
 ## [v3.1.3-artifact-schema-tests] - 2025-08-14
 - Tests: added `tests/test_artifact_schema.py` to validate artifact enrichment:
   - Per-asset `evidence_line` injected from digest evidence sink
