@@ -1,3 +1,5 @@
+> Prefer the concise history? See [Dev_logs_CLEAN.md](Dev_logs_CLEAN.md).
+
 ## [v3.1.6-tg-evidence-sink-fix] - 2025-08-14
 - Fix: Removed unsupported `evidence_sink` kwarg from `tg_digest_formatter.render_digest()` call in `scripts/tracer_bullet_universe.py`, resolving runtime `TypeError` and allowing digest rendering to complete.
 - Tests: Full suite re-run; still green (99 passed).
@@ -44,6 +46,11 @@
 - Created `README_CLEAN.md` — concise, production-ready summary of full system
 - Created `Dev_logs_CLEAN.md` — condensed development history and milestones
 - Left originals intact; clean versions can replace primaries later if desired
+
+## [repo-safe-cleanups] - 2025-08-14
+- .gitignore hardened: caches/venv/pyc/.DS_Store
+- Deprecated legacy fetchers with headers: `polymarket_fetcher.py`, `perplexity_fetcher.py`
+- Will stop tracking `tracer.db` (kept locally) and moved `test.txt` to `legacy/`
 
 ## [v3.1.3-artifact-schema-tests] - 2025-08-14
 - Tests: added `tests/test_artifact_schema.py` to validate artifact enrichment:

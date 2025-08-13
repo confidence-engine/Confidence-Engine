@@ -4,6 +4,7 @@ Here is a draft for the README introduction that puts the Tracer Bullet philosop
 ***
 
 # Tracer Bullet — The Agile Divergence Engine for Crypto Alpha
+> Looking for the concise version? See [README_CLEAN.md](README_CLEAN.md).
 
 ## Our Mission: Exploit Emotional-Math Gaps with Perfect Discipline
 

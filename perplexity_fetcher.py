@@ -1,3 +1,7 @@
+"""
+DEPRECATED: Use `pplx_fetcher.py` or the provider under `providers/` for Perplexity access.
+This module remains for historical reference and will be removed after v4.3.
+"""
 import os
 import requests
 import pandas as pd

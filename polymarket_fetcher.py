@@ -1,3 +1,8 @@
+"""
+DEPRECATED: Use `providers/polymarket_pplx.py` (Perplexity Pro provider) and
+`scripts/polymarket_bridge.py` for mapping/filtering.
+This native fetcher remains only for historical reference and may be removed after v4.3.
+"""
 import requests
 import time
 import pandas as pd
