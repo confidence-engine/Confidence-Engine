@@ -1,3 +1,15 @@
+## [v3.1.3-artifact-schema-tests] - 2025-08-14
+- Tests: added `tests/test_artifact_schema.py` to validate artifact enrichment:
+  - Per-asset `evidence_line` injected from digest evidence sink
+  - Top-level `polymarket` array with mapped numeric fields preserved
+  - Backward compatibility: old artifacts without new fields load safely via `.get()`
+- No change to chat output; storage-only enhancement validated.
+
+## [v3.1.4-metrics-evidence-column] - 2025-08-14
+- Metrics: `scripts/scan_universe.py` now optionally appends `evidence_line` column to `universe_runs/metrics.csv` when `TB_METRICS_INCLUDE_EVIDENCE=1` (default on).
+- Backward compatible header handling: if an existing metrics.csv lacks the column, we preserve its header; new files include the column.
+- Aligns with artifact enrichment so narratives are persisted both in JSON and CSV.
+
 ## [v3.1.1-polymarket-hardening] - 2025-08-13
 - Polymarket PPLX: Hardened parser in `providers/polymarket_pplx.py` to extract the first balanced JSON array from mixed/markdown responses; reduces `Extra data` parse failures.
 - Per-key rotation: Confirmed rotation `PPLX_API_KEY_1..N` with per-key retries; improved logs show per-key attempts and normalization counts.
