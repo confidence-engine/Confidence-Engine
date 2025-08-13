@@ -1,3 +1,25 @@
+## [v3.1.1-polymarket-hardening] - 2025-08-13
+- Polymarket PPLX: Hardened parser in `providers/polymarket_pplx.py` to extract the first balanced JSON array from mixed/markdown responses; reduces `Extra data` parse failures.
+- Per-key rotation: Confirmed rotation `PPLX_API_KEY_1..N` with per-key retries; improved logs show per-key attempts and normalization counts.
+- Model enforcement: Force Perplexity model to `sonar` regardless of env for stability/cost. Updated `.env.example` to note `PPLX_MODEL` is ignored.
+- Result: Rotation proceeds across keys; normalization now succeeds (got 3 items in latest run). Bridge maps and renders items; numbers remain gated by `TB_POLYMARKET_NUMBERS_IN_CHAT`.
+- Freshness controls: Tightened PPLX prompts to return only currently-active markets with endDate within `TB_POLYMARKET_MAX_WINDOW_DAYS` (default 30). Added client-side filter in `scripts/polymarket_bridge.py` enforcing endDate required, active (future end), and window cap. - Native provider fallback removed: bridge is now PPLX-only. If PPLX returns zero, section may be empty (still rendered if TB_POLYMARKET_SHOW_EMPTY=1). Ensure PPLX API keys are configured.
+- Today-active-only mode: Added `TB_POLYMARKET_TODAY_ACTIVE_ONLY=1` to surface only currently-trading markets and ignore endDate/window. Bridge and PPLX prompt honor this.
+- High-liquidity filter: Both prompt and bridge now filter by `liquidityUSD >= TB_POLYMARKET_MIN_LIQUIDITY` (e.g., 1,000,000 for top liquidity).
+- Assets: Default assets now include XRP (BTC, ETH, SOL, XRP) in `.env.example` and PPLX prompts.
+- Liquidity gating optional: `TB_POLYMARKET_REQUIRE_LIQUIDITY=1` enforces the liquidity filter; default off. Bridge and PPLX prompts reflect this.
+- Prompt override hardening: When `TB_POLYMARKET_PPLX_PROMPT` is set, provider appends a strict JSON schema instruction to ensure parsable arrays.
+- Broad final fallback: If all PPLX key rotations/retries return zero items, provider issues a broad final prompt for any active BTC/ETH/SOL/XRP price markets before returning empty.
+ - Broad final fallback: If all PPLX key rotations/retries return zero items, provider issues a broad final prompt for any active BTC/ETH/SOL/XRP price markets before returning empty.
+
+## [v3.1-polymarket-crypto-wide] - 2025-08-13
+- Provider (`providers/polymarket_pplx.py`) prompt broadened to all crypto markets (emphasis BTC/ETH), explicitly including price prediction, strike thresholds, and up/down daily outcome questions. If multiple strikes exist, return separate items.
+- Required output fields now include `asset` (BTC/ETH/other). Prompt requires using the exact Polymarket title for `market_name` preserving numeric thresholds verbatim.
+- Client-side filtering updated to crypto-wide detection, endDate window [now+1h, now+12w], liquidity ≥ 10,000, resolution source required.
+- Sorting updated to prioritize titles with numeric thresholds first, then liquidity desc, then earliest endDate; capped to top 6.
+- Logs show: `[Polymarket:PPLX] normalized X items -> strict_filtered Y (crypto top6)`.
+- Chat numeric display remains gated by `TB_POLYMARKET_NUMBERS_IN_CHAT` (defaults off).
+
 ## [v1-hardening] - 2025-08-10
 - Preflight/health: scripts/preflight.py creates runs/ and bars/, checks Telegram reachability.
 - CLI/logging: scripts/run.py with flags (--symbol, --lookback, --no-telegram, --debug, --health); centralized logging with ISO timestamps.
@@ -1247,3 +1269,133 @@ Observed logs (examples):
 - Edge sensitivity: lower `TB_POLY_EDGE_TOL` if more edges are desired.
 
 **Status:** ✅ Enhancements applied and verified via debug run.
+
+***
+
+## **Dev log — v3.3 / Step 4 (Graded High‑Risk Notes)**
+**Date:** 2025‑08‑13  
+**Milestone:** v3.3 — Precision risk notes for High‑Risk + Buy/Watch
+
+**Changes implemented:**
+
+1. **Helper** (`scripts/evidence_lines.py`)
+   - Added `generate_high_risk_note(risk_band, action, risk_score)` implementing graded levels:
+     - `>= 0.85` → "extreme"
+     - `>= 0.7` → "very high"
+     - else → "elevated"
+   - Returns a concise caution message tailored to action (Buy/Watch).
+
+2. **Telegram integration** (`scripts/tg_digest_formatter.py`)
+   - After the header line (`Risk | Readiness | Action`), when `TB_DIGEST_EXPLAIN_HIGH_RISK_ACTION=1`, append:
+     - `⚠ <note>` from `generate_high_risk_note()` using thesis/asset `risk_band`, `action`, `risk_score`.
+
+3. **Discord integration** (`scripts/discord_formatter.py`)
+   - Evidence field now includes the graded risk note (prefixed by `⚠`) beneath the evidence line when the flag is on.
+
+4. **Config** (`.env.example`)
+   - Added `TB_DIGEST_EXPLAIN_HIGH_RISK_ACTION=1` (default enabled).
+
+5. **Tests** (`tests/test_high_risk_notes.py`)
+   - Helper thresholds and messages.
+   - Telegram/Discord inclusion when flag on; omission when flag off.
+
+**Acceptance:**
+- High‑Risk + Buy/Watch assets show severity‑aware guidance in TG and Discord; artifacts unchanged. Behavior gated by env flag.
+
+**Status:** ✅ Implemented with unit tests.
+
+***
+
+## **Dev log — v3.3 / Step 5 (Narrative polish, gating, stance sanity)**
+**Date:** 2025‑08‑13  
+**Milestone:** v3.3 — Confidence phrasing, Executive/leaders note, Polymarket number‑free chat, near‑certainty stance, optional equities hide
+
+**Changes implemented:**
+
+1. **Confidence phrasing alignment** (`scripts/evidence_lines.py`)
+   - `_choose_confidence_phrase()`: when signal quality implies very high confidence, suppress “mixed sources”.
+   - If fragmented alignment but very high quality, use: “very high confidence; dominant timeframe leads; minor divergences present.”
+
+2. **Executive vs leaders messaging**
+   - **Telegram** (`scripts/tg_digest_formatter.py`): After Executive Take, if `weekly.regime` is mixed/balanced and the top‑2 leaders are both Buy/Long → append “Leaders skew long; wait for clean triggers.” If mixed among long/short → append “Leaders diverge from tape; trade only A‑setups.”
+   - **Discord** (`scripts/discord_formatter.py`): Same logic appended to the header description.
+
+3. **Strict number‑free Polymarket chat (default)**
+   - **Env**: `.env.example` adds `TB_POLYMARKET_NUMBERS_IN_CHAT=0` (default off).
+   - **Telegram/Discord**: Outcome line with numeric percentages is only included when `TB_POLYMARKET_NUMBERS_IN_CHAT=1`. Artifacts still include all numeric fields.
+
+4. **Near‑certainty stance/edge sanity** (`scripts/polymarket_bridge.py`)
+   - If `abs(internal_prob - implied_prob) <= TB_POLY_EDGE_TOL` and either prob ≥ 0.98, force `edge_label="in-line"` and `stance="Stand Aside"` (unless another readiness rule upgrades it).
+
+5. **Optional: hide equities in chat when no live provider**
+   - **Env**: `.env.example` adds `TB_DIGEST_HIDE_EQUITIES_IF_NO_DATA=1` (default on).
+   - **Telegram** (`scripts/tg_digest_formatter.py`) and **Discord** (`scripts/discord_formatter.py`): if symbol is equity and `spot` is `None`, omit from chat while retaining in artifacts.
+
+**Run/verify (dry‑run, no sends):**
+```
+TB_NO_TELEGRAM=1 TB_ENABLE_DISCORD=0 TB_ENABLE_POLYMARKET=1 \
+python3 -u scripts/tracer_bullet_universe.py --no-telegram
+```
+
+**Acceptance:**
+- ETH‑like blocks with very high confidence no longer say “mixed sources”.
+- Executive Take appends a leaders note consistent with top‑2 assets under a mixed/balanced regime.
+- Polymarket chat shows no numeric parentheses by default; numbers remain in artifacts.
+- Near‑100% markets default to “in‑line / Stand Aside” unless specifically upgraded.
+- Equities with no live spot are hidden from chat when the flag is on.
+
+**Status:** ✅ Implemented; verified via local dry run.
+
+---
+
+## Dev log — v3.3 Note (Perplexity model default)
+**Date:** 2025-08-13
+
+**Change:**
+- Default Perplexity model set to `sonar` instead of `sonar-pro`.
+- Provider now coerces any configured `PPLX_MODEL` that starts with `sonar` (including `sonar-pro`) to `sonar` for reliability/cost.
+
+**Files:**
+- `providers/polymarket_pplx.py`: default and normalization logic for `PPLX_MODEL`.
+- `.env.example`: `PPLX_MODEL=sonar` with clarifying comment.
+
+**Action for users:**
+- If your `.env` specifies `PPLX_MODEL=sonar-pro`, change it to `sonar`.
+
+***
+
+## Dev log — v3.3 / Step 7 (Perplexity API key rotation)
+**Date:** 2025-08-13
+
+**Change:**
+- `providers/polymarket_pplx.py` now rotates across `PPLX_API_KEY_1..N` in numeric order, then falls back to `PPLX_API_KEY`. Each key gets `TB_POLYMARKET_PPLX_RETRIES` attempts, including one fallback prompt retry.
+
+**Config:**
+- `.env.example` documents:
+  - `PPLX_API_KEY_1..PPLX_API_KEY_4` (extendable)
+  - optional fallback `PPLX_API_KEY`
+
+**Debugging:**
+- Enable `TB_POLYMARKET_DEBUG=1` to see rotation logs like `key rotation: K keys discovered`, per‑key attempts, and rotations.
+
+**Acceptance:**
+- When one key fails or returns zero items, provider advances to the next until items are returned or keys exhausted.
+
+***
+
+## Dev log — v3.3 / Step 8 (Perplexity API key rotation and .env.example updates)
+**Date:** 2025-08-13
+
+**Change:**
+- `providers/polymarket_pplx.py` now rotates across `PPLX_API_KEY_1..N` in numeric order, then falls back to `PPLX_API_KEY`. Each key gets `TB_POLYMARKET_PPLX_RETRIES` attempts, including one fallback prompt retry.
+
+**Config:**
+- `.env.example` documents:
+  - `PPLX_API_KEY_1..PPLX_API_KEY_4` (extendable)
+  - optional fallback `PPLX_API_KEY`
+
+**Debugging:**
+- Enable `TB_POLYMARKET_DEBUG=1` to see rotation logs like `key rotation: K keys discovered`, per‑key attempts, and rotations.
+
+**Acceptance:**
+- When one key fails or returns zero items, provider advances to the next until items are returned or keys exhausted.

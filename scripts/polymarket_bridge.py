@@ -24,7 +24,8 @@ def _get_markets_via_source(
     max_items: int,
     fetch_fn: Optional[Callable[[str], Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
-    src = (source or "native").lower()
+    # Force PPLX as the only data source per product direction
+    src = "pplx"
     if src == "pplx":
         try:
             try:
@@ -32,55 +33,39 @@ def _get_markets_via_source(
             except Exception:
                 from .providers.polymarket_pplx import get_crypto_markets_via_pplx  # type: ignore
             assets = os.getenv("TB_POLYMARKET_ASSETS", "BTC,ETH")
-            # Prefer explicit TB_POLYMARKET_LIMIT; otherwise use TB_POLYMARKET_MAX_ITEMS as request size
-            limit_env = os.getenv("TB_POLYMARKET_LIMIT")
-            max_items_env = os.getenv("TB_POLYMARKET_MAX_ITEMS")
-            limit: Optional[int] = None
-            if limit_env and limit_env.isdigit():
-                limit = int(limit_env)
-            elif max_items_env and max_items_env.isdigit():
-                limit = int(max_items_env)
+            max_items_env = os.getenv("TB_POLYMARKET_LIMIT") or os.getenv("TB_POLYMARKET_MAX_ITEMS")
+            limit = None
+            if max_items_env:
+                try:
+                    limit = int(max_items_env)
+                except Exception:
+                    limit = None
             items = get_crypto_markets_via_pplx(assets_env=assets, limit=limit, fetch=None)
             # Optional title keyword filter to bias to BTC/ETH/SOL
-            kw_env = os.getenv("TB_POLYMARKET_TITLE_KEYWORDS", "BTC,Bitcoin,ETH,Ethereum,SOL,Solana")
+            kw_env = os.getenv("TB_POLYMARKET_TITLE_KEYWORDS", "BTC,Bitcoin,ETH,Ethereum,SOL,Solana,XRP,Ripple")
             kws = [k.strip().lower() for k in kw_env.split(",") if k.strip()]
             if kws:
                 def _ok(t: str) -> bool:
                     lt = (t or "").lower()
                     return any(k in lt for k in kws)
                 before = len(items)
-                items = [m for m in items if _ok(str(m.get("title") or m.get("question") or m.get("name") or ""))]
+                items = [m for m in items if _ok(str(m.get("title") or m.get("question") or ""))]
                 if os.getenv("TB_POLYMARKET_DEBUG", "0") == "1":
                     print(f"[Polymarket] keyword filter: {before} -> {len(items)} using {kws}")
-            # Soft cap to desired max to avoid over-long sections
+            # Cap to desired max to avoid over-long sections
             try:
-                desired_max = int(max_items_env) if (max_items_env and max_items_env.isdigit()) else None
+                desired_max = int(max_items_env) if max_items_env else None
             except Exception:
                 desired_max = None
             if desired_max and len(items) > desired_max:
                 items = items[:desired_max]
                 if os.getenv("TB_POLYMARKET_DEBUG", "0") == "1":
                     print(f"[Polymarket] capped to {desired_max} items after filter")
-            if not items and os.getenv("TB_POLYMARKET_FALLBACK_NATIVE", "0") == "1":
-                # Try native as a last resort
-                return get_btc_eth_markets(
-                    min_liquidity=min_liquidity,
-                    min_weeks=min_weeks,
-                    max_weeks=max_weeks,
-                    max_items=max_items,
-                    fetch=fetch_fn if fetch_fn else None,  # type: ignore
-                )
             return items
         except Exception:
             return []
-    # default: native provider
-    return get_btc_eth_markets(
-        min_liquidity=min_liquidity,
-        min_weeks=min_weeks,
-        max_weeks=max_weeks,
-        max_items=max_items,
-        fetch=fetch_fn if fetch_fn else None,  # type: ignore
-    )
+    # No native fallback; PPLX is the only source
+    return []
 
 try:
     from .evidence_lines import strip_numbers_for_chat
@@ -321,18 +306,29 @@ def discover_and_map(
     if os.getenv("TB_POLYMARKET_DEBUG", "0") == "1":
         print(f"[Polymarket] source={os.getenv('TB_POLYMARKET_SOURCE','native')} raw_items={len(markets)}")
     out: List[Dict[str, Any]] = []
-    for m in markets:
-        # optional quality gate
-        q = m.get("quality") or m.get("score") or 1.0
-        try:
-            if float(q) < float(min_quality):
-                continue
-        except Exception:
-            pass
+    # Configure end-date requirements and window
+    today_active_only = os.getenv("TB_POLYMARKET_TODAY_ACTIVE_ONLY", "0") == "1"
+    require_enddate = False if today_active_only else (os.getenv("TB_POLYMARKET_REQUIRE_ENDDATE", "1") == "1")
+    try:
+        window_days_env = os.getenv("TB_POLYMARKET_MAX_WINDOW_DAYS")
+        window_days: Optional[float] = float(window_days_env) if window_days_env else None
+    except Exception:
+        window_days = None
+    window_weeks: Optional[float] = (window_days / 7.0) if window_days is not None else None
+
+    def _map_one(m: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        # Derive title/symbol locally to avoid outer-scope reliance
         title = str(m.get("title") or m.get("question") or "").strip()
         lower_title = title.lower()
         symbol = "POLY:BTC" if ("btc" in lower_title or "bitcoin" in lower_title) else (
                  "POLY:ETH" if ("eth" in lower_title or "ethereum" in lower_title) else "POLY:CRYPTO")
+        # optional quality gate
+        q = m.get("quality") or m.get("score") or 1.0
+        try:
+            if float(q) < float(min_quality):
+                return None
+        except Exception:
+            pass
         end_dt = None
         for k in ("endDate", "end_date", "closesAt"):
             val = m.get(k)
@@ -343,7 +339,21 @@ def discover_and_map(
                     break
                 except Exception:
                     pass
-        weeks = _time_to_end_weeks(end_dt)
+        # Time filters: skip when today_active_only is enabled
+        if not today_active_only:
+            # Enforce end-date presence if required
+            if require_enddate and end_dt is None:
+                return None
+            weeks = _time_to_end_weeks(end_dt)
+            # Active only (end in future)
+            if weeks <= 0.0:
+                return None
+            # Optional window cap (e.g., 30 days default)
+            if window_weeks is not None and weeks > window_weeks:
+                return None
+            # Also respect min/max weeks knobs if provided by caller
+            if weeks < float(min_weeks) or weeks > float(max_weeks):
+                return None
         readiness = _readiness_from_weeks(weeks)
         implied_prob = m.get("impliedProbability") or m.get("implied_prob") or m.get("yesPrice")
         if implied_prob is None and os.getenv("TB_POLYMARKET_DEBUG", "0") == "1":
@@ -351,20 +361,53 @@ def discover_and_map(
                 print(f"[Polymarket][internal] missing implied_prob for title='{title[:90]}'")
             except Exception:
                 pass
+        # Liquidity filter (optional)
+        require_liq = os.getenv("TB_POLYMARKET_REQUIRE_LIQUIDITY", "0") == "1"
+        if require_liq:
+            liq = None
+            try:
+                liq = float(m.get("liquidityUSD") or 0.0)
+            except Exception:
+                liq = 0.0
+            try:
+                if float(liq) < float(min_liquidity):
+                    return None
+            except Exception:
+                pass
+
         # internal TB prob: optional estimator; else default to implied
         est = _estimate_internal_prob(title, implied_prob, context=context)
         internal_prob = est if (est is not None) else (m.get("internal_prob") if m.get("internal_prob") is not None else implied_prob)
         edge = _edge_label(internal_prob, implied_prob)
         stance = _stance(edge, readiness)
+        # Near-certainty sanity: if implied≈internal and near 1.0, force in-line & Stand Aside
+        try:
+            delta = float(os.getenv("TB_POLY_EDGE_TOL", "0.02"))
+        except Exception:
+            delta = 0.02
+        try:
+            if internal_prob is not None and implied_prob is not None:
+                p_int = float(internal_prob)
+                p_imp = float(implied_prob)
+                if abs(p_int - p_imp) <= delta and max(p_int, p_imp) >= 0.98:
+                    edge = "in-line"
+                    # keep readiness-based caution; default to Stand Aside unless special rule upgrades it
+                    stance = "Stand Aside"
+        except Exception:
+            pass
         rationale = _rationale(edge, readiness, title)
+        # numeric gating in chat handled elsewhere; here we always compute implied pct for artifacts
+        implied_pct = None
+        try:
+            implied_pct = round(float(implied_prob) * 100.0, 1) if implied_prob is not None else None
+        except Exception:
+            implied_pct = None
         # Outcome lean based on implied probability (Yes vs No)
         implied_side = None
-        implied_pct = None
         try:
             if implied_prob is not None:
                 p = float(implied_prob)
                 implied_side = "YES" if p >= 0.5 else "NO"
-                implied_pct = round(p * 100.0)
         except Exception:
             pass
         if implied_side is None:
@@ -376,7 +419,7 @@ def discover_and_map(
             outcome_label = "Lean NO"
         else:
             outcome_label = "Split"
-        out.append({
+        return {
             "symbol": symbol,
             "title": title,
             "readiness": readiness,
@@ -391,7 +434,23 @@ def discover_and_map(
             "internal_prob": internal_prob,
             "implied_pct": implied_pct,
             "end_date_iso": end_dt.isoformat() if end_dt else None,
-        })
+        }
+    # First pass: map with configured window
+    for m in markets:
+        mapped = _map_one(m)
+        if mapped:
+            out.append(mapped)
+    # Fallback: if empty and a window > today is set, try today-only (<=1 day)
+    if not out and (window_weeks is None or window_weeks > (1.0/7.0)):
+        if os.getenv("TB_POLYMARKET_DEBUG", "0") == "1":
+            print("[Polymarket] window produced 0 items; falling back to today-only window")
+        saved_window_weeks = window_weeks
+        window_weeks = 1.0/7.0
+        for m in markets:
+            mapped = _map_one(m)
+            if mapped:
+                out.append(mapped)
+        window_weeks = saved_window_weeks
     return out
 
 
@@ -402,8 +461,19 @@ def discover_from_env(fetch_fn: Optional[Callable[[str], Dict[str, Any]]] = None
     min_liq = float(os.getenv("TB_POLYMARKET_MIN_LIQUIDITY", "1000"))
     max_items = int(os.getenv("TB_POLYMARKET_MAX_ITEMS", "2"))
     min_quality = float(os.getenv("TB_POLYMARKET_MIN_QUALITY", "0.0"))
-    min_weeks = int(os.getenv("TB_POLYMARKET_MIN_WEEKS", "1"))
+    min_weeks = int(os.getenv("TB_POLYMARKET_MIN_WEEKS", "0"))
     max_weeks = int(os.getenv("TB_POLYMARKET_MAX_WEEKS", "12"))
+    # Optional: constrain by days window (e.g., 60 days ~ 8.57 weeks)
+    try:
+        window_days_env = os.getenv("TB_POLYMARKET_MAX_WINDOW_DAYS")
+        if window_days_env:
+            window_days = float(window_days_env)
+            window_weeks = window_days / 7.0
+            # tighten max_weeks if window is smaller
+            if window_weeks < max_weeks:
+                max_weeks = int(window_weeks) if window_weeks.is_integer() else int(window_weeks) + 1
+    except Exception:
+        pass
     mapped = discover_and_map(
         min_liquidity=min_liq,
         min_weeks=min_weeks,

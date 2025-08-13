@@ -7,10 +7,18 @@ from typing import Dict, List
 import os
 try:
     # When imported as package
-    from .evidence_lines import generate_evidence_line
+    from .evidence_lines import (
+        generate_evidence_line,
+        generate_high_risk_note,
+        estimate_confidence_pct,
+    )
 except Exception:
     # When executed directly
-    from scripts.evidence_lines import generate_evidence_line
+    from scripts.evidence_lines import (
+        generate_evidence_line,
+        generate_high_risk_note,
+        estimate_confidence_pct,
+    )
 
 CRYPTO_PREFIXES = (
     "BTC/", "ETH/", "SOL/", "ADA/", "BNB/", "XRP/", "DOGE/", "DOT/", "LTC/", "AVAX/",
@@ -49,6 +57,24 @@ def render_digest(
     thesis = (engine or {}).get("thesis_text") or "Market mixed; trade clean plans and defined risk."
     lines.append("Executive Take")
     lines.append(thesis)
+    # Executive vs leaders alignment note
+    try:
+        regime = (weekly or {}).get("regime", "").strip().lower()
+        leaders = []
+        # Determine top-2 leaders actions from ordered list
+        for sym in (assets_ordered or [])[:2]:
+            a0 = assets_data.get(sym, {})
+            th0 = a0.get("thesis") or {}
+            act0 = (th0.get("action") or a0.get("action") or "").strip().lower()
+            if act0:
+                leaders.append(act0)
+        if regime in {"mixed", "balanced"} and len(leaders) >= 2:
+            if all(x in ("buy", "long") for x in leaders[:2]):
+                lines.append("Leaders skew long; wait for clean triggers.")
+            elif any(x in ("buy", "long") for x in leaders[:2]) and any(x in ("sell", "short") for x in leaders[:2]):
+                lines.append("Leaders diverge from tape; trade only A-setups.")
+    except Exception:
+        pass
     lines.append("")
 
     # Weekly Overview
@@ -117,8 +143,16 @@ def render_digest(
                 rat = pm.get("rationale_chat")
                 if rat:
                     lines.append("  " + rat)
+                # Optional internal confidence (agent view)
+                if os.getenv("TB_POLYMARKET_SHOW_CONFIDENCE", "0") == "1":
+                    ip = pm.get("internal_prob")
+                    try:
+                        if isinstance(ip, (int, float)):
+                            lines.append(f"  Confidence: {round(float(ip)*100)}% (internal)")
+                    except Exception:
+                        pass
                 # Outcome and probability (optional)
-                if os.getenv("TB_POLYMARKET_SHOW_OUTCOME", "1") == "1":
+                if os.getenv("TB_POLYMARKET_SHOW_OUTCOME", "1") == "1" and os.getenv("TB_POLYMARKET_NUMBERS_IN_CHAT", "0") == "1":
                     out_label = pm.get("outcome_label") or pm.get("implied_side") or "-"
                     if os.getenv("TB_POLYMARKET_SHOW_PROB", "0") == "1":
                         pct = pm.get("implied_pct")
@@ -169,7 +203,22 @@ def render_digest(
 
     for sym in render_symbols:
         a = assets_data.get(sym, {})
+        # Optional: hide equities in chat if no live data
+        if os.getenv("TB_DIGEST_HIDE_EQUITIES_IF_NO_DATA", "1") == "1" and (not is_crypto(sym)):
+            sspot = a.get("spot")
+            if sspot is None:
+                # skip rendering this equity entirely
+                continue
         lines.append(header(sym, a))
+        # Optional graded risk note for High Risk + Buy/Watch
+        if int(os.getenv("TB_DIGEST_EXPLAIN_HIGH_RISK_ACTION", 1)):
+            th_ref = a.get("thesis") or {}
+            risk_band = th_ref.get("risk_band") or a.get("risk") or a.get("risk_band")
+            action_lbl = th_ref.get("action") or a.get("action")
+            risk_score = a.get("risk_score") or th_ref.get("risk_score") or 0
+            note = generate_high_risk_note(risk_band, action_lbl, risk_score)
+            if note:
+                lines.append(f"⚠ {note}")
         # Evidence line (number-free)
         th = a.get("thesis") or {}
         action = (th.get("action") or a.get("action") or "watch").lower()
@@ -187,8 +236,15 @@ def render_digest(
         elif "range" in structure_txt or "reversion" in structure_txt:
             narrative_tags = ["reversion"]
         ev_line = generate_evidence_line(sentiment, participation, tf_aligned, signal_quality, narrative_tags)
-        if ev_line:
-            lines.append(ev_line)
+        lines.append(ev_line)
+        # Optional agent confidence (assets)
+        if os.getenv("TB_SHOW_ASSET_CONFIDENCE_IN_CHAT", "0") == "1":
+            risk_band = th.get("risk_band") or a.get("risk") or a.get("risk_band")
+            try:
+                conf = estimate_confidence_pct(signal_quality, tf_aligned, risk_band)
+                lines.append(f"Confidence: {round(conf*100)}% (agent)")
+            except Exception:
+                pass
         if is_crypto(sym):
             # Spot with drift note
             spot = a.get("spot")

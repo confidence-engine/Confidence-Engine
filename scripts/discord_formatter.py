@@ -1,7 +1,7 @@
 import os
 from typing import List, Dict, Any
 from .discord_sender import MAX_DESC_CHARS
-from .evidence_lines import generate_evidence_line
+from .evidence_lines import generate_evidence_line, generate_high_risk_note, estimate_confidence_pct
 
 
 def _hdr_val(v, default):
@@ -33,12 +33,43 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
     """
     embeds: List[Dict[str, Any]] = []
 
+    # Helper: basic crypto detector by symbol naming
+    CRYPTO_PREFIXES = (
+        "BTC/", "ETH/", "SOL/", "ADA/", "BNB/", "XRP/", "DOGE/", "DOT/", "LTC/", "AVAX/",
+    )
+    def _is_crypto(sym: str) -> bool:
+        if not sym:
+            return False
+        s = str(sym).upper()
+        if any(stable in s for stable in ("/USD", "/USDT", "/USDC")):
+            return True
+        return s.startswith(CRYPTO_PREFIXES)
+
     # Header / Executive Take
     exec_raw = digest_data.get("executive_take")
     if isinstance(exec_raw, str):
         header_desc = exec_raw.strip()
     else:
         header_desc = str(exec_raw) if exec_raw is not None else ""
+    # Executive vs leaders alignment note
+    try:
+        weekly = digest_data.get("weekly") or {}
+        regime = (weekly.get("regime") if isinstance(weekly, dict) else "")
+        regime_l = (regime or "").strip().lower()
+        leaders = []
+        assets = digest_data.get("assets") or []
+        for a0 in assets[:2]:
+            th0 = (a0.get("thesis") or {}) if isinstance(a0, dict) else {}
+            act0 = (th0.get("action") or a0.get("action") or "").strip().lower()
+            if act0:
+                leaders.append(act0)
+        if regime_l in {"mixed", "balanced"} and len(leaders) >= 2:
+            if all(x in ("buy", "long") for x in leaders[:2]):
+                header_desc = (header_desc + ("\n" if header_desc else "") + "Leaders skew long; wait for clean triggers.").strip()
+            elif any(x in ("buy", "long") for x in leaders[:2]) and any(x in ("sell", "short") for x in leaders[:2]):
+                header_desc = (header_desc + ("\n" if header_desc else "") + "Leaders diverge from tape; trade only A-setups.").strip()
+    except Exception:
+        pass
     embeds.append({
         "title": f"Tracer Bullet — {digest_data.get('timestamp','')}",
         "description": header_desc[:MAX_DESC_CHARS],
@@ -122,7 +153,15 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
                 rat = pm.get("rationale_chat")
                 if rat:
                     val_lines.append(rat)
-                if os.getenv("TB_POLYMARKET_SHOW_OUTCOME", "1") == "1":
+                # Optional internal confidence (agent view)
+                if os.getenv("TB_POLYMARKET_SHOW_CONFIDENCE", "0") == "1":
+                    ip = pm.get("internal_prob")
+                    try:
+                        if isinstance(ip,(int,float)):
+                            val_lines.append(f"Confidence: {round(float(ip)*100)}% (internal)")
+                    except Exception:
+                        pass
+                if os.getenv("TB_POLYMARKET_SHOW_OUTCOME", "1") == "1" and os.getenv("TB_POLYMARKET_NUMBERS_IN_CHAT", "0") == "1":
                     out_label = pm.get("outcome_label") or pm.get("implied_side") or "-"
                     if os.getenv("TB_POLYMARKET_SHOW_PROB", "0") == "1":
                         pct = pm.get("implied_pct")
@@ -161,6 +200,14 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
 
     # Assets
     for asset in digest_data.get("assets", []):
+        # Optional: hide equities if no live provider (spot None)
+        try:
+            if os.getenv("TB_DIGEST_HIDE_EQUITIES_IF_NO_DATA", "1") == "1":
+                sym = asset.get("symbol") or ""
+                if (not _is_crypto(sym)) and (asset.get("spot") is None):
+                    continue
+        except Exception:
+            pass
         fields = []
         # Evidence line (number-free)
         th = asset.get("thesis") or {}
@@ -183,8 +230,26 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
         elif "range" in structure_txt or "reversion" in structure_txt:
             narrative_tags = ["reversion"]
         ev_line = generate_evidence_line(sentiment, participation, tf_aligned, signal_quality, narrative_tags)
-        if ev_line:
-            fields.append({"name": "Evidence", "value": ev_line, "inline": False})
+        # Optional graded risk note for High Risk + Buy/Watch
+        note = ""
+        if int(os.getenv("TB_DIGEST_EXPLAIN_HIGH_RISK_ACTION", 1)):
+            risk_band = asset.get("risk") or asset.get("risk_band") or (th.get("risk_band") if isinstance(th, dict) else None)
+            action_lbl = asset.get("action") or (th.get("action") if isinstance(th, dict) else None)
+            risk_score = asset.get("risk_score") or (th.get("risk_score") if isinstance(th, dict) else 0)
+            note = generate_high_risk_note(risk_band, action_lbl, risk_score)
+        if ev_line or note:
+            val = ev_line or ""
+            if note:
+                val = (val + ("\n" if val else "") + f"⚠ {note}").strip()
+            fields.append({"name": "Evidence", "value": val, "inline": False})
+        # Optional agent confidence (assets)
+        if os.getenv("TB_SHOW_ASSET_CONFIDENCE_IN_CHAT", "0") == "1":
+            try:
+                risk_band = (th.get("risk_band") if isinstance(th, dict) else None) or asset.get("risk") or asset.get("risk_band")
+                conf = estimate_confidence_pct(signal_quality, tf_aligned, risk_band)
+                fields.append({"name": "Confidence", "value": f"{round(conf*100)}% (agent)", "inline": True})
+            except Exception:
+                pass
         plan = asset.get("plan") or {}
         # Preserve insertion order if dicts are ordered; otherwise display sorted by common TF order
         tf_order = ["1h", "4h", "1D", "1W", "1M"]
