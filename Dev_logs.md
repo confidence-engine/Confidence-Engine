@@ -8,6 +8,15 @@
 - Fix: `TB_NO_DISCORD` is now respected in `scripts/tracer_bullet_universe.py` send gating. Safe runs with `TB_NO_DISCORD=1` will never send Discord embeds.
 - Verification: Ran universe with AUTOCOMMIT=1, PUSH=1, NO_TELEGRAM=1, NO_DISCORD=1; observed enrichment auto-commit and push, and Discord correctly skipped.
 
+## [v3.1.8-wiki-ops-updates] - 2025-08-14
+- Docs: Updated `knowledge_wiki.md` with Ops & Reliability findings (v3.1.6–v3.1.7):
+  - Post-enrichment auto-commit/push behavior and defaults
+  - Strict Discord gating via `TB_NO_DISCORD`
+  - Universe artifact schema enrichment (evidence_line, polymarket array)
+  - Digest delivery rules and surfacing toggles (crypto-only, top alts, size splitting)
+  - Polymarket PPLX provider/bridge details, key rotation, debug
+  - Env flags quick reference and Git sync check runbook
+
 ## [v3.1.3-artifact-schema-tests] - 2025-08-14
 - Tests: added `tests/test_artifact_schema.py` to validate artifact enrichment:
   - Per-asset `evidence_line` injected from digest evidence sink

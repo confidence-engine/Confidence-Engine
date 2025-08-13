@@ -2,7 +2,115 @@
 
 A living, milestone-driven plan from V1 tracer bullet to small live capital, emphasizing reliability, explainability, and leak-free validation.
 
-Last updated: 2025-08-08.
+Last updated: 2025-08-14.
+
+---
+
+## Ops & Reliability — Recent Findings (v3.1.6–v3.1.7)
+
+- **Post-enrichment auto-commit/push**
+  - After `scripts/tracer_bullet_universe.py` calls `enrich_artifact()` (injects `evidence_line` and `polymarket` array into the saved universe JSON), the file changes are now automatically staged, committed, and pushed when:
+    - `TB_UNIVERSE_GIT_AUTOCOMMIT=1` and optionally `TB_UNIVERSE_GIT_PUSH=1`.
+  - Prevents the enriched universe JSON from lingering as modified in your working tree.
+
+- **Discord gating strictly enforced**
+  - `TB_NO_DISCORD=1` now prevents any Discord sends even if webhook is configured.
+  - Send conditions in `scripts/tracer_bullet_universe.py`:
+    - Telegram: requires `TB_NO_TELEGRAM=0` and TG creds.
+    - Discord: requires `TB_NO_DISCORD=0`, `TB_ENABLE_DISCORD=1`, and webhook.
+
+- **Auto-commit/push defaults**
+  - `scripts/scan_universe.py` already commits and pushes artifacts by default:
+    - `TB_UNIVERSE_GIT_AUTOCOMMIT=1` (default)
+    - `TB_UNIVERSE_GIT_PUSH=1` (default)
+  - `TB_UNIVERSE_GIT_PUSH_DEFAULT=1` can force push if push was unset.
+
+- **Safe-run profile**
+  - For dry runs without external sends, set: `TB_NO_TELEGRAM=1`, `TB_NO_DISCORD=1`.
+  - Artifacts will still be committed/pushed if AUTOCOMMIT/PUSH are on.
+
+---
+
+## Artifact Schema Enrichment (Universe)
+
+- The saved universe JSON is enriched with:
+  - Per-asset `evidence_line` (full narrative string; artifacts retain numbers, chat output strips numbers).
+  - Top-level `polymarket` array with mapped markets and numeric fields (probabilities, liquidity, dates, etc.).
+- `metrics.csv` includes `evidence_line` when present.
+- Backward compatibility preserved; tests validate enrichment and legacy loading.
+
+---
+
+## Digest Delivery Rules (Telegram/Discord)
+
+- Telegram human digest (optional):
+  - Respects `TB_HUMAN_DIGEST` and `TB_NO_TELEGRAM`.
+  - Auto-splits long messages to fit Telegram limits (preserving order/content).
+  - Supports crypto-only mode via `TB_DIGEST_TELEGRAM_CRYPTO_ONLY=1`.
+  - Surfaces BTC/ETH + top-K alts controlled by `TB_DIGEST_TOP_ALTS` (`ALL` or `-1` includes all).
+
+- Discord full digest:
+  - All sections/assets rendered as embeds with chunking as needed.
+  - Respects `TB_NO_DISCORD`, `TB_ENABLE_DISCORD`, and webhook presence.
+
+---
+
+## Polymarket (PPLX) Provider — Key Notes
+
+- Source is strictly Perplexity Pro API (`pplx`); native code removed for prod path.
+- Enforces model `sonar` and strict JSON extraction (first balanced array fallback).
+- API key rotation supported: `PPLX_API_KEY_1..N`, then `PPLX_API_KEY`.
+- Filters and flags:
+  - `TB_POLYMARKET_ASSETS`, `TB_POLYMARKET_LIMIT`, `TB_POLYMARKET_TODAY_ACTIVE_ONLY`,
+    `TB_POLYMARKET_REQUIRE_LIQUIDITY`, `TB_POLYMARKET_MIN_LIQUIDITY`,
+    `TB_POLYMARKET_TITLE_KEYWORDS`, `TB_POLYMARKET_SHOW_EMPTY`.
+- Bridge caps via `TB_POLYMARKET_MAX_ITEMS` and enforces sort/limit before return.
+- Internal probability estimator included; calibration uses alignment, participation, readiness, signal strength.
+- Debugging with `TB_POLYMARKET_DEBUG=1` prints prompt/key/attempt/choices and calibration components.
+
+---
+
+## Environment Flags — Quick Reference
+
+- Sending
+  - `TB_HUMAN_DIGEST=1` — enable human digest rendering
+  - `TB_NO_TELEGRAM=0` — allow Telegram (requires creds)
+  - `TB_NO_DISCORD=0`, `TB_ENABLE_DISCORD=1` — allow Discord (requires webhook)
+
+- Digest surfacing
+  - `TB_DIGEST_TOP_ALTS=ALL` | `-1` | `K`
+  - `TB_DIGEST_TELEGRAM_CRYPTO_ONLY=1`
+  - `TB_DIGEST_EXPLAIN_HIGH_RISK_ACTION=1`
+
+- Universe artifacts
+  - `TB_UNIVERSE_GIT_AUTOCOMMIT=1`, `TB_UNIVERSE_GIT_PUSH=1`, `TB_UNIVERSE_GIT_PUSH_DEFAULT=0/1`
+
+- Polymarket PPLX
+  - `TB_ENABLE_POLYMARKET=1`, `TB_POLYMARKET_SOURCE=pplx`
+  - `TB_POLYMARKET_MAX_ITEMS`, `TB_POLYMARKET_LIMIT`, `TB_POLYMARKET_TODAY_ACTIVE_ONLY`
+  - `TB_POLYMARKET_REQUIRE_LIQUIDITY`, `TB_POLYMARKET_MIN_LIQUIDITY`
+  - `TB_POLYMARKET_DEBUG`, `TB_POLYMARKET_PPLX_RETRIES`, `TB_POLYMARKET_PPLX_PROMPT`
+
+---
+
+## Git: Verify Local vs Remote Sync
+
+Run inside repo:
+
+```
+git fetch origin
+git status -sb     # shows ahead/behind vs origin/main
+git rev-parse HEAD && git rev-parse origin/main
+git log --oneline origin/main..HEAD -n 10    # local-only commits
+git log --oneline HEAD..origin/main -n 10    # remote-only commits
+```
+
+In sync when:
+- `HEAD` hash equals `origin/main` hash
+- `git status -sb` shows no `[ahead/behind]`
+- Both `git log` ranges above print nothing
+
+---
 
 ## Guiding Objectives
 
