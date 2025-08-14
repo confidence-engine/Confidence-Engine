@@ -384,27 +384,6 @@ def render_digest(
                 lines.append("Sizing: " + a["sizing_text"])
         lines.append("")
 
-    # Playbook (dynamic and hideable)
-    show_playbook = os.getenv("TB_DIGEST_SHOW_PLAYBOOK", "1") == "1"
-    if show_playbook:
-        any_fallback = False
-        any_analysis = False
-        for sym in assets_ordered:
-            pl = (assets_data.get(sym, {}) or {}).get("plan") or {}
-            for tf in pl:
-                src = (pl.get(tf) or {}).get("source")
-                if src == "fallback":
-                    any_fallback = True
-                if src == "analysis":
-                    any_analysis = True
-        tips = []
-        if any_analysis:
-            tips.append("- Use the provided levels; respect invalidation")
-        if any_fallback:
-            tips.append("- Some levels are heuristic; confirm with price action")
-        tips.append("- Trade A-setups only")
-        tips.append("- Size with discipline")
-        lines.append("Playbook")
-        lines.extend(tips)
+    # Playbook removed per user request
 
     return "\n".join(lines)

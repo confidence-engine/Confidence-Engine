@@ -293,6 +293,13 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
             if targets:
                 tgt_str = ", ".join([f"{t.get('label','TP')} {t.get('price',0):.2f}" for t in targets])
                 field_val_parts.append("Targets: " + tgt_str)
+            # Why (number-free analysis explanation)
+            try:
+                why = p.get("explain")
+                if isinstance(why, str) and why.strip():
+                    field_val_parts.append("Why: " + why.strip())
+            except Exception:
+                pass
             fields.append({"name": tf_label, "value": ("\n".join(field_val_parts) or "-"), "inline": False})
         title = f"{asset.get('symbol','')} — " \
                 f"Risk Level: {_hdr_val(asset.get('risk'),'Medium')} | " \

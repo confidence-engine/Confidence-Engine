@@ -1,5 +1,15 @@
 > Prefer the concise history? See [Dev_logs_CLEAN.md](Dev_logs_CLEAN.md).
 
+## [v3.1.13-discord-why-and-no-playbook] - 2025-08-15
+- Feature: Discord digest now includes per-timeframe number-free “Why” explanations derived from agent analysis, matching Telegram.
+  - File: `scripts/discord_formatter.py` (adds `Why:` under each TF field using `plan[tf]['explain']`)
+- Change: Removed the Playbook section from Telegram human digest per user request.
+  - File: `scripts/tg_digest_formatter.py` (Playbook block removed)
+- Hardening: Plan builder accepts both analysis schema and legacy keys.
+  - File: `scripts/tracer_bullet_universe.py` `build_tf_plan_from_levels()` supports `entries/invalidation/targets` and `entry_trigger/entry_zone/invalid_price`.
+- Policy: Avoid committing/pushing `.py` files going forward; use safe local runs and only commit docs/artifacts when approved.
+- Verification: Ran safe digest build with TG/Discord disabled; Telegram shows no Playbook; Discord (dry) will render TF “Why”.
+
 ## [v3.1.12-tf-why-explanations] - 2025-08-15
 - Feature: Added accurate per-timeframe explanations for entries/invalidations/targets sourced from the agent analysis.
   - `scripts/tracer_bullet_universe.py`: `synthesize_analysis_levels()` now attaches a number-free `explain` string per TF using bias/action, readiness, and TF strength; fallback plans also carry a clear heuristic `explain`.
