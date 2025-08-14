@@ -1,7 +1,11 @@
 import os
 from typing import List, Dict, Any
 from .discord_sender import MAX_DESC_CHARS
-from .evidence_lines import generate_evidence_line, generate_high_risk_note, estimate_confidence_pct
+from .evidence_lines import (
+    generate_evidence_line,
+    generate_high_risk_note,
+    estimate_confidence_pct,
+)
 
 
 def _hdr_val(v, default):
@@ -324,28 +328,29 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
         # Preserve insertion order if dicts are ordered; otherwise display sorted by common TF order
         tf_order = ["1h", "4h", "1D", "1W"]
         keys = [k for k in tf_order if k in plan] + [k for k in plan.keys() if k not in tf_order]
+        # iterate in preferred order like Telegram (no grades)
         for tf in keys:
             p = plan.get(tf) or {}
+            tf_label = tf
+            src = (p.get("source") or "").strip().lower()
+            if src == "analysis":
+                tf_label += " (agent mode)"
+            elif src == "fallback":
+                tf_label += " (fallback)"
             field_val_parts = []
             entries = p.get("entries") or []
             invalid = p.get("invalidation") or {}
             targets = p.get("targets") or []
             # provenance hint
-            src = p.get("source")
-            tf_label = str(tf)
-            if src == "analysis":
-                tf_label = f"{tf_label} (agent mode)"
-            elif src == "fallback":
-                tf_label = f"{tf_label} (fallback)"
+            def _fmt_entry(it):
+                t = it.get("type") or "entry"
+                z = it.get("zone_or_trigger")
+                if isinstance(z, (list, tuple)) and len(z) == 2:
+                    return f"{z[0]:.2f}–{z[1]:.2f} ({t})"
+                if isinstance(z, (int, float)):
+                    return f"{z:.2f} ({t})"
+                return str(z)
             if entries:
-                def _fmt_entry(it):
-                    t = it.get("type") or "entry"
-                    z = it.get("zone_or_trigger")
-                    if isinstance(z, (list, tuple)) and len(z) == 2:
-                        return f"{z[0]:.2f}–{z[1]:.2f} ({t})"
-                    if isinstance(z, (int, float)):
-                        return f"{z:.2f} ({t})"
-                    return str(z)
                 field_val_parts.append("Entries: " + ", ".join(_fmt_entry(x) for x in entries))
             if invalid:
                 inv_price = invalid.get("price")
@@ -363,10 +368,15 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
             except Exception:
                 pass
             fields.append({"name": tf_label, "value": ("\n".join(field_val_parts) or "-"), "inline": False})
+        # Harmonize with Telegram: prefer thesis fields
+        th = asset.get("thesis") or {}
+        risk_val = _hdr_val(th.get("risk_band") or asset.get("risk") or asset.get("risk_band"), "Medium")
+        ready_val = _hdr_val(th.get("readiness") or asset.get("readiness"), "Later")
+        act_val = _hdr_val(th.get("action") or asset.get("action"), "Watch")
         title = f"{asset.get('symbol','')} — " \
-                f"Risk Level: {_hdr_val(asset.get('risk'),'Medium')} | " \
-                f"Timing: {_hdr_val(asset.get('readiness'),'Later')} | " \
-                f"Stance: {_hdr_val(asset.get('action'),'Watch')}"
+                f"Risk Level: {risk_val} | " \
+                f"Timing: {ready_val} | " \
+                f"Stance: {act_val}"
         if _is_aplus_setup(asset):
             title += "  [A+ Setup]"
         desc = []

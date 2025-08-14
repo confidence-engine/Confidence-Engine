@@ -1,6 +1,55 @@
 > Prefer the concise history? See [Dev_logs_CLEAN.md](Dev_logs_CLEAN.md).
 
-## [v3.1.16-digest-aplus-plain-english] - 2025-08-15
+## [v3.1.22-remove-grades-from-digests] - 2025-08-15
+- Change (parity): Removed all grade computation and rendering from both Telegram and Discord digest formatters to normalize outputs and avoid discrepancies.
+  - Files: `scripts/discord_formatter.py`, `scripts/tg_digest_formatter.py`
+  - Details:
+    - Dropped imports and calls to `compute_setup_grade()` and `compute_setup_grade_for_tf()`.
+    - Removed header `[Grade: X]` tag, per-timeframe micro-grade tags, and Quick Summary coin grade tags in both renderers.
+    - Kept provenance labels `(agent mode)` / `(fallback)` and the strict `[A+ Setup]` tag unchanged.
+- Tests: Updated `tests/test_digest_formatters.py` to stop expecting grade tags; now verify provenance-only. Test run: 2 passed.
+- Notes: Environment variables related to grading remain but are unused by formatters.
+
+## [v3.1.19-digest-provenance-parity-fix] - 2025-08-15
+- Fix (parity): Standardized timeframe provenance label across chat renderers — when `plan[tf].source == "analysis"`, show `(agent mode)` instead of `(analysis)`.
+  - Files: `scripts/discord_formatter.py`, `scripts/tg_digest_formatter.py`
+- Fix (Telegram UI): Removed a duplicate per-timeframe label line under each TF block; now a single header line carries provenance and the per-timeframe micro‑grade.
+  - File: `scripts/tg_digest_formatter.py`
+- Result: Per‑timeframe headers render as e.g., `1h: (agent mode) [Grade: B]` on both Discord and Telegram.
+- Safety: No change to grading math; both renderers call `compute_setup_grade()` for consistency.
+
+## [v3.1.20-per-tf-grading] - 2025-08-15
+- Feature: Added per‑timeframe micro‑grading via `compute_setup_grade_for_tf()` in `scripts/evidence_lines.py`.
+  - TF‑local adjustments: small bias for `(agent mode)` vs `(fallback)`, and presence of `explain`.
+- Discord: timeframe field names now include `[Grade: <micro>]` computed per TF.
+- Telegram: timeframe header line now includes `[Grade: <micro>]` computed per TF.
+- Safety: Overall asset grade remains for headers; environment tunables `TB_GRADE_W_*` and `TB_GRADE_THRESH_*` still control distributions.
+
+## [v3.1.21-grading-defaults-and-cli] - 2025-08-15
+- Tuning: Tightened default grading thresholds and shifted weights toward confirmation checks in `.env.example`.
+  - `TB_GRADE_W_CONF=0.45`, `TB_GRADE_W_CONFCHK=0.35`, `TB_GRADE_W_ALIGN=0.20`
+  - `TB_GRADE_THRESH_A=0.85`, `TB_GRADE_THRESH_B=0.70`, `TB_GRADE_THRESH_C=0.55`
+- Tooling: Added `scripts/grade_hist.py` CLI to compute grade histograms from latest `universe_runs/*.json`.
+  - Flags: `--file`, `--per-tf`, `--aggregate`, `--symbols`
+- Tests: Added `tests/test_digest_formatters.py` covering provenance mapping, per‑TF grades, and header harmonization.
+
+## [v3.1.17-digest-letter-grades] - 2025-08-15
+- Feature (parity): Added consistent setup letter grades (A+..D) to both Telegram and Discord digests.
+  - Computation centralized in `scripts/evidence_lines.py` via `compute_setup_grade()` and `compute_polymarket_grade()`.
+  - Asset headers now append ` [Grade: X]` next to Risk/Timing/Stance.
+  - Polymarket items show ` [Grade: X]` inline with `stance | readiness | edge`.
+  - Strict `[A+ Setup]` tag remains and is shown in addition to the letter grade when the heuristic passes.
+- Logic:
+  - Asset grade combines estimated confidence (signal_quality + alignment + risk), confirmation checks (price_vs_narrative, volume_support, timescale_alignment), and alignment.
+  - If the asset scores an A and the A+ heuristic passes, the grade upgrades to A+.
+  - Polymarket grade is lightweight: readiness, edge_label (rich/cheap), and optional internal_prob.
+- Files:
+  - `scripts/evidence_lines.py` (+helpers)
+  - `scripts/tg_digest_formatter.py` (render header + Polymarket with grades)
+  - `scripts/discord_formatter.py` (render title + Polymarket with grades)
+- Safety: No numeric exposure in chat beyond optional `internal_prob` when `TB_POLYMARKET_SHOW_CONFIDENCE=1`.
+- Verification: Safe local render with `TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 TB_HUMAN_DIGEST=1` shows grades appearing consistently in both outputs.
+
 - Feature (parity): Telegram and Discord digests tag high-quality setups as `[A+ Setup]` in asset headers and `(A+)` in Quick Summary coins.
   - Files: `scripts/discord_formatter.py`, `scripts/tg_digest_formatter.py` (shared `_is_aplus_setup()` heuristic)
 - Language (parity): Simplified phrases to kid-friendly English in Executive Take, Weekly Plan, and Engine Thesis for both renderers.
@@ -12,6 +61,21 @@
   - Logic: Treats strong when both price_vs_narrative and volume_support pass (and either timescale_alignment passes or overall aligned); elevated when at least one of price/volume passes.
   - Files: `scripts/discord_formatter.py` and `scripts/tg_digest_formatter.py` updated identically.
 
+## [v3.1.18-digest-grade-tuning-and-ui] - 2025-08-15
+- Change (polymarket): Removed letter-grade badges from Polymarket items in both Telegram and Discord digests (kept stance | readiness | edge and optional internal confidence when enabled).
+  - Files: `scripts/tg_digest_formatter.py`, `scripts/discord_formatter.py`
+- Feature (parity): Added setup grade to Quick Summary coin lines (e.g., "- Bitcoin: sideways … [Grade: B]") while preserving the strict `(A+)` tag when applicable.
+  - Files: `scripts/tg_digest_formatter.py` (Quick Summary), `scripts/discord_formatter.py` (`_render_quick_summary`)
+- Feature (parity): Added per-timeframe micro-grade next to each TF header using the overall asset grade (e.g., `1h: (analysis) [Grade: B]`).
+  - Files: `scripts/tg_digest_formatter.py`, `scripts/discord_formatter.py`
+- Tunables: Made grading weights and thresholds configurable via env vars in `compute_setup_grade()`.
+  - Weights: `TB_GRADE_W_CONF` (default 0.5), `TB_GRADE_W_CONFCHK` (0.3), `TB_GRADE_W_ALIGN` (0.2)
+  - Thresholds: `TB_GRADE_THRESH_A` (0.80), `TB_GRADE_THRESH_B` (0.65), `TB_GRADE_THRESH_C` (0.50)
+  - Files: `scripts/evidence_lines.py`, `.env.example`
+- Tests: Formatter tests green after changes.
+- Safety: For local renders, disable auto-commit/push with `TB_UNIVERSE_GIT_AUTOCOMMIT=0 TB_UNIVERSE_GIT_PUSH=0` to avoid remote changes.
+
+## [v3.1.16-digest-aplus-plain-english] - 2025-08-15
 
 ## [v3.1.13-discord-why-and-no-playbook] - 2025-08-15
 - Feature: Discord digest now includes per-timeframe number-free “Why” explanations derived from agent analysis, matching Telegram.
