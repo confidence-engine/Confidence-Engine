@@ -343,6 +343,13 @@ def render_digest(
                             lines.append("  Targets: " + ", ".join(parts))
                     else:
                         lines.append("  Targets: set")
+                # Why (analysis explanation, number-free)
+                try:
+                    why = plan.get("explain")
+                    if isinstance(why, str) and why.strip():
+                        lines.append("  Why: " + why.strip())
+                except Exception:
+                    pass
                 shown += 1
             # Weekly anchor
             wk = a.get("weekly_anchor") or {}

@@ -1,5 +1,13 @@
 > Prefer the concise history? See [Dev_logs_CLEAN.md](Dev_logs_CLEAN.md).
 
+## [v3.1.12-tf-why-explanations] - 2025-08-15
+- Feature: Added accurate per-timeframe explanations for entries/invalidations/targets sourced from the agent analysis.
+  - `scripts/tracer_bullet_universe.py`: `synthesize_analysis_levels()` now attaches a number-free `explain` string per TF using bias/action, readiness, and TF strength; fallback plans also carry a clear heuristic `explain`.
+  - `build_tf_plan_from_levels()` passes `explain` through into the plan snapshot.
+  - `scripts/tg_digest_formatter.py`: renders a per-TF "Why:" line from `plan[tf]['explain']` under each timeframe block.
+- Result: Digest now shows specific, analysis-grounded rationale for each TF instead of generic statements.
+- Safety: Chat remains number-free in explanations; artifacts persist plan snapshots unchanged.
+
 ## [v3.1.11-analysis-primary-plans] - 2025-08-15
 - Change: Analysis is now the primary source for per-timeframe plans in the digest.
   - When explicit per-TF levels are missing, we synthesize analysis-derived levels from agent signals (bias/action, timescale strength) anchored to live spot.

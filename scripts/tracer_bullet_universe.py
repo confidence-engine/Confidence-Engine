@@ -307,6 +307,8 @@ def main():
                 return {}
             bias = str(thesis.get("bias", "")).lower()
             direction = 1 if bias == "up" else (-1 if bias == "down" else 0)
+            readiness = str(thesis.get("readiness", "")).lower() or "later"
+            action = str(thesis.get("action", "")).lower() or "watch"
             # Base offsets similar to fallback but will be scaled by strength to reflect analysis
             base = {
                 "1h":   {"trig": 0.003, "fade_hi": 0.007, "fade_lo": 0.004, "inv": 0.008, "tp1": 0.007, "tp2": 0.015},
@@ -322,6 +324,13 @@ def main():
                 # Scale offsets by strength (analysis-driven)
                 for k in pcts:
                     pcts[k] *= strength
+                # Build concise explanation from analysis context (number-free)
+                if direction > 0:
+                    why = f"Bias up on {tf}; using trigger entries aligned with momentum. Strength {('elevated' if strength>1.15 else ('balanced' if strength>0.85 else 'muted'))}, timing {readiness}, action {action}."
+                elif direction < 0:
+                    why = f"Bias down on {tf}; using fade entries into structure. Strength {('elevated' if strength>1.15 else ('balanced' if strength>0.85 else 'muted'))}, timing {readiness}, action {action}."
+                else:
+                    why = f"Neutral bias on {tf}; tight trigger and symmetric guard. Strength {'balanced' if 0.85<=strength<=1.15 else ('muted' if strength<0.85 else 'elevated')}, timing {readiness}, action {action}."
                 if direction > 0:
                     out[tf] = {
                         "entry_type": "trigger",
@@ -332,6 +341,7 @@ def main():
                             spot * (1.0 + pcts["tp1"]),
                             spot * (1.0 + pcts["tp2"]),
                         ],
+                        "explain": why,
                     }
                 elif direction < 0:
                     lo = spot * (1.0 - pcts["fade_hi"])
@@ -345,6 +355,7 @@ def main():
                             spot * (1.0 - pcts["tp1"]),
                             spot * (1.0 - pcts["tp2"]),
                         ],
+                        "explain": why,
                     }
                 else:
                     # Neutral: tight trigger with symmetric guard
@@ -354,6 +365,7 @@ def main():
                         "invalid_price": spot * (1.0 - max(0.01, pcts["trig"])),
                         "invalid_condition": "breach",
                         "targets": [spot * (1.0 + max(0.01, pcts["trig"]))],
+                        "explain": why,
                     }
             return out
 
@@ -387,7 +399,11 @@ def main():
 
             if not entries and not invalidation and not targets:
                 return None
-            return {"entries": entries, "invalidation": invalidation, "targets": targets}
+            explain = levels.get("explain") if isinstance(levels, dict) else None
+            plan = {"entries": entries, "invalidation": invalidation, "targets": targets}
+            if explain:
+                plan["explain"] = str(explain)
+            return plan
 
         def collect_tf_levels(symbol: str, tf: str, analysis_map: dict):
             per_tf = (analysis_map.get("levels") or {}).get(tf)
@@ -446,21 +462,24 @@ def main():
                                 entries_items = [{"type": "trigger", "zone_or_trigger": spot_price * (1.0 + pcts["trig"])}]
                                 invalid = {"price": spot_price * (1.0 - pcts["inv"]), "condition": "close below"}
                                 targets = [
-                                    {"label": "TP1", "price": spot_price * (1.0 + pcts["tp1"])},
-                                    {"label": "TP2", "price": spot_price * (1.0 + pcts["tp2"])},
+                                    {"label": "TP1", "price": spot_price * (1.0 + pcts["tp1"] )},
+                                    {"label": "TP2", "price": spot_price * (1.0 + pcts["tp2"] )},
                                 ]
+                                explain = f"Bias up on {tf}; using trigger entries aligned with momentum. Strength {'elevated' if _strength_from_scores(p, tf)>1.15 else ('balanced' if _strength_from_scores(p, tf)>0.85 else 'muted')}, timing {thesis['readiness']}, action {thesis['action']}."
                             elif thesis["bias"] == "down":
                                 entries_items = [{"type": "fade", "zone_or_trigger": [spot_price * (1.0 - pcts["fade_hi"]), spot_price * (1.0 - pcts["fade_lo"]) ]}]
                                 invalid = {"price": spot_price * (1.0 + pcts["inv"]), "condition": "close above"}
                                 targets = [
-                                    {"label": "TP1", "price": spot_price * (1.0 - pcts["tp1"])},
-                                    {"label": "TP2", "price": spot_price * (1.0 - pcts["tp2"])},
+                                    {"label": "TP1", "price": spot_price * (1.0 - pcts["tp1"] )},
+                                    {"label": "TP2", "price": spot_price * (1.0 - pcts["tp2"] )},
                                 ]
+                                explain = f"Bias down on {tf}; using fade entries into structure. Strength {'elevated' if _strength_from_scores(p, tf)>1.15 else ('balanced' if _strength_from_scores(p, tf)>0.85 else 'muted')}, timing {thesis['readiness']}, action {thesis['action']}."
                             else:
                                 entries_items = [{"type": "trigger", "zone_or_trigger": spot_price}]
                                 invalid = {"price": spot_price * (1.0 - max(0.01, pcts["trig"])), "condition": "breach"}
                                 targets = [{"label": "TP1", "price": spot_price * (1.0 + max(0.01, pcts["trig"]))}]
-                            base_plan[tf] = {"entries": entries_items, "invalidation": invalid, "targets": targets, "source": "fallback"}
+                                explain = f"Neutral bias on {tf}; tight trigger and symmetric guard. Strength {'balanced' if 0.85<=_strength_from_scores(p, tf)<=1.15 else ('muted' if _strength_from_scores(p, tf)<0.85 else 'elevated')}, timing {thesis['readiness']}, action {thesis['action']}."
+                            base_plan[tf] = {"entries": entries_items, "invalidation": invalid, "targets": targets, "source": "fallback", "explain": explain}
                     else:
                         base_plan = {}
             else:
