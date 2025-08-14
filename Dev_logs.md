@@ -1,5 +1,18 @@
 > Prefer the concise history? See [Dev_logs_CLEAN.md](Dev_logs_CLEAN.md).
 
+## [v3.1.16-digest-aplus-plain-english] - 2025-08-15
+- Feature (parity): Telegram and Discord digests tag high-quality setups as `[A+ Setup]` in asset headers and `(A+)` in Quick Summary coins.
+  - Files: `scripts/discord_formatter.py`, `scripts/tg_digest_formatter.py` (shared `_is_aplus_setup()` heuristic)
+- Language (parity): Simplified phrases to kid-friendly English in Executive Take, Weekly Plan, and Engine Thesis for both renderers.
+  - Files: `scripts/discord_formatter.py`, `scripts/tg_digest_formatter.py` (helper `_simple_english()`)
+- Fix: Added missing typing imports in `scripts/tg_digest_formatter.py` (`from typing import Dict, List, Optional`).
+- Tests: Full suite green — 103 passed.
+
+- Heuristic (parity): Broadened A+ setup detection to also accept `timescale_scores.alignment_flag` and to infer `signal_quality` from `confirmation_checks` when explicit value is missing.
+  - Logic: Treats strong when both price_vs_narrative and volume_support pass (and either timescale_alignment passes or overall aligned); elevated when at least one of price/volume passes.
+  - Files: `scripts/discord_formatter.py` and `scripts/tg_digest_formatter.py` updated identically.
+
+
 ## [v3.1.13-discord-why-and-no-playbook] - 2025-08-15
 - Feature: Discord digest now includes per-timeframe number-free “Why” explanations derived from agent analysis, matching Telegram.
   - File: `scripts/discord_formatter.py` (adds `Why:` under each TF field using `plan[tf]['explain']`)
@@ -15,6 +28,13 @@
   - Files: `scripts/tracer_bullet_universe.py` (ORDERED_TFS), `scripts/tg_digest_formatter.py` (ordered_tfs), `scripts/discord_formatter.py` (tf_order)
 - Artifacts: Schema unchanged; per-asset `plan` may still contain `1M` if present historically, but renderers skip it and planner no longer generates it.
 - Verification: Safe run (TG/Discord disabled) shows TF blocks for 1h/4h/1D/1W (no 1M).
+
+## [v3.1.15-quick-summary-chat] - 2025-08-15
+- Feature: Added a kid-friendly "Quick Summary" at the end of both Telegram and Discord digests. Simple English recap of big picture, top leaders, and plan.
+  - Files: `scripts/tg_digest_formatter.py` (appends section; helper `_render_quick_summary()`), `scripts/discord_formatter.py` (final embed with quick summary; helper `_render_quick_summary()`).
+  - Behavior: No numbers; uses engine thesis/weekly regime and top-2 assets' actions to say "going up/going down/sideways"; ends with a plain plan.
+  - Safety: Section wrapped in try/except so digest still renders if inputs are missing.
+  - Verification: Unit tests to be run; safe profile used (no Telegram/Discord sends).
 
 ## [v3.1.12-tf-why-explanations] - 2025-08-15
 - Feature: Added accurate per-timeframe explanations for entries/invalidations/targets sourced from the agent analysis.

@@ -451,6 +451,11 @@ Commit messages are prefixed (e.g., `eval: metrics <ts>`), and pushes are gated 
   - `TB_POLYMARKET_SHOW_CONFIDENCE=0`
   - `TB_SHOW_ASSET_CONFIDENCE_IN_CHAT=0`
 
+Paritised features (Telegram + Discord):
+- A+ setups: assets qualifying as high‑quality setups show `[A+ Setup]` in headers and `(A+)` in Quick Summary coin lines.
+- Kid‑friendly Quick Summary: end‑of‑digest recap of big picture, leaders, and simple plan.
+- Plain‑English phrasing: Executive Take, Weekly Plan, and Engine Thesis are simplified for readability.
+
 ***
 
 ## Reliability & safety (v4.3)

@@ -42,6 +42,14 @@ A concise development history highlighting milestones, major features, testing, 
 
 ---
 
+## Latest (v3.1.16 — digest A+ + plain-English)
+- Parity: Telegram and Discord both tag `[A+ Setup]` in headers and `(A+)` in Quick Summary.
+- Readability: Executive Take, Weekly Plan, Engine Thesis simplified to plain English.
+- Safety: Heuristic requires actionable stance, now/near timing, TF alignment, strong/elevated signal, non-high risk.
+- Status: Full test suite passing (103/103).
+
+---
+
 ## Key env controls
 - Messaging safety: `TB_HUMAN_DIGEST`, `TB_NO_TELEGRAM`, `TB_NO_DISCORD`.
 - Universe git ops: `TB_UNIVERSE_GIT_AUTOCOMMIT`, `TB_UNIVERSE_GIT_PUSH`.

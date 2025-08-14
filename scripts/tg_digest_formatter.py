@@ -1,9 +1,68 @@
+from typing import Dict, List, Optional
+
+def _simple_english(text: str) -> str:
+    """Replace technical phrases with simpler English for chat rendering."""
+    if not isinstance(text, str):
+        return text
+    repl = {
+        "lean into clean triggers": "take clear, simple trades",
+        "avoid chasing": "don't buy late",
+        "scale with confirmation": "add only after it proves itself",
+        "trade the break or the fail": "trade the clear move or the clear rejection",
+        "defined risk": "small, known risk",
+        "invalidation": "exit plan",
+    }
+    out = text
+    for k, v in repl.items():
+        out = out.replace(k, v)
+    return out
+
+
+def _is_aplus_setup(asset: Dict) -> bool:
+    """Heuristic for A+ setups using existing fields (no numbers)."""
+    if not isinstance(asset, dict):
+        return False
+    th = asset.get("thesis") or {}
+    action = (th.get("action") or asset.get("action") or "").lower()
+    if action not in ("buy", "long", "sell", "short"):
+        return False
+    readiness = (th.get("readiness") or asset.get("readiness") or "").lower()
+    if readiness not in ("now", "near"):
+        return False
+    # Alignment: accept top-level, thesis flag, or nested timescale_scores.alignment_flag
+    tss = asset.get("timescale_scores") or {}
+    aligned = bool(asset.get("alignment_flag") or th.get("tf_aligned") or (isinstance(tss, dict) and tss.get("alignment_flag")))
+    if not aligned:
+        return False
+    # Signal quality: prefer explicit field, else infer from confirmation_checks
+    sigq = (asset.get("signal_quality") or th.get("signal_quality") or "").lower()
+    if not sigq:
+        checks = asset.get("confirmation_checks") or []
+        try:
+            passed = {str(c.get("name")): bool(c.get("passed")) for c in checks if isinstance(c, dict)}
+            pv = passed.get("price_vs_narrative", False)
+            vol = passed.get("volume_support", False)
+            tfa = passed.get("timescale_alignment", False)
+            if pv and vol and (tfa or aligned):
+                sigq = "strong"
+            elif pv or vol:
+                sigq = "elevated"
+            else:
+                sigq = "mixed"
+        except Exception:
+            sigq = "mixed"
+    if sigq not in ("strong", "elevated"):
+        return False
+    risk_band = (th.get("risk_band") or asset.get("risk") or asset.get("risk_band") or "").lower()
+    if risk_band == "high":
+        return False
+    return True
 #!/usr/bin/env python3
 """
 Telegram human digest formatter (plain text, narrative-first).
 Adds Weekly Overview and Engine in One Minute sections and per-asset blocks.
 """
-from typing import Dict, List
+from typing import Dict, List, Optional
 import os
 try:
     # When imported as package
@@ -65,6 +124,7 @@ def render_digest(
 
     # Executive Take
     thesis = (engine or {}).get("thesis_text") or "Market mixed; trade clean plans and defined risk."
+    thesis = _simple_english(thesis)
     lines.append("Executive Take")
     lines.append(thesis)
     # Executive vs leaders alignment note
@@ -112,7 +172,7 @@ def render_digest(
             lines.append("Weekly Levels: " + "; ".join(parts))
         plan_text = weekly.get("plan_text")
         if plan_text:
-            lines.append("Weekly Plan: " + plan_text)
+            lines.append("Weekly Plan: " + _simple_english(plan_text))
         cats = weekly.get("catalysts", [])
         if cats:
             lines.append("Catalysts: " + "; ".join(cats))
@@ -121,7 +181,8 @@ def render_digest(
     # Engine in One Minute
     if options.get("include_engine", True):
         lines.append("Engine in One Minute")
-        lines.append("Thesis: " + ((engine or {}).get("thesis_text") or "Clear triggers over noise."))
+        eng_thesis = ((engine or {}).get("thesis_text") or "Clear triggers over noise.")
+        lines.append("Thesis: " + _simple_english(eng_thesis))
         ev = (engine or {}).get("evidence_bullets", [])[:2]
         for b in ev:
             lines.append(f"- {b}")
@@ -219,7 +280,10 @@ def render_digest(
             if sspot is None:
                 # skip rendering this equity entirely
                 continue
-        lines.append(header(sym, a))
+        header_line = header(sym, a)
+        if _is_aplus_setup(a):
+            header_line += "  [A+ Setup]"
+        lines.append(header_line)
         # Optional graded risk note for High Risk + Buy/Watch
         if int(os.getenv("TB_DIGEST_EXPLAIN_HIGH_RISK_ACTION", 1)):
             th_ref = a.get("thesis") or {}
@@ -390,5 +454,120 @@ def render_digest(
         lines.append("")
 
     # Playbook removed per user request
+    # Quick Summary (simple English)
+    try:
+        qs = _render_quick_summary(weekly, engine, assets_ordered, assets_data, polymarket)
+        if qs:
+            lines.append("Quick Summary")
+            lines.append(qs)
+    except Exception:
+        pass
 
     return "\n".join(lines)
+
+
+def _render_quick_summary(
+    weekly: Dict,
+    engine: Dict,
+    assets_ordered: List[str],
+    assets_data: Dict[str, dict],
+    polymarket: Optional[List[Dict]] = None,
+) -> str:
+    """
+    Build a short, kid-friendly summary in plain English.
+    Avoids numbers; focuses on simple takeaways.
+    """
+    def _simple_action(a: str) -> str:
+        a = (a or "").lower()
+        if a in ("buy", "long"): return "going up"
+        if a in ("sell", "short"): return "going down"
+        if a in ("watch", "neutral"): return "sideways"
+        return "mixed"
+
+    def _name(sym: str) -> str:
+        if not sym:
+            return ""
+        s = sym.upper()
+        if s.startswith("BTC/"): return "Bitcoin"
+        if s.startswith("ETH/"): return "Ethereum"
+        return s.split("/")[0]
+
+    parts: List[str] = []
+    thesis = (engine or {}).get("thesis_text")
+    regime = (weekly or {}).get("regime")
+    # Header lines
+    if thesis:
+        parts.append(f"Big picture: {thesis.strip()}")
+    elif isinstance(regime, str) and regime.strip():
+        parts.append(f"Big picture: market looks {regime.strip().lower()} today.")
+    parts.append("Plan: Trade only clean setups. Keep risk small when things are messy. Always know your exit.")
+
+    # Leaders section
+    leader_lines: List[str] = []
+    def _leader_note(act: str) -> str:
+        act = (act or "").lower()
+        if act in ("buy", "long"):
+            return "look for momentum and alignment before buying"
+        if act in ("sell", "short"):
+            return "sell pops into tough areas if they fail"
+        return "be patient and wait for a clean move"
+    for sym in (assets_ordered or [])[:2]:
+        a = (assets_data or {}).get(sym, {})
+        th = a.get("thesis") or {}
+        act = th.get("action") or a.get("action")
+        if not act:
+            continue
+        label = _name(sym)
+        leader_lines.append(f"- {label}: looks {_simple_action(act)} — {_leader_note(act)}.")
+    if leader_lines:
+        parts.append("Leaders:")
+        parts.extend(leader_lines)
+
+    # Polymarket summary (very compact)
+    try:
+        pm = polymarket or []
+        view = ""
+        if pm:
+            has_rich = any("rich" in str(x.get("edge_label","")) for x in pm)
+            has_cheap = any("cheap" in str(x.get("edge_label","")) for x in pm)
+            near = any((x.get("readiness") or "").lower() == "near" for x in pm)
+            if has_rich:
+                view = "crowd paying rich for up bets; looks stretched. Wait for clean triggers."
+            elif has_cheap:
+                view = "crowd underpricing some moves; look for solid triggers."
+            elif near:
+                view = "timing is getting close; watch for clear triggers."
+        if view:
+            parts.append("Polymarket:")
+            parts.append(f"- {view}")
+    except Exception:
+        pass
+
+    # Coins today (top few)
+    coin_lines: List[str] = []
+    def _readiness_note(r: str) -> str:
+        r = (r or "").lower()
+        if r == "now": return "ready now"
+        if r == "near": return "getting close"
+        return "later / be patient"
+    for sym in (assets_ordered or [])[:6]:
+        a = (assets_data or {}).get(sym, {})
+        th = a.get("thesis") or {}
+        act = th.get("action") or a.get("action")
+        ready = th.get("readiness") or a.get("readiness")
+        if not act:
+            continue
+        label = _name(sym)
+        tag = " (A+)" if _is_aplus_setup(a) else ""
+        coin_lines.append(f"- {label}: {_simple_action(act)} — {_readiness_note(ready)}.{tag}")
+    if coin_lines:
+        parts.append("Coins today:")
+        parts.extend(coin_lines)
+
+    # How to trade
+    parts.append("How to trade this:")
+    parts.append("- Take only A+ setups that match both story and price.")
+    parts.append("- If the move breaks, exit quickly; if it confirms, add slowly.")
+    parts.append("- Use the invalidation as your safety line so losses stay small.")
+
+    return "\n".join([p for p in parts if isinstance(p, str) and p.strip()])

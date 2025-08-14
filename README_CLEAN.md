@@ -129,6 +129,11 @@ python3 scripts/eval_weekly.py
 - Discord: chunked embeds, respects `TB_NO_DISCORD`
 - Number gating for chat: `TB_POLYMARKET_NUMBERS_IN_CHAT=0`
 
+Parity highlights (v3.1.16):
+- A+ setups appear as `[A+ Setup]` in headers and `(A+)` in Quick Summary coins on both Telegram and Discord.
+- Kid‑friendly Quick Summary at the end of digests.
+- Plain‑English phrasing applied to Executive Take, Weekly Plan, and Engine Thesis.
+
 ---
 
 ## 11) Troubleshooting
