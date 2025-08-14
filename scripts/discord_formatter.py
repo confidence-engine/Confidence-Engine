@@ -273,8 +273,10 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
             # provenance hint
             src = p.get("source")
             tf_label = str(tf)
-            if src in ("analysis", "fallback"):
-                tf_label = f"{tf_label} ({src})"
+            if src == "analysis":
+                tf_label = f"{tf_label} (agent mode)"
+            elif src == "fallback":
+                tf_label = f"{tf_label} (fallback)"
             if entries:
                 def _fmt_entry(it):
                     t = it.get("type") or "entry"

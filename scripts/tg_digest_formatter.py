@@ -284,7 +284,12 @@ def render_digest(
                     continue
                 # Include plan provenance if available
                 src = (a.get("plan") or {}).get(tf, {}).get("source")
-                src_hint = f" ({src})" if src in ("analysis", "fallback") else ""
+                if src == "analysis":
+                    src_hint = " (agent mode)"
+                elif src == "fallback":
+                    src_hint = " (fallback)"
+                else:
+                    src_hint = ""
                 lines.append(f"{tf}:{src_hint} ")
                 # Determine if numeric allowed for this asset (crypto always gated by include_prices; stocks require include_stock_prices)
                 allow_numeric = include_prices if is_crypto(sym) else (include_prices and include_stock_prices)
