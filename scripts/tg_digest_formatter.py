@@ -51,6 +51,16 @@ def render_digest(
 
     # Title
     lines.append(f"Tracer Bullet — {timestamp_utc}")
+    # Provenance (artifact + git short SHA) if available
+    try:
+        prov = (options or {}).get("provenance") or {}
+        art = prov.get("artifact")
+        sha = prov.get("git")
+        if art or sha:
+            src = "Source: " + " ".join([x for x in [art, ("@ " + sha) if sha else None] if x])
+            lines.append(src)
+    except Exception:
+        pass
     lines.append("")
 
     # Executive Take
@@ -194,7 +204,7 @@ def render_digest(
         risk = _hdr_val(th.get("risk_band"), "Medium")
         ready = _hdr_val(th.get("readiness"), "Later")
         act = _hdr_val(th.get("action"), "Watch")
-        return f"{sym} — {risk} | {ready} | {act}"
+        return f"{sym} — Risk Level: {risk} | Timing: {ready} | Stance: {act}"
 
     tf_order = ["1h", "4h", "daily"]
 
@@ -261,9 +271,9 @@ def render_digest(
                         lines.append("Spot: price with drift warning")
                     else:
                         lines.append("Spot: price stable")
-            # Structure
+            # Pattern
             if a.get("structure"):
-                lines.append("Structure: " + a["structure"])
+                lines.append("Pattern: " + a["structure"])
             # Timeframes
             shown = 0
             for tf in ordered_tfs:
@@ -272,7 +282,10 @@ def render_digest(
                 plan = (a.get("plan") or {}).get(tf)
                 if not plan:
                     continue
-                lines.append(f"{tf}: ")
+                # Include plan provenance if available
+                src = (a.get("plan") or {}).get(tf, {}).get("source")
+                src_hint = f" ({src})" if src in ("analysis", "fallback") else ""
+                lines.append(f"{tf}:{src_hint} ")
                 # Determine if numeric allowed for this asset (crypto always gated by include_prices; stocks require include_stock_prices)
                 allow_numeric = include_prices if is_crypto(sym) else (include_prices and include_stock_prices)
                 # Entries can be legacy (number or [lo,hi]) or new schema list of dicts
@@ -359,19 +372,32 @@ def render_digest(
             if allow_stock_numeric and isinstance(sspot, (int, float)):
                 lines.append(f"Spot: {sspot:.2f}")
             if a.get("structure"):
-                lines.append("Structure: " + a["structure"])
+                lines.append("Pattern: " + a["structure"])
             if a.get("sizing_text"):
                 lines.append("Sizing: " + a["sizing_text"])
         lines.append("")
 
-    # Playbook
-    playbook = [
-        "Trade A-setups only",
-        "Let timeframes align",
-        "Size with discipline",
-    ]
-    lines.append("Playbook")
-    for p in playbook[:3]:
-        lines.append(f"- {p}")
+    # Playbook (dynamic and hideable)
+    show_playbook = os.getenv("TB_DIGEST_SHOW_PLAYBOOK", "1") == "1"
+    if show_playbook:
+        any_fallback = False
+        any_analysis = False
+        for sym in assets_ordered:
+            pl = (assets_data.get(sym, {}) or {}).get("plan") or {}
+            for tf in pl:
+                src = (pl.get(tf) or {}).get("source")
+                if src == "fallback":
+                    any_fallback = True
+                if src == "analysis":
+                    any_analysis = True
+        tips = []
+        if any_analysis:
+            tips.append("- Use the provided levels; respect invalidation")
+        if any_fallback:
+            tips.append("- Some levels are heuristic; confirm with price action")
+        tips.append("- Trade A-setups only")
+        tips.append("- Size with discipline")
+        lines.append("Playbook")
+        lines.extend(tips)
 
     return "\n".join(lines)

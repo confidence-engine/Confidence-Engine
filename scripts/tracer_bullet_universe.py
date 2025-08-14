@@ -51,7 +51,7 @@ from alpaca import recent_bars as alpaca_recent_bars
 # Public helper to enrich a saved universe artifact with per-asset evidence lines
 # and a top-level polymarket array. Pure storage change; chat outputs unchanged.
 from typing import Any
-def enrich_artifact(universe_file: str, ev_sink: Dict[str, str], poly_items: List[Dict[str, Any]]):
+def enrich_artifact(universe_file: str, ev_sink: Dict[str, str], poly_items: List[Dict[str, Any]], assets_data: Dict[str, dict] = None):
     if not universe_file:
         return
     import json
@@ -67,6 +67,25 @@ def enrich_artifact(universe_file: str, ev_sink: Dict[str, str], poly_items: Lis
     for p in payloads:
         sym = p.get("symbol")
         p["evidence_line"] = ev_map.get(sym) if sym in ev_map else None
+        # Persist key thesis fields and plan snapshot when available
+        try:
+            ainfo = (assets_data or {}).get(sym, {}) if assets_data else {}
+            th_src = (ainfo.get("thesis") or {}) if isinstance(ainfo, dict) else {}
+            if th_src:
+                th_dst = (p.get("thesis") or {}) if isinstance(p.get("thesis"), dict) else {}
+                # Only persist friendly fields used by chat
+                for k in ("action", "risk_band", "readiness"):
+                    v = th_src.get(k)
+                    if v is not None:
+                        th_dst[k] = v
+                if th_dst:
+                    p["thesis"] = th_dst
+            # Plan snapshot (per-TF entries/invalid/targets)
+            plan_src = ainfo.get("plan") if isinstance(ainfo, dict) else None
+            if isinstance(plan_src, dict) and plan_src:
+                p["plan"] = plan_src
+        except Exception:
+            pass
     # Build top-level polymarket array from already filtered/mapped items
     poly_out = []
     for it in (poly_items or []):
@@ -294,6 +313,8 @@ def main():
             for tf in ORDERED_TFS:
                 tf_plan = collect_tf_levels(symbol, tf, analysis_map)
                 if tf_plan:
+                    # Tag provenance: analysis-derived
+                    tf_plan["source"] = "analysis"
                     plan[tf] = tf_plan
             return plan
 
@@ -319,26 +340,36 @@ def main():
                     # Fallback: minimal heuristic across TFs if we have a spot
                     base_plan = {}
                     if spot_price:
-                        if thesis["bias"] == "up":
-                            entries_items = [{"type": "trigger", "zone_or_trigger": spot_price * 1.005}]
-                            invalid = {"price": spot_price * 0.975, "condition": "close below"}
-                            targets = [
-                                {"label": "TP1", "price": spot_price * 1.02},
-                                {"label": "TP2", "price": spot_price * 1.04},
-                            ]
-                        elif thesis["bias"] == "down":
-                            entries_items = [{"type": "fade", "zone_or_trigger": [spot_price * 0.995, spot_price * 0.985]}]
-                            invalid = {"price": spot_price * 1.015, "condition": "close above"}
-                            targets = [
-                                {"label": "TP1", "price": spot_price * 0.98},
-                                {"label": "TP2", "price": spot_price * 0.96},
-                            ]
-                        else:
-                            entries_items = [{"type": "trigger", "zone_or_trigger": spot_price}]
-                            invalid = {"price": spot_price * 0.98, "condition": "breach"}
-                            targets = [{"label": "TP1", "price": spot_price * 1.01}]
+                        # TF-specific percentage offsets (heuristic) to avoid identical levels across TFs
+                        tf_pcts = {
+                            "1h":   {"trig": 0.003, "fade_hi": 0.007, "fade_lo": 0.004, "inv": 0.008, "tp1": 0.007, "tp2": 0.015},
+                            "4h":   {"trig": 0.005, "fade_hi": 0.010, "fade_lo": 0.006, "inv": 0.015, "tp1": 0.012, "tp2": 0.025},
+                            "1D":   {"trig": 0.008, "fade_hi": 0.015, "fade_lo": 0.010, "inv": 0.020, "tp1": 0.020, "tp2": 0.040},
+                            "1W":   {"trig": 0.015, "fade_hi": 0.030, "fade_lo": 0.020, "inv": 0.035, "tp1": 0.040, "tp2": 0.080},
+                            "1M":   {"trig": 0.030, "fade_hi": 0.060, "fade_lo": 0.040, "inv": 0.060, "tp1": 0.080, "tp2": 0.150},
+                            "daily": {"trig": 0.008, "fade_hi": 0.015, "fade_lo": 0.010, "inv": 0.020, "tp1": 0.020, "tp2": 0.040},
+                        }
                         for tf in ORDERED_TFS:
-                            base_plan[tf] = {"entries": entries_items, "invalidation": invalid, "targets": targets}
+                            pcts = tf_pcts.get(str(tf), tf_pcts.get("daily"))
+                            if thesis["bias"] == "up":
+                                entries_items = [{"type": "trigger", "zone_or_trigger": spot_price * (1.0 + pcts["trig"])}]
+                                invalid = {"price": spot_price * (1.0 - pcts["inv"]), "condition": "close below"}
+                                targets = [
+                                    {"label": "TP1", "price": spot_price * (1.0 + pcts["tp1"])},
+                                    {"label": "TP2", "price": spot_price * (1.0 + pcts["tp2"])},
+                                ]
+                            elif thesis["bias"] == "down":
+                                entries_items = [{"type": "fade", "zone_or_trigger": [spot_price * (1.0 - pcts["fade_hi"]), spot_price * (1.0 - pcts["fade_lo"]) ]}]
+                                invalid = {"price": spot_price * (1.0 + pcts["inv"]), "condition": "close above"}
+                                targets = [
+                                    {"label": "TP1", "price": spot_price * (1.0 - pcts["tp1"])},
+                                    {"label": "TP2", "price": spot_price * (1.0 - pcts["tp2"])},
+                                ]
+                            else:
+                                entries_items = [{"type": "trigger", "zone_or_trigger": spot_price}]
+                                invalid = {"price": spot_price * (1.0 - max(0.01, pcts["trig"])), "condition": "breach"}
+                                targets = [{"label": "TP1", "price": spot_price * (1.0 + max(0.01, pcts["trig"]))}]
+                            base_plan[tf] = {"entries": entries_items, "invalidation": invalid, "targets": targets, "source": "fallback"}
                     else:
                         base_plan = {}
             else:
@@ -358,12 +389,29 @@ def main():
         # Build sections
         weekly = tg_weekly_engine.build_weekly_overview(assets_data)
         engine = tg_weekly_engine.build_engine_minute(assets_data)
+        # Provenance (artifact file + git sha) computed once for both TG/Discord
+        provenance = {}
+        try:
+            art_name = os.path.basename(summary.get("universe_file") or "")
+            if art_name:
+                provenance["artifact"] = art_name
+        except Exception:
+            pass
+        try:
+            import subprocess
+            r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=False)
+            sha = (r.stdout or "").strip()
+            if sha:
+                provenance["git"] = sha
+        except Exception:
+            pass
         options = {
             "include_weekly": os.getenv("TB_DIGEST_INCLUDE_WEEKLY", "1") == "1",
             "include_engine": os.getenv("TB_DIGEST_INCLUDE_ENGINE", "1") == "1",
             "max_tfs": int(os.getenv("TB_DIGEST_MAX_TFS", "2")),
             "drift_warn_pct": float(os.getenv("TB_DIGEST_DRIFT_WARN_PCT", "0.5")),
             "include_prices": os.getenv("TB_DIGEST_INCLUDE_PRICES", "1") == "1",
+            "provenance": provenance,
         }
         # Polymarket (optional)
         polymarket_items = []
@@ -440,7 +488,7 @@ def main():
         # Enrich saved artifact with evidence lines and polymarket array (storage only; no chat change)
         try:
             ufile = summary.get("universe_file")
-            enrich_artifact(ufile, evidence_sink, polymarket_items)
+            enrich_artifact(ufile, evidence_sink, polymarket_items, assets_data=assets_data)
             # After enrichment, the universe file is modified post scan_universe's commit.
             # If auto-commit is enabled, commit and optionally push the enrichment changes now.
             try:
@@ -519,6 +567,7 @@ def main():
                 "engine": engine or "",
                 "assets": assets_list,
                 "polymarket": polymarket_items or [],
+                "provenance": provenance,
             }
 
             if SEND_TG:

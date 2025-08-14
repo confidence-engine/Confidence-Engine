@@ -70,9 +70,19 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
                 header_desc = (header_desc + ("\n" if header_desc else "") + "Leaders diverge from tape; trade only A-setups.").strip()
     except Exception:
         pass
+    # Provenance (artifact + git short SHA)
+    prov = (digest_data.get("provenance") or {}) if isinstance(digest_data, dict) else {}
+    prov_str = ""
+    try:
+        art = prov.get("artifact")
+        sha = prov.get("git")
+        if art or sha:
+            prov_str = "\n" + ("Source: " + " ".join([x for x in [art, ("@ " + sha) if sha else None] if x]))
+    except Exception:
+        pass
     embeds.append({
         "title": f"Tracer Bullet — {digest_data.get('timestamp','')}",
-        "description": header_desc[:MAX_DESC_CHARS],
+        "description": (header_desc + prov_str)[:MAX_DESC_CHARS],
         "color": 0xFFD700,
     })
 
@@ -260,6 +270,11 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
             entries = p.get("entries") or []
             invalid = p.get("invalidation") or {}
             targets = p.get("targets") or []
+            # provenance hint
+            src = p.get("source")
+            tf_label = str(tf)
+            if src in ("analysis", "fallback"):
+                tf_label = f"{tf_label} ({src})"
             if entries:
                 def _fmt_entry(it):
                     t = it.get("type") or "entry"
@@ -278,11 +293,11 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
             if targets:
                 tgt_str = ", ".join([f"{t.get('label','TP')} {t.get('price',0):.2f}" for t in targets])
                 field_val_parts.append("Targets: " + tgt_str)
-            fields.append({"name": str(tf), "value": ("\n".join(field_val_parts) or "-"), "inline": False})
+            fields.append({"name": tf_label, "value": ("\n".join(field_val_parts) or "-"), "inline": False})
         title = f"{asset.get('symbol','')} — " \
-                f"{_hdr_val(asset.get('risk'),'Medium')} | " \
-                f"{_hdr_val(asset.get('readiness'),'Later')} | " \
-                f"{_hdr_val(asset.get('action'),'Watch')}"
+                f"Risk Level: {_hdr_val(asset.get('risk'),'Medium')} | " \
+                f"Timing: {_hdr_val(asset.get('readiness'),'Later')} | " \
+                f"Stance: {_hdr_val(asset.get('action'),'Watch')}"
         desc = []
         if asset.get("spot") is not None:
             try:
@@ -290,7 +305,7 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
             except Exception:
                 desc.append(f"Spot: {asset['spot']}")
         if asset.get("structure"):
-            desc.append(f"Structure: {asset['structure']}")
+            desc.append(f"Pattern: {asset['structure']}")
         embeds.append({
             "title": title,
             "description": "\n".join(desc)[:MAX_DESC_CHARS],

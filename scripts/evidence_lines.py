@@ -83,12 +83,12 @@ def strip_numbers_for_chat(text: str) -> str:
 def _choose_sentiment_phrase(sentiment: str) -> str:
     s = (sentiment or "").strip().lower()
     if "bull" in s or s in {"buy", "long"}:
-        return "Price action is bullish"
+        return "Price looks bullish"
     if "bear" in s or s in {"sell", "short"}:
-        return "Price action is bearish"
+        return "Price looks bearish"
     if "watch" in s or "neutral" in s:
-        return "Price action is mixed"
-    return "Price action is developing"
+        return "Price looks mixed"
+    return "Price is developing"
 
 
 def _choose_confidence_phrase(signal_quality: str, tf_aligned: bool) -> str:
@@ -112,21 +112,21 @@ def _choose_confidence_phrase(signal_quality: str, tf_aligned: bool) -> str:
 def _choose_participation_phrase(participation: str) -> str:
     p = (participation or "").strip().lower()
     if "hot" in p or "elevated" in p or "active" in p:
-        return "Market participation is hot"
+        return "Trading activity is busy"
     if "quiet" in p or "thin" in p:
-        return "Market participation is quiet"
-    return "Market participation is normal"
+        return "Trading activity is quiet"
+    return "Trading activity is normal"
 
 
 def _choose_narrative_phrase(narrative_tags: List[str]) -> str:
     tags = " ".join((narrative_tags or [])).lower()
     if "continuation" in tags or "trend" in tags:
-        return "and structure supports continuation"
+        return "and the pattern supports continuation"
     if "reversion" in tags or "fade" in tags:
-        return "and structure favors mean reversion"
+        return "and the pattern favors mean reversion"
     if "breakout" in tags or "breakdown" in tags:
-        return "and structure favors a breakout-based approach"
-    return "and structure is defined"
+        return "and the pattern favors breakouts"
+    return "and the pattern is well-defined"
 
 
 def generate_evidence_line(

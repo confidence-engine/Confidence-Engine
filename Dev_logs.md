@@ -1,5 +1,30 @@
 > Prefer the concise history? See [Dev_logs_CLEAN.md](Dev_logs_CLEAN.md).
 
+## [v3.1.10-plan-provenance-and-tf-fallback] - 2025-08-15
+- Fix: Crypto fallback TF plans no longer use identical entries/invalid/targets across TFs. Added TF-specific percentage offsets so `1h/4h/1D/1W/1M` produce distinct levels.
+  - File: `scripts/tracer_bullet_universe.py` (fallback block uses `tf_pcts` per TF)
+- Provenance: Each per-TF plan is now tagged with `source: "analysis" | "fallback"`.
+  - Files: `scripts/tracer_bullet_universe.py` (tags in both analysis and fallback paths)
+- Chat UI: Telegram and Discord now display the plan provenance next to each timeframe (e.g., `1h (analysis)` or `1D (fallback)`).
+  - Files: `scripts/tg_digest_formatter.py`, `scripts/discord_formatter.py`
+- Playbook: Made dynamic and hideable via `TB_DIGEST_SHOW_PLAYBOOK` (default `1`).
+  - Adds context-driven tips: use provided levels when analysis-derived; confirm price action when fallback.
+  - File: `scripts/tg_digest_formatter.py`
+- Safety: No change to artifact numeric data; artifacts additionally persist plan snapshots including `source` tags.
+
+## [v3.1.9-digest-provenance-plain-english] - 2025-08-14
+- Provenance in chat: Both Discord and Telegram now display the source artifact filename and current git short SHA under the header.
+  - Files: `scripts/tracer_bullet_universe.py` (builds `provenance`), `scripts/discord_formatter.py`, `scripts/tg_digest_formatter.py`
+- Plain-English labels and narrative:
+  - Asset headers use friendly labels: `Risk Level | Timing | Stance` (was `Risk | Readiness | Action`).
+  - `Structure` renamed to `Pattern` in chat outputs.
+  - Evidence line wording simplified: “Price looks …”, “Trading activity …”, “pattern …”.
+  - File: `scripts/evidence_lines.py` (phrasing helpers)
+- Artifact persistence for traceability:
+  - `enrich_artifact()` now persists key thesis fields (`action`, `risk_band`, `readiness`) and a per-asset `plan` snapshot back into the saved universe JSON.
+  - File: `scripts/tracer_bullet_universe.py` (extended `enrich_artifact` signature and call)
+- Safety: No change to artifact numeric data; chat remains number-free by default. Existing auto-commit/push of enrichment preserved.
+
 ## [v3.1.6-tg-evidence-sink-fix] - 2025-08-14
 - Fix: Removed unsupported `evidence_sink` kwarg from `tg_digest_formatter.render_digest()` call in `scripts/tracer_bullet_universe.py`, resolving runtime `TypeError` and allowing digest rendering to complete.
 - Tests: Full suite re-run; still green (99 passed).
