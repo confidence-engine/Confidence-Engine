@@ -88,6 +88,134 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Buy",
+        "risk_band": "High",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.2367075942
+            }
+          ],
+          "invalidation": {
+            "price": 0.2333797488,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.23791771979999998
+            },
+            {
+              "label": "TP2",
+              "price": 0.240337971
+            }
+          ],
+          "explain": "Bias up on 1h; using trigger entries aligned with momentum (structure context). Strength elevated, timing now, action buy.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.23756850000000002
+            }
+          ],
+          "invalidation": {
+            "price": 0.23049450000000002,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.24004440000000002
+            },
+            {
+              "label": "TP2",
+              "price": 0.24464250000000004
+            }
+          ],
+          "explain": "Bias up on 4h; using trigger entries aligned with momentum (structure context). Strength elevated, timing now, action buy.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.23862960000000003
+            }
+          ],
+          "invalidation": {
+            "price": 0.228726,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.242874
+            },
+            {
+              "label": "TP2",
+              "price": 0.24994800000000003
+            }
+          ],
+          "explain": "Bias up on 1D; using trigger entries aligned with momentum (structure context). Strength elevated, timing now, action buy.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.24068459700000003
+            }
+          ],
+          "invalidation": {
+            "price": 0.224402607,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.248825592
+            },
+            {
+              "label": "TP2",
+              "price": 0.261851184
+            }
+          ],
+          "explain": "Bias up on 1W; using trigger entries aligned with momentum (structure context). Strength elevated, timing now, action buy.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.24556919400000002
+            }
+          ],
+          "invalidation": {
+            "price": 0.216261612,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.261851184
+            },
+            {
+              "label": "TP2",
+              "price": 0.28464597
+            }
+          ],
+          "explain": "Bias up on 1M; using trigger entries aligned with momentum (structure context). Strength elevated, timing now, action buy.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -173,6 +301,149 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.7588172799999999,
+                0.76168024
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.76263456,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.74831976
+            },
+            {
+              "label": "TP2",
+              "price": 0.7406852
+            }
+          ],
+          "explain": "Bias down on 1h; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.7617949999999999,
+                0.7663249999999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.7719874999999999,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.74141
+            },
+            {
+              "label": "TP2",
+              "price": 0.7266875
+            }
+          ],
+          "explain": "Bias down on 4h; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.7663249999999999,
+                0.7719874999999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.7776500000000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.73235
+            },
+            {
+              "label": "TP2",
+              "price": 0.7097
+            }
+          ],
+          "explain": "Bias down on 1D; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.7755209,
+                0.7857813499999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.7909115750000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.7139582
+            },
+            {
+              "label": "TP2",
+              "price": 0.6729164
+            }
+          ],
+          "explain": "Bias down on 1W; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.7960418,
+                0.8165627
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.8165627,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.6729164
+            },
+            {
+              "label": "TP2",
+              "price": 0.60109325
+            }
+          ],
+          "explain": "Bias down on 1M; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
         }
       }
     },
@@ -260,6 +531,134 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Buy",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 118460.21702748
+            }
+          ],
+          "invalidation": {
+            "price": 116846.52792672,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 119047.01306412001
+            },
+            {
+              "label": "TP2",
+              "price": 120220.6051374
+            }
+          ],
+          "explain": "Bias up on 1h; using trigger entries aligned with momentum (structure context). Strength elevated, timing now, action buy.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 118905.2709
+            }
+          ],
+          "invalidation": {
+            "price": 115364.6673,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 120144.48216
+            },
+            {
+              "label": "TP2",
+              "price": 122445.8745
+            }
+          ],
+          "explain": "Bias up on 4h; using trigger entries aligned with momentum (structure context). Strength elevated, timing now, action buy.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 119436.36144
+            }
+          ],
+          "invalidation": {
+            "price": 114479.5164,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 121560.7236
+            },
+            {
+              "label": "TP2",
+              "price": 125101.3272
+            }
+          ],
+          "explain": "Bias up on 1D; using trigger entries aligned with momentum (structure context). Strength elevated, timing now, action buy.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 120385.2432048
+            }
+          ],
+          "invalidation": {
+            "price": 112501.4991888,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 124327.11521279998
+            },
+            {
+              "label": "TP2",
+              "price": 130634.11042560001
+            }
+          ],
+          "explain": "Bias up on 1W; using trigger entries aligned with momentum (structure context). Strength elevated, timing now, action buy.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 122750.36640959998
+            }
+          ],
+          "invalidation": {
+            "price": 108559.62718079999,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 130634.11042560001
+            },
+            {
+              "label": "TP2",
+              "price": 141671.35204799997
+            }
+          ],
+          "explain": "Bias up on 1M; using trigger entries aligned with momentum (structure context). Strength elevated, timing now, action buy.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -346,6 +745,12 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Near"
       }
     },
     {
@@ -431,6 +836,149 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.22443099740000003,
+                0.22521174544999997
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.2254719948,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.22156825455
+            },
+            {
+              "label": "TP2",
+              "price": 0.21948625975
+            }
+          ],
+          "explain": "Bias down on 1h; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.22528524075999998,
+                0.22654873460000002
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.2281281019,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.21959951848
+            },
+            {
+              "label": "TP2",
+              "price": 0.2154931635
+            }
+          ],
+          "explain": "Bias down on 4h; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.22654873460000002,
+                0.2281281019
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.22970746920000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.21707253080000002
+            },
+            {
+              "label": "TP2",
+              "price": 0.2107550616
+            }
+          ],
+          "explain": "Bias down on 1D; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.22896581440000002,
+                0.2317537216
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.2331476752,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.21223837120000003
+            },
+            {
+              "label": "TP2",
+              "price": 0.2010867424
+            }
+          ],
+          "explain": "Bias down on 1W; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.23454162879999998,
+                0.24011744320000003
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.24011744320000003,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.2010867424
+            },
+            {
+              "label": "TP2",
+              "price": 0.181571392
+            }
+          ],
+          "explain": "Bias down on 1M; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
         }
       }
     },
@@ -518,6 +1066,149 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.5198763599999999,
+                0.5216586299999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.52225272,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.5133413699999999
+            },
+            {
+              "label": "TP2",
+              "price": 0.50858865
+            }
+          ],
+          "explain": "Bias down on 1h; using fade entries into structure (structure context). Strength balanced, timing later, action watch.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.5218190549999999,
+                0.524698425
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.5282976374999999,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.5088618899999999
+            },
+            {
+              "label": "TP2",
+              "price": 0.49950393749999994
+            }
+          ],
+          "explain": "Bias down on 4h; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.524698425,
+                0.5282976374999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.53189685,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.5031031499999999
+            },
+            {
+              "label": "TP2",
+              "price": 0.4887062999999999
+            }
+          ],
+          "explain": "Bias down on 1D; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.53022015,
+                0.5365802249999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.5397602625,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.4920597
+            },
+            {
+              "label": "TP2",
+              "price": 0.46661939999999996
+            }
+          ],
+          "explain": "Bias down on 1W; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.5429403,
+                0.5556604499999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.5556604499999999,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.46661939999999996
+            },
+            {
+              "label": "TP2",
+              "price": 0.422098875
+            }
+          ],
+          "explain": "Bias down on 1M; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -603,6 +1294,149 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Medium",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                22.40887792,
+                22.48303636
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 22.507755839999998,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 22.136963639999998
+            },
+            {
+              "label": "TP2",
+              "price": 21.9392078
+            }
+          ],
+          "explain": "Bias down on 1h; using fade entries into structure (structure context). Strength balanced, timing near, action watch.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                22.48883696,
+                22.6080616
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 22.7570924,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 21.95232608
+            },
+            {
+              "label": "TP2",
+              "price": 21.564846
+            }
+          ],
+          "explain": "Bias down on 4h; using fade entries into structure (structure context). Strength elevated, timing near, action watch.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                22.6080616,
+                22.7570924
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 22.9061232,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 21.713876799999998
+            },
+            {
+              "label": "TP2",
+              "price": 21.117753599999997
+            }
+          ],
+          "explain": "Bias down on 1D; using fade entries into structure (structure context). Strength elevated, timing near, action watch.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                22.838300799999995,
+                23.102451199999997
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 23.234526399999996,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 21.2533984
+            },
+            {
+              "label": "TP2",
+              "price": 20.196796799999998
+            }
+          ],
+          "explain": "Bias down on 1W; using fade entries into structure (structure context). Strength elevated, timing near, action watch.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                23.3666016,
+                23.8949024
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 23.8949024,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 20.196796799999998
+            },
+            {
+              "label": "TP2",
+              "price": 18.347744
+            }
+          ],
+          "explain": "Bias down on 1M; using fade entries into structure (structure context). Strength elevated, timing near, action watch.",
+          "source": "analysis"
         }
       }
     },
@@ -690,6 +1524,12 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Medium",
+        "readiness": "Now"
       }
     },
     {
@@ -775,6 +1615,134 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4552.436492059999
+            }
+          ],
+          "invalidation": {
+            "price": 4497.63268784,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4572.36514814
+            },
+            {
+              "label": "TP2",
+              "price": 4612.2224602999995
+            }
+          ],
+          "explain": "Bias up on 1h; using trigger entries aligned with momentum (structure context). Strength balanced, timing later, action watch.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4567.4828089
+            }
+          ],
+          "invalidation": {
+            "price": 4447.511573299999,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4609.47274136
+            },
+            {
+              "label": "TP2",
+              "price": 4687.4540445
+            }
+          ],
+          "explain": "Bias up on 4h; using trigger entries aligned with momentum (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4585.478494239999
+            }
+          ],
+          "invalidation": {
+            "price": 4417.5187644,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4657.4612356
+            },
+            {
+              "label": "TP2",
+              "price": 4777.4324712
+            }
+          ],
+          "explain": "Bias up on 1D; using trigger entries aligned with momentum (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4617.259074199999
+            }
+          ],
+          "invalidation": {
+            "price": 4351.362160199999,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4750.2075312
+            },
+            {
+              "label": "TP2",
+              "price": 4962.9250624
+            }
+          ],
+          "explain": "Bias up on 1W; using trigger entries aligned with momentum (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4697.0281484
+            }
+          ],
+          "invalidation": {
+            "price": 4218.4137032,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4962.9250624
+            },
+            {
+              "label": "TP2",
+              "price": 5335.180742
+            }
+          ],
+          "explain": "Bias up on 1M; using trigger entries aligned with momentum (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
         }
       }
     },
@@ -862,6 +1830,149 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "High",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                23.6472144,
+                23.7201252
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 23.7444288,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 23.3798748
+            },
+            {
+              "label": "TP2",
+              "price": 23.185446
+            }
+          ],
+          "explain": "Bias down on 1h; using fade entries into structure (structure context). Strength balanced, timing near, action watch.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                23.7239403,
+                23.839900500000002
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 23.98485075,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 23.2021194
+            },
+            {
+              "label": "TP2",
+              "price": 22.82524875
+            }
+          ],
+          "explain": "Bias down on 4h; using fade entries into structure (structure context). Strength elevated, timing near, action watch.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                23.839900500000002,
+                23.98485075
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 24.129801000000004,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 22.970199
+            },
+            {
+              "label": "TP2",
+              "price": 22.390398
+            }
+          ],
+          "explain": "Bias down on 1D; using fade entries into structure (structure context). Strength elevated, timing near, action watch.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                24.067158,
+                24.325737
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 24.4550265,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 22.515684
+            },
+            {
+              "label": "TP2",
+              "price": 21.481368
+            }
+          ],
+          "explain": "Bias down on 1W; using fade entries into structure (structure context). Strength balanced, timing near, action watch.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                24.584316,
+                25.101474
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 25.101474,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 21.481368
+            },
+            {
+              "label": "TP2",
+              "price": 19.671315
+            }
+          ],
+          "explain": "Bias down on 1M; using fade entries into structure (structure context). Strength balanced, timing near, action watch.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -947,6 +2058,149 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                10.942857576,
+                10.975750757999998
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 10.986715152,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 10.822249242
+            },
+            {
+              "label": "TP2",
+              "price": 10.734534089999999
+            }
+          ],
+          "explain": "Bias down on 1h; using fade entries into structure (structure context). Strength balanced, timing later, action watch.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                10.977145829999998,
+                11.029243049999998
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 11.094364574999998,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 10.742708339999998
+            },
+            {
+              "label": "TP2",
+              "price": 10.573392375
+            }
+          ],
+          "explain": "Bias down on 4h; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                11.029243049999998,
+                11.094364574999998
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 11.159486099999999,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 10.6385139
+            },
+            {
+              "label": "TP2",
+              "price": 10.3780278
+            }
+          ],
+          "explain": "Bias down on 1D; using fade entries into structure (structure context). Strength elevated, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                11.132020619999999,
+                11.24853093
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 11.306786084999999,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 10.432958759999998
+            },
+            {
+              "label": "TP2",
+              "price": 9.966917519999999
+            }
+          ],
+          "explain": "Bias down on 1W; using fade entries into structure (structure context). Strength balanced, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                11.365041239999998,
+                11.59806186
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 11.59806186,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 9.966917519999999
+            },
+            {
+              "label": "TP2",
+              "price": 9.15134535
+            }
+          ],
+          "explain": "Bias down on 1M; using fade entries into structure (structure context). Strength balanced, timing later, action watch.",
+          "source": "analysis"
         }
       }
     },
@@ -1034,6 +2288,149 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.091337598,
+                3.1002157964999997
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.1031751959999996,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.0587842034999997
+            },
+            {
+              "label": "TP2",
+              "price": 3.0351090075
+            }
+          ],
+          "explain": "Bias down on 1h; using fade entries into structure (structure context). Strength balanced, timing now, action sell.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.1004529180000002,
+                3.1144215299999995
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.1318822949999996,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.037594164
+            },
+            {
+              "label": "TP2",
+              "price": 2.992196175
+            }
+          ],
+          "explain": "Bias down on 4h; using fade entries into structure (structure context). Strength balanced, timing now, action sell.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.1144215299999995,
+                3.1318822949999996
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.14934306,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.0096569399999997
+            },
+            {
+              "label": "TP2",
+              "price": 2.93981388
+            }
+          ],
+          "explain": "Bias down on 1D; using fade entries into structure (structure context). Strength balanced, timing now, action sell.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.14219862,
+                3.17354793
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.189222585,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 2.95410276
+            },
+            {
+              "label": "TP2",
+              "price": 2.82870552
+            }
+          ],
+          "explain": "Bias down on 1W; using fade entries into structure (structure context). Strength balanced, timing now, action sell.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.20489724,
+                3.26759586
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.26759586,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 2.82870552
+            },
+            {
+              "label": "TP2",
+              "price": 2.6092603499999996
+            }
+          ],
+          "explain": "Bias down on 1M; using fade entries into structure (structure context). Strength balanced, timing now, action sell.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -1119,6 +2516,134 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Buy",
+        "risk_band": "High",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.530672989999999
+            }
+          ],
+          "invalidation": {
+            "price": 4.48420536,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.54757031
+            },
+            {
+              "label": "TP2",
+              "price": 4.581364949999999
+            }
+          ],
+          "explain": "Bias up on 1h; using trigger entries aligned with momentum (structure context). Strength balanced, timing near, action buy.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.54280382
+            }
+          ],
+          "invalidation": {
+            "price": 4.4435885399999995,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.577529168
+            },
+            {
+              "label": "TP2",
+              "price": 4.6420191
+            }
+          ],
+          "explain": "Bias up on 4h; using trigger entries aligned with momentum (structure context). Strength balanced, timing near, action buy.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.557686111999999
+            }
+          ],
+          "invalidation": {
+            "price": 4.41878472,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.61721528
+            },
+            {
+              "label": "TP2",
+              "price": 4.716430559999999
+            }
+          ],
+          "explain": "Bias up on 1D; using trigger entries aligned with momentum (structure context). Strength balanced, timing near, action buy.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.585024529999999
+            }
+          ],
+          "invalidation": {
+            "price": 4.36160943,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.69673208
+            },
+            {
+              "label": "TP2",
+              "price": 4.87546416
+            }
+          ],
+          "explain": "Bias up on 1W; using trigger entries aligned with momentum (structure context). Strength balanced, timing near, action buy.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.65204906
+            }
+          ],
+          "invalidation": {
+            "price": 4.24990188,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.87546416
+            },
+            {
+              "label": "TP2",
+              "price": 5.188245299999999
+            }
+          ],
+          "explain": "Bias up on 1M; using trigger entries aligned with momentum (structure context). Strength balanced, timing near, action buy.",
+          "source": "analysis"
         }
       }
     },
@@ -1206,6 +2731,149 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Low",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.359631426,
+                0.3604799955
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.360762852,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.3565200045
+            },
+            {
+              "label": "TP2",
+              "price": 0.35425715249999995
+            }
+          ],
+          "explain": "Bias down on 1h; using fade entries into structure (structure context). Strength muted, timing now, action sell.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.36043159799999996,
+                0.36171933
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.36332899500000004,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.35463680399999997
+            },
+            {
+              "label": "TP2",
+              "price": 0.350451675
+            }
+          ],
+          "explain": "Bias down on 4h; using fade entries into structure (structure context). Strength balanced, timing now, action sell.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.36171933,
+                0.36332899500000004
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.36493865999999997,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.35206134
+            },
+            {
+              "label": "TP2",
+              "price": 0.34562268
+            }
+          ],
+          "explain": "Bias down on 1D; using fade entries into structure (structure context). Strength balanced, timing now, action sell.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.36442242,
+                0.36738363
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.368864235,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.34665516
+            },
+            {
+              "label": "TP2",
+              "price": 0.33481032
+            }
+          ],
+          "explain": "Bias down on 1W; using fade entries into structure (structure context). Strength muted, timing now, action sell.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.37034483999999995,
+                0.37626726
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.37626726,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.33481032
+            },
+            {
+              "label": "TP2",
+              "price": 0.31408185
+            }
+          ],
+          "explain": "Bias down on 1M; using fade entries into structure (structure context). Strength muted, timing now, action sell.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -1291,6 +2959,134 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 122.05144762
+            }
+          ],
+          "invalidation": {
+            "price": 121.05613968,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 122.41337778
+            },
+            {
+              "label": "TP2",
+              "price": 123.13723809999999
+            }
+          ],
+          "explain": "Bias up on 1h; using trigger entries aligned with momentum (structure context). Strength muted, timing later, action watch.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 122.2884315
+            }
+          ],
+          "invalidation": {
+            "price": 120.2547055,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 123.0002356
+            },
+            {
+              "label": "TP2",
+              "price": 124.3221575
+            }
+          ],
+          "explain": "Bias up on 4h; using trigger entries aligned with momentum (structure context). Strength muted, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 122.59349040000001
+            }
+          ],
+          "invalidation": {
+            "price": 119.746274,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 123.81372599999999
+            },
+            {
+              "label": "TP2",
+              "price": 125.84745200000002
+            }
+          ],
+          "explain": "Bias up on 1D; using trigger entries aligned with momentum (structure context). Strength muted, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 123.19386579999998
+            }
+          ],
+          "invalidation": {
+            "price": 118.4809798,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 125.55030880000001
+            },
+            {
+              "label": "TP2",
+              "price": 129.3206176
+            }
+          ],
+          "explain": "Bias up on 1W; using trigger entries aligned with momentum (structure context). Strength muted, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 124.60773160000001
+            }
+          ],
+          "invalidation": {
+            "price": 116.1245368,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 129.3206176
+            },
+            {
+              "label": "TP2",
+              "price": 135.91865800000002
+            }
+          ],
+          "explain": "Bias up on 1M; using trigger entries aligned with momentum (structure context). Strength muted, timing later, action watch.",
+          "source": "analysis"
         }
       }
     },
@@ -1378,6 +3174,134 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Buy",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.9070438924
+            }
+          ],
+          "invalidation": {
+            "price": 0.9002829536,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.9095024156
+            },
+            {
+              "label": "TP2",
+              "price": 0.9144194619999999
+            }
+          ],
+          "explain": "Bias up on 1h; using trigger entries aligned with momentum (structure context). Strength muted, timing now, action buy.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.9085763960000001
+            }
+          ],
+          "invalidation": {
+            "price": 0.8950708119999999,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.9133033504000001
+            },
+            {
+              "label": "TP2",
+              "price": 0.9220819800000001
+            }
+          ],
+          "explain": "Bias up on 4h; using trigger entries aligned with momentum (structure context). Strength muted, timing now, action buy.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.9106022336
+            }
+          ],
+          "invalidation": {
+            "price": 0.891694416,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.918705584
+            },
+            {
+              "label": "TP2",
+              "price": 0.932211168
+            }
+          ],
+          "explain": "Bias up on 1D; using trigger entries aligned with momentum (structure context). Strength muted, timing now, action buy.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.9147181780000001
+            }
+          ],
+          "invalidation": {
+            "price": 0.8829909180000001,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.930581808
+            },
+            {
+              "label": "TP2",
+              "price": 0.9559636159999999
+            }
+          ],
+          "explain": "Bias up on 1W; using trigger entries aligned with momentum (structure context). Strength muted, timing now, action buy.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.9242363560000001
+            }
+          ],
+          "invalidation": {
+            "price": 0.867127288,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.9559636159999999
+            },
+            {
+              "label": "TP2",
+              "price": 1.00038178
+            }
+          ],
+          "explain": "Bias up on 1M; using trigger entries aligned with momentum (structure context). Strength muted, timing now, action buy.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -1463,6 +3387,134 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 192.87979225
+            }
+          ],
+          "invalidation": {
+            "price": 191.450554,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 193.39951525000004
+            },
+            {
+              "label": "TP2",
+              "price": 194.43896125
+            }
+          ],
+          "explain": "Bias up on 1h; using trigger entries aligned with momentum (structure context). Strength muted, timing later, action watch.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 193.20221300000003
+            }
+          ],
+          "invalidation": {
+            "price": 190.353361,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 194.1993112
+            },
+            {
+              "label": "TP2",
+              "price": 196.051065
+            }
+          ],
+          "explain": "Bias up on 4h; using trigger entries aligned with momentum (structure context). Strength muted, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 193.6295408
+            }
+          ],
+          "invalidation": {
+            "price": 189.64114800000002,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 195.338852
+            },
+            {
+              "label": "TP2",
+              "price": 198.18770400000002
+            }
+          ],
+          "explain": "Bias up on 1D; using trigger entries aligned with momentum (structure context). Strength muted, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 194.50248295000003
+            }
+          ],
+          "invalidation": {
+            "price": 187.79420645,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 197.85662119999998
+            },
+            {
+              "label": "TP2",
+              "price": 203.2232424
+            }
+          ],
+          "explain": "Bias up on 1W; using trigger entries aligned with momentum (structure context). Strength muted, timing later, action watch.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 196.5149659
+            }
+          ],
+          "invalidation": {
+            "price": 184.4400682,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 203.2232424
+            },
+            {
+              "label": "TP2",
+              "price": 212.61482949999998
+            }
+          ],
+          "explain": "Bias up on 1M; using trigger entries aligned with momentum (structure context). Strength muted, timing later, action watch.",
+          "source": "analysis"
         }
       }
     },
@@ -1550,6 +3602,149 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                4.003589436,
+                4.0115315129999995
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.014178872,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.9744684869999998
+            },
+            {
+              "label": "TP2",
+              "price": 3.953289615
+            }
+          ],
+          "explain": "Bias down on 1h; using fade entries into structure (structure context). Strength muted, timing now, action sell.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                4.010345591999999,
+                4.02190932
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.03636398,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.9583088159999997
+            },
+            {
+              "label": "TP2",
+              "price": 3.9207267
+            }
+          ],
+          "explain": "Bias down on 4h; using fade entries into structure (structure context). Strength muted, timing now, action sell.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                4.02190932,
+                4.03636398
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.05081864,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.9351813599999996
+            },
+            {
+              "label": "TP2",
+              "price": 3.87736272
+            }
+          ],
+          "explain": "Bias down on 1D; using fade entries into structure (structure context). Strength muted, timing now, action sell.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                4.04754438,
+                4.074816569999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.088452665,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.8839112399999998
+            },
+            {
+              "label": "TP2",
+              "price": 3.7748224799999996
+            }
+          ],
+          "explain": "Bias down on 1W; using fade entries into structure (structure context). Strength muted, timing now, action sell.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                4.10208876,
+                4.15663314
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.15663314,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.7748224799999996
+            },
+            {
+              "label": "TP2",
+              "price": 3.5839171499999996
+            }
+          ],
+          "explain": "Bias down on 1M; using fade entries into structure (structure context). Strength muted, timing now, action sell.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -1635,6 +3830,149 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Medium",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                838.5713156,
+                840.2148023000001
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 840.7626311999999,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 832.5451977
+            },
+            {
+              "label": "TP2",
+              "price": 828.1625665
+            }
+          ],
+          "explain": "Bias down on 1h; using fade entries into structure (structure context). Strength muted, timing near, action watch.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                839.95803364,
+                842.3433894000001
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 845.3250840999999,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 829.22393272
+            },
+            {
+              "label": "TP2",
+              "price": 821.4715265
+            }
+          ],
+          "explain": "Bias down on 4h; using fade entries into structure (structure context). Strength muted, timing near, action watch.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                842.3433894000001,
+                845.3250840999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 848.3067788,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 824.4532211999999
+            },
+            {
+              "label": "TP2",
+              "price": 812.5264424
+            }
+          ],
+          "explain": "Bias down on 1D; using fade entries into structure (structure context). Strength muted, timing near, action watch.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                847.6544024,
+                853.2916035999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 856.1102042,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 813.8311952
+            },
+            {
+              "label": "TP2",
+              "price": 791.2823904
+            }
+          ],
+          "explain": "Bias down on 1W; using fade entries into structure (structure context). Strength muted, timing near, action watch.",
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                858.9288048000001,
+                870.2032072000001
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 870.2032072000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 791.2823904
+            },
+            {
+              "label": "TP2",
+              "price": 751.821982
+            }
+          ],
+          "explain": "Bias down on 1M; using fade entries into structure (structure context). Strength muted, timing near, action watch.",
+          "source": "analysis"
         }
       }
     },
@@ -1722,7 +4060,85 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
       }
+    }
+  ],
+  "polymarket": [
+    {
+      "market_name": "Will Ethereum (ETH) hit $5,000 by August 31, 2025?",
+      "stance": "Engage",
+      "readiness": "Near",
+      "edge_label": "market rich",
+      "rationale": "Market pricing looks stretched versus our view. Timing is approaching; monitor for clean triggers.",
+      "implied_prob": 0.64,
+      "implied_pct": 64.0,
+      "tb_internal_prob": 0.6133333333333333,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-31T23:59:59+00:00",
+      "market_id": null,
+      "quality_score": null
+    },
+    {
+      "market_name": "Will Ethereum (ETH) hit $4,800 by August 31, 2025?",
+      "stance": "Engage",
+      "readiness": "Near",
+      "edge_label": "market rich",
+      "rationale": "Market pricing looks stretched versus our view. Timing is approaching; monitor for clean triggers.",
+      "implied_prob": 0.9,
+      "implied_pct": 90.0,
+      "tb_internal_prob": 0.8733333333333333,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-31T23:59:59+00:00",
+      "market_id": null,
+      "quality_score": null
+    },
+    {
+      "market_name": "Will Ethereum (ETH) hit a new all-time high by August 31, 2025?",
+      "stance": "Engage",
+      "readiness": "Near",
+      "edge_label": "market rich",
+      "rationale": "Market pricing looks stretched versus our view. Timing is approaching; monitor for clean triggers.",
+      "implied_prob": 0.87,
+      "implied_pct": 87.0,
+      "tb_internal_prob": 0.8433333333333333,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-31T23:59:59+00:00",
+      "market_id": null,
+      "quality_score": null
+    },
+    {
+      "market_name": "Will Ethereum (ETH) hit $5,400 by August 31, 2025?",
+      "stance": "Engage",
+      "readiness": "Near",
+      "edge_label": "market rich",
+      "rationale": "Market pricing looks stretched versus our view. Timing is approaching; monitor for clean triggers.",
+      "implied_prob": 0.31,
+      "implied_pct": 31.0,
+      "tb_internal_prob": 0.2833333333333333,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-31T23:59:59+00:00",
+      "market_id": null,
+      "quality_score": null
+    },
+    {
+      "market_name": "Will Ethereum (ETH) hit $5,800 by August 31, 2025?",
+      "stance": "Engage",
+      "readiness": "Near",
+      "edge_label": "market rich",
+      "rationale": "Market pricing looks stretched versus our view. Timing is approaching; monitor for clean triggers.",
+      "implied_prob": 0.18,
+      "implied_pct": 18.0,
+      "tb_internal_prob": 0.15333333333333332,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-31T23:59:59+00:00",
+      "market_id": null,
+      "quality_score": null
     }
   ]
 }
