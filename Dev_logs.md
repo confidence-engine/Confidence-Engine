@@ -1,5 +1,14 @@
 > Prefer the concise history? See [Dev_logs_CLEAN.md](Dev_logs_CLEAN.md).
 
+## [v3.1.11-analysis-primary-plans] - 2025-08-15
+- Change: Analysis is now the primary source for per-timeframe plans in the digest.
+  - When explicit per-TF levels are missing, we synthesize analysis-derived levels from agent signals (bias/action, timescale strength) anchored to live spot.
+  - This happens before any fallback, so TF headers now show `(analysis)` by default; fallback is only used if analysis synthesis is unavailable.
+  - Files: `scripts/tracer_bullet_universe.py` (new helpers `_strength_from_scores()` and `synthesize_analysis_levels()`; wiring before `build_plan_all_tfs()`).
+- Provenance: `source: "analysis"` is attached to synthesized TF plans; `source: "fallback"` only when heuristic levels are used.
+- Verification: Safe run (TG/Discord disabled) shows BTC/ETH and alts with `1h/4h (analysis)` entries replacing `(fallback)`.
+- Notes: Keeps TF-specific offsets but scales by analysis strength per horizon to reflect conviction; artifacts persist plan snapshots unchanged.
+
 ## [v3.1.10-plan-provenance-and-tf-fallback] - 2025-08-15
 - Fix: Crypto fallback TF plans no longer use identical entries/invalid/targets across TFs. Added TF-specific percentage offsets so `1h/4h/1D/1W/1M` produce distinct levels.
   - File: `scripts/tracer_bullet_universe.py` (fallback block uses `tf_pcts` per TF)

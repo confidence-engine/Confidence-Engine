@@ -272,6 +272,91 @@ def main():
         # ---- Crypto TF plan helpers (do NOT change rotation helpers above) ----
         ORDERED_TFS = ["1h", "4h", "1D", "1W", "1M"]
 
+        def _strength_from_scores(p: dict, tf: str) -> float:
+            """
+            Estimate signal strength for a timeframe in [0.5, 1.5] using timescale_scores.
+            Maps: short->1h, mid->4h/1D, long->1W/1M. Defaults to 1.0 if missing.
+            """
+            ts = p.get("timescale_scores") or {}
+            key = {
+                "1h": "short",
+                "4h": "mid",
+                "1D": "mid",
+                "1W": "long",
+                "1M": "long",
+            }.get(tf)
+            try:
+                val = ts.get(key)
+                # val may be dict or scalar; take divergence if dict, else float
+                if isinstance(val, dict):
+                    v = float(val.get("divergence", 0.0))
+                else:
+                    v = float(val or 0.0)
+            except Exception:
+                v = 0.0
+            m = max(0.0, min(1.0, abs(v)))
+            return 0.5 + m  # 0.5..1.5
+
+        def synthesize_analysis_levels(sym: str, p: dict, spot: float, thesis: dict) -> dict:
+            """
+            Create analysis-derived per-TF levels from agent signals when explicit levels are absent.
+            Uses direction (bias/action), spot anchor, and TF strength to scale offsets.
+            Returns a dict like { tf: {entry_trigger/entry_zone, invalid_price, targets[]} }.
+            """
+            if not spot:
+                return {}
+            bias = str(thesis.get("bias", "")).lower()
+            direction = 1 if bias == "up" else (-1 if bias == "down" else 0)
+            # Base offsets similar to fallback but will be scaled by strength to reflect analysis
+            base = {
+                "1h":   {"trig": 0.003, "fade_hi": 0.007, "fade_lo": 0.004, "inv": 0.008, "tp1": 0.007, "tp2": 0.015},
+                "4h":   {"trig": 0.005, "fade_hi": 0.010, "fade_lo": 0.006, "inv": 0.015, "tp1": 0.012, "tp2": 0.025},
+                "1D":   {"trig": 0.008, "fade_hi": 0.015, "fade_lo": 0.010, "inv": 0.020, "tp1": 0.020, "tp2": 0.040},
+                "1W":   {"trig": 0.015, "fade_hi": 0.030, "fade_lo": 0.020, "inv": 0.035, "tp1": 0.040, "tp2": 0.080},
+                "1M":   {"trig": 0.030, "fade_hi": 0.060, "fade_lo": 0.040, "inv": 0.060, "tp1": 0.080, "tp2": 0.150},
+            }
+            out = {}
+            for tf in ORDERED_TFS:
+                pcts = dict(base[tf])
+                strength = _strength_from_scores(p, tf)
+                # Scale offsets by strength (analysis-driven)
+                for k in pcts:
+                    pcts[k] *= strength
+                if direction > 0:
+                    out[tf] = {
+                        "entry_type": "trigger",
+                        "entry_trigger": spot * (1.0 + pcts["trig"]),
+                        "invalid_price": spot * (1.0 - pcts["inv"]),
+                        "invalid_condition": "close below",
+                        "targets": [
+                            spot * (1.0 + pcts["tp1"]),
+                            spot * (1.0 + pcts["tp2"]),
+                        ],
+                    }
+                elif direction < 0:
+                    lo = spot * (1.0 - pcts["fade_hi"])
+                    hi = spot * (1.0 - pcts["fade_lo"])
+                    out[tf] = {
+                        "entry_type": "fade",
+                        "entry_zone": [lo, hi] if lo < hi else [hi, lo],
+                        "invalid_price": spot * (1.0 + pcts["inv"]),
+                        "invalid_condition": "close above",
+                        "targets": [
+                            spot * (1.0 - pcts["tp1"]),
+                            spot * (1.0 - pcts["tp2"]),
+                        ],
+                    }
+                else:
+                    # Neutral: tight trigger with symmetric guard
+                    out[tf] = {
+                        "entry_type": "trigger",
+                        "entry_trigger": spot,
+                        "invalid_price": spot * (1.0 - max(0.01, pcts["trig"])),
+                        "invalid_condition": "breach",
+                        "targets": [spot * (1.0 + max(0.01, pcts["trig"]))],
+                    }
+            return out
+
         def build_tf_plan_from_levels(levels: dict):
             if not levels:
                 return None
@@ -335,6 +420,12 @@ def main():
             # Build plans
             if is_crypto:
                 # Prefer existing analysis-derived levels per TF
+                # If missing, synthesize analysis levels from agent signals so analysis remains primary
+                try:
+                    if not isinstance(p.get("levels"), dict) and spot_price:
+                        p["levels"] = synthesize_analysis_levels(sym, p, spot_price, thesis)
+                except Exception:
+                    pass
                 base_plan = build_plan_all_tfs(sym, p)
                 if not base_plan:
                     # Fallback: minimal heuristic across TFs if we have a spot
