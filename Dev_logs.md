@@ -5,6 +5,7 @@
   - `scripts/tracer_bullet_universe.py`: `synthesize_analysis_levels()` now attaches a number-free `explain` string per TF using bias/action, readiness, and TF strength; fallback plans also carry a clear heuristic `explain`.
   - `build_tf_plan_from_levels()` passes `explain` through into the plan snapshot.
   - `scripts/tg_digest_formatter.py`: renders a per-TF "Why:" line from `plan[tf]['explain']` under each timeframe block.
+  - Enhancement: When available, explanations now include structure hints (trend continuation, range context) and weekly anchor proximity (near supply/demand) in a number-free way.
 - Result: Digest now shows specific, analysis-grounded rationale for each TF instead of generic statements.
 - Safety: Chat remains number-free in explanations; artifacts persist plan snapshots unchanged.
 

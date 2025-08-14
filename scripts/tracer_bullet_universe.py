@@ -309,6 +309,24 @@ def main():
             direction = 1 if bias == "up" else (-1 if bias == "down" else 0)
             readiness = str(thesis.get("readiness", "")).lower() or "later"
             action = str(thesis.get("action", "")).lower() or "watch"
+            struct_txt = str((p.get("structure") or p.get("pattern") or "")).lower()
+            if "trend" in struct_txt:
+                struct_hint = "trend continuation"
+            elif "range" in struct_txt or "reversion" in struct_txt:
+                struct_hint = "range context"
+            else:
+                struct_hint = "structure context"
+            # Pattern specificity
+            if any(k in struct_txt for k in ("breakout", "bo")):
+                pattern_hint = "breakout setup"
+            elif "retest" in struct_txt:
+                pattern_hint = "retest setup"
+            elif "pullback" in struct_txt or "pb" in struct_txt:
+                pattern_hint = "pullback setup"
+            elif "range" in struct_txt:
+                pattern_hint = "range fade"
+            else:
+                pattern_hint = None
             # Base offsets similar to fallback but will be scaled by strength to reflect analysis
             base = {
                 "1h":   {"trig": 0.003, "fade_hi": 0.007, "fade_lo": 0.004, "inv": 0.008, "tp1": 0.007, "tp2": 0.015},
@@ -326,81 +344,162 @@ def main():
                     pcts[k] *= strength
                 # Build concise explanation from analysis context (number-free)
                 if direction > 0:
-                    why = f"Bias up on {tf}; using trigger entries aligned with momentum. Strength {('elevated' if strength>1.15 else ('balanced' if strength>0.85 else 'muted'))}, timing {readiness}, action {action}."
+                    why = f"Bias up on {tf}; using trigger entries aligned with momentum ({struct_hint})."
                 elif direction < 0:
-                    why = f"Bias down on {tf}; using fade entries into structure. Strength {('elevated' if strength>1.15 else ('balanced' if strength>0.85 else 'muted'))}, timing {readiness}, action {action}."
+                    why = f"Bias down on {tf}; using fade entries into structure ({struct_hint})."
                 else:
-                    why = f"Neutral bias on {tf}; tight trigger and symmetric guard. Strength {'balanced' if 0.85<=strength<=1.15 else ('muted' if strength<0.85 else 'elevated')}, timing {readiness}, action {action}."
+                    why = f"Neutral bias on {tf}; tight trigger and symmetric guard ({struct_hint})."
+                if pattern_hint:
+                    why += f" {pattern_hint}."
+                # Strength, timing, action
+                why += f" Strength {('elevated' if strength>1.15 else ('balanced' if strength>0.85 else 'muted'))}, timing {readiness}, action {action}."
+                # Optional weekly anchor reference if available on payload
+                try:
+                    wk = p.get("weekly_anchor") or {}
+                    if isinstance(wk, dict):
+                        if wk.get("supply_zone") and direction <= 0:
+                            why += " Weekly: into supply."
+                        if wk.get("demand_zone") and direction >= 0:
+                            why += " Weekly: from demand."
+                except Exception:
+                    pass
+                # Signals: alignment, participation, confirmation (number-free)
+                try:
+                    aligned = bool(p.get("alignment_flag") or thesis.get("tf_aligned") or False)
+                    # map tf to band for participation
+                    if tf in ("1h",):
+                        band = "short"
+                    elif tf in ("4h", "1D"):
+                        band = "mid"
+                    else:
+                        band = "long"
+                    z = None
+                    tss = p.get("timescale_scores", {})
+                    if isinstance(tss.get(band), dict):
+                        z = tss.get(band, {}).get("volume_z")
+                    flow = volume_label(z) if isinstance(z, (int, float)) else None
+                    conf_pen = p.get("confirmation_penalty")
+                    conf_checks = p.get("confirmation_checks")
+                    if conf_checks is not None:
+                        if isinstance(conf_pen, (int, float)) and conf_pen < 0:
+                            conf_txt = "confirmation weak"
+                        else:
+                            conf_txt = "confirmation OK"
+                    else:
+                        conf_txt = "confirmation pending"
+                    parts = []
+                    parts.append("aligned" if aligned else "mixed alignment")
+                    if flow:
+                        parts.append(flow)
+                    if conf_txt:
+                        parts.append(conf_txt)
+                    if parts:
+                        why += " Signals: " + ", ".join(parts) + "."
+                except Exception:
+                    pass
                 if direction > 0:
                     out[tf] = {
                         "entry_type": "trigger",
-                        "entry_trigger": spot * (1.0 + pcts["trig"]),
-                        "invalid_price": spot * (1.0 - pcts["inv"]),
-                        "invalid_condition": "close below",
+                        "entries": spot * (1 + pcts["trig"]),
+                        "invalidation": {"price": spot * (1 - pcts["inv"]), "condition": "close below"},
                         "targets": [
-                            spot * (1.0 + pcts["tp1"]),
-                            spot * (1.0 + pcts["tp2"]),
+                            {"label": "TP1", "price": spot * (1 + pcts["tp1"])},
+                            {"label": "TP2", "price": spot * (1 + pcts["tp2"])},
                         ],
+                        "source": "analysis",
                         "explain": why,
+                        "context": {
+                            "structure_hint": struct_hint,
+                            "pattern_hint": pattern_hint,
+                            "weekly": ("demand" if (p.get("weekly_anchor") or {}).get("demand_zone") else ("supply" if (p.get("weekly_anchor") or {}).get("supply_zone") else None)),
+                        },
                     }
                 elif direction < 0:
-                    lo = spot * (1.0 - pcts["fade_hi"])
-                    hi = spot * (1.0 - pcts["fade_lo"])
                     out[tf] = {
                         "entry_type": "fade",
-                        "entry_zone": [lo, hi] if lo < hi else [hi, lo],
-                        "invalid_price": spot * (1.0 + pcts["inv"]),
-                        "invalid_condition": "close above",
+                        "entries": [spot * (1 + pcts["fade_lo"]), spot * (1 + pcts["fade_hi"])],
+                        "invalidation": {"price": spot * (1 + pcts["inv"]), "condition": "close above"},
                         "targets": [
-                            spot * (1.0 - pcts["tp1"]),
-                            spot * (1.0 - pcts["tp2"]),
+                            {"label": "TP1", "price": spot * (1 - pcts["tp1"])},
+                            {"label": "TP2", "price": spot * (1 - pcts["tp2"])},
                         ],
+                        "source": "analysis",
                         "explain": why,
+                        "context": {
+                            "structure_hint": struct_hint,
+                            "pattern_hint": pattern_hint,
+                            "weekly": ("supply" if (p.get("weekly_anchor") or {}).get("supply_zone") else ("demand" if (p.get("weekly_anchor") or {}).get("demand_zone") else None)),
+                        },
                     }
                 else:
-                    # Neutral: tight trigger with symmetric guard
                     out[tf] = {
                         "entry_type": "trigger",
-                        "entry_trigger": spot,
-                        "invalid_price": spot * (1.0 - max(0.01, pcts["trig"])),
-                        "invalid_condition": "breach",
-                        "targets": [spot * (1.0 + max(0.01, pcts["trig"]))],
+                        "entries": spot * (1 + 0.001 * (1 if strength >= 1.0 else -1)),
+                        "invalidation": {"price": spot * (1 - 0.004), "condition": "breach"},
+                        "targets": [
+                            {"label": "TP1", "price": spot * (1 + 0.006)},
+                            {"label": "TP2", "price": spot * (1 + 0.012)},
+                        ],
+                        "source": "analysis",
                         "explain": why,
+                        "context": {
+                            "structure_hint": struct_hint,
+                            "pattern_hint": pattern_hint,
+                            "weekly": ("demand" if (p.get("weekly_anchor") or {}).get("demand_zone") else ("supply" if (p.get("weekly_anchor") or {}).get("supply_zone") else None)),
+                        },
                     }
             return out
 
         def build_tf_plan_from_levels(levels: dict):
             if not levels:
-                return None
-            entries = []
-            trg = levels.get("entry_trigger")
-            zone = levels.get("entry_zone")
-            e_type = levels.get("entry_type") or ("trigger" if isinstance(trg, (int, float)) else "fade")
+                return {}
+            entries_out = []
+            invalidation_out = None
+            targets_out = []
 
-            if isinstance(trg, (int, float)):
-                entries.append({"type": e_type, "zone_or_trigger": float(trg)})
-            elif isinstance(zone, (list, tuple)) and len(zone) == 2 and all(isinstance(x, (int, float)) for x in zone):
-                lo, hi = zone
-                entries.append({"type": e_type, "zone_or_trigger": [float(lo), float(hi)]})
+            # New schema support
+            if isinstance(levels.get("entries"), (int, float)):
+                entries_out.append({"type": levels.get("entry_type") or "trigger", "zone_or_trigger": float(levels["entries"])})
+            elif isinstance(levels.get("entries"), (list, tuple)):
+                ent = levels.get("entries")
+                if len(ent) == 2 and all(isinstance(x, (int, float)) for x in ent):
+                    lo, hi = ent
+                    entries_out.append({"type": levels.get("entry_type") or "fade", "zone_or_trigger": [float(lo), float(hi)]})
 
-            invalidation = None
-            if isinstance(levels.get("invalid_price"), (int, float)):
-                invalidation = {
-                    "price": float(levels["invalid_price"]),
-                    "condition": levels.get("invalid_condition", "close below"),
-                }
+            inv = levels.get("invalidation")
+            if isinstance(inv, dict) and isinstance(inv.get("price"), (int, float)):
+                invalidation_out = {"price": float(inv["price"]), "condition": inv.get("condition", "close below")}
 
-            targets = []
-            for i, tp in enumerate(levels.get("targets") or [], start=1):
-                if isinstance(tp, (int, float)):
-                    targets.append({"label": f"TP{i}", "price": float(tp)})
-                elif isinstance(tp, dict) and isinstance(tp.get("price"), (int, float)):
-                    targets.append({"label": tp.get("label") or f"TP{i}", "price": float(tp["price"])})
+            if isinstance(levels.get("targets"), (list, tuple)):
+                for i, tp in enumerate(levels.get("targets") or [], start=1):
+                    if isinstance(tp, (int, float)):
+                        targets_out.append({"label": f"TP{i}", "price": float(tp)})
+                    elif isinstance(tp, dict) and isinstance(tp.get("price"), (int, float)):
+                        targets_out.append({"label": tp.get("label") or f"TP{i}", "price": float(tp["price"])})
 
-            if not entries and not invalidation and not targets:
+            # Legacy schema fallback
+            if not entries_out:
+                trg = levels.get("entry_trigger")
+                zone = levels.get("entry_zone")
+                e_type = levels.get("entry_type") or ("trigger" if isinstance(trg, (int, float)) else "fade")
+                if isinstance(trg, (int, float)):
+                    entries_out.append({"type": e_type, "zone_or_trigger": float(trg)})
+                elif isinstance(zone, (list, tuple)) and len(zone) == 2 and all(isinstance(x, (int, float)) for x in zone):
+                    lo, hi = zone
+                    entries_out.append({"type": e_type, "zone_or_trigger": [float(lo), float(hi)]})
+
+            if invalidation_out is None and isinstance(levels.get("invalid_price"), (int, float)):
+                invalidation_out = {"price": float(levels["invalid_price"]), "condition": levels.get("invalid_condition", "close below")}
+
+            if not targets_out and isinstance(levels.get("targets"), (list, tuple)):
+                for i, tp in enumerate(levels.get("targets") or [], start=1):
+                    if isinstance(tp, (int, float)):
+                        targets_out.append({"label": f"TP{i}", "price": float(tp)})
+
+            if not entries_out and not invalidation_out and not targets_out:
                 return None
             explain = levels.get("explain") if isinstance(levels, dict) else None
-            plan = {"entries": entries, "invalidation": invalidation, "targets": targets}
+            plan = {"entries": entries_out, "invalidation": invalidation_out, "targets": targets_out}
             if explain:
                 plan["explain"] = str(explain)
             return plan
@@ -488,7 +587,7 @@ def main():
             assets_data[sym] = {
                 "spot": spot_price,
                 "thesis": thesis,
-                "structure": tg_fmt.__name__ and "trend / range context",
+                "structure": (p.get("structure") or (tg_fmt.__name__ and "trend / range context")),
                 "plan": base_plan,
                 "weekly_anchor": {},
                 "drift_since_snapshot_pct": None,
