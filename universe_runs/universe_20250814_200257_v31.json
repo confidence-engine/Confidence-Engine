@@ -88,6 +88,129 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Buy",
+        "risk_band": "High",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.538292825
+            }
+          ],
+          "invalidation": {
+            "price": 4.4748858,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.561349925
+            },
+            {
+              "label": "TP2",
+              "price": 4.607464125
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.5549075000000006
+            }
+          ],
+          "invalidation": {
+            "price": 4.4192775,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.602378
+            },
+            {
+              "label": "TP2",
+              "price": 4.6905375000000005
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.575252
+            }
+          ],
+          "invalidation": {
+            "price": 4.38537,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.65663
+            },
+            {
+              "label": "TP2",
+              "price": 4.79226
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.61404218
+            }
+          ],
+          "invalidation": {
+            "price": 4.30390158,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.76911248
+            },
+            {
+              "label": "TP2",
+              "price": 5.01722496
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.7070843600000005
+            }
+          ],
+          "invalidation": {
+            "price": 4.1488312800000005,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 5.01722496
+            },
+            {
+              "label": "TP2",
+              "price": 5.451421799999999
+            }
+          ],
+          "source": "analysis"
+        }
       }
     },
     {
@@ -173,6 +296,129 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.22406979853999998
+            }
+          ],
+          "invalidation": {
+            "price": 0.22095387056,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.22520286326
+            },
+            {
+              "label": "TP2",
+              "price": 0.22746899269999998
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.22489415000000001
+            }
+          ],
+          "invalidation": {
+            "price": 0.21819755000000002,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.22723796000000002
+            },
+            {
+              "label": "TP2",
+              "price": 0.23159075
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.22589864
+            }
+          ],
+          "invalidation": {
+            "price": 0.2165234,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.2299166
+            },
+            {
+              "label": "TP2",
+              "price": 0.23661320000000002
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.2277904295
+            }
+          ],
+          "invalidation": {
+            "price": 0.2125556645,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.235407812
+            },
+            {
+              "label": "TP2",
+              "price": 0.247595624
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.232360859
+            }
+          ],
+          "invalidation": {
+            "price": 0.204938282,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.247595624
+            },
+            {
+              "label": "TP2",
+              "price": 0.268924295
+            }
+          ],
+          "source": "analysis"
         }
       }
     },
@@ -260,6 +506,12 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Buy",
+        "risk_band": "Medium",
+        "readiness": "Now"
       }
     },
     {
@@ -346,6 +598,12 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Medium",
+        "readiness": "Now"
       }
     },
     {
@@ -431,6 +689,144 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.8923266,
+                0.8956152000000001
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.9087696,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.8923266
+            },
+            {
+              "label": "TP2",
+              "price": 0.883557
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.8866080000000001,
+                0.8919648
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.9200879999999999,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.8839296
+            },
+            {
+              "label": "TP2",
+              "price": 0.86652
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.879912,
+                0.8866080000000001
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.926784,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.873216
+            },
+            {
+              "label": "TP2",
+              "price": 0.846432
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.8646840000000001,
+                0.876456
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.941202,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.852912
+            },
+            {
+              "label": "TP2",
+              "price": 0.805824
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.829368,
+                0.852912
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.9706319999999999,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.805824
+            },
+            {
+              "label": "TP2",
+              "price": 0.72342
+            }
+          ],
+          "source": "analysis"
         }
       }
     },
@@ -518,6 +914,144 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.9520711680000002,
+                3.9666120960000004
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.024775808,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.9520711680000002
+            },
+            {
+              "label": "TP2",
+              "price": 3.9132953600000002
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.9268079,
+                3.9504847400000003
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.074788150000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.9149694800000003
+            },
+            {
+              "label": "TP2",
+              "price": 3.8380197500000004
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.89721185,
+                3.9268079
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.1043842,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.8676158000000003
+            },
+            {
+              "label": "TP2",
+              "price": 3.7492316000000003
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.8298285200000004,
+                3.88188568
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.16820006,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.7777713600000005
+            },
+            {
+              "label": "TP2",
+              "price": 3.5695427200000003
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.67365704,
+                3.7777713600000005
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.29834296,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.5695427200000003
+            },
+            {
+              "label": "TP2",
+              "price": 3.2051426000000003
+            }
+          ],
+          "source": "analysis"
+        }
       }
     },
     {
@@ -603,6 +1137,144 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                117049.64401599999,
+                117438.905152
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 118995.94969599998,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 117049.64401599999
+            },
+            {
+              "label": "TP2",
+              "price": 116011.61432000001
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                116396.15713919999,
+                117020.86228352001
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 120300.5642912,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 116083.80456704
+            },
+            {
+              "label": "TP2",
+              "price": 114053.512848
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                115615.27570879999,
+                116396.15713919999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 121081.4457216,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 114834.39427840001
+            },
+            {
+              "label": "TP2",
+              "price": 111710.8685568
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                113799.90332,
+                115185.90888
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 122808.93946000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 112413.89775999999
+            },
+            {
+              "label": "TP2",
+              "price": 106869.87552
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                109641.88664,
+                112413.89775999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 126273.95336,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 106869.87552
+            },
+            {
+              "label": "TP2",
+              "price": 97167.8366
+            }
+          ],
+          "source": "analysis"
         }
       }
     },
@@ -690,6 +1362,129 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Buy",
+        "risk_band": "Medium",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 22.453048319999997
+            }
+          ],
+          "invalidation": {
+            "price": 22.18520448,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 22.55044608
+            },
+            {
+              "label": "TP2",
+              "price": 22.745241599999996
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 22.5264771
+            }
+          ],
+          "invalidation": {
+            "price": 21.9405687,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 22.73154504
+            },
+            {
+              "label": "TP2",
+              "price": 23.112385500000002
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 22.61436336
+            }
+          ],
+          "invalidation": {
+            "price": 21.794091599999998,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 22.9659084
+            },
+            {
+              "label": "TP2",
+              "price": 23.551816799999997
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 22.7700834
+            }
+          ],
+          "invalidation": {
+            "price": 21.4698054,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 23.4202224
+            },
+            {
+              "label": "TP2",
+              "price": 24.460444799999998
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 23.160166799999995
+            }
+          ],
+          "invalidation": {
+            "price": 20.8196664,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 24.460444799999998
+            },
+            {
+              "label": "TP2",
+              "price": 26.280833999999995
+            }
+          ],
+          "source": "analysis"
+        }
       }
     },
     {
@@ -775,6 +1570,129 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Medium",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 839.86477798
+            }
+          ],
+          "invalidation": {
+            "price": 830.1672587200001,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 843.3911486200001
+            },
+            {
+              "label": "TP2",
+              "price": 850.4438899
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 842.4986721
+            }
+          ],
+          "invalidation": {
+            "price": 821.3839837,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 849.88881304
+            },
+            {
+              "label": "TP2",
+              "price": 863.6133605
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 845.6658753600001
+            }
+          ],
+          "invalidation": {
+            "price": 816.1053116,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 858.3346884
+            },
+            {
+              "label": "TP2",
+              "price": 879.4493768000001
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 851.3104126
+            }
+          ],
+          "invalidation": {
+            "price": 804.3423706,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 874.7944336
+            },
+            {
+              "label": "TP2",
+              "price": 912.3688672000001
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 865.4008252000001
+            }
+          ],
+          "invalidation": {
+            "price": 780.8583496,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 912.3688672000001
+            },
+            {
+              "label": "TP2",
+              "price": 978.1241259999999
+            }
+          ],
+          "source": "analysis"
         }
       }
     },
@@ -862,6 +1780,129 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 10.9014191
+            }
+          ],
+          "invalidation": {
+            "price": 10.7788824,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 10.945977899999999
+            },
+            {
+              "label": "TP2",
+              "price": 11.035095499999999
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 10.934457820000002
+            }
+          ],
+          "invalidation": {
+            "price": 10.668626540000002,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 11.027498768
+            },
+            {
+              "label": "TP2",
+              "price": 11.2002891
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 10.974332512
+            }
+          ],
+          "invalidation": {
+            "price": 10.60216872,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 11.133831279999999
+            },
+            {
+              "label": "TP2",
+              "price": 11.399662560000001
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 11.04585482
+            }
+          ],
+          "invalidation": {
+            "price": 10.45300542,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 11.34227952
+            },
+            {
+              "label": "TP2",
+              "price": 11.816559040000001
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 11.22370964
+            }
+          ],
+          "invalidation": {
+            "price": 10.156580720000001,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 11.816559040000001
+            },
+            {
+              "label": "TP2",
+              "price": 12.646548200000002
+            }
+          ],
+          "source": "analysis"
+        }
       }
     },
     {
@@ -947,6 +1988,144 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.0441167805,
+                3.053452446
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.0907951079999996,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.0441167805
+            },
+            {
+              "label": "TP2",
+              "price": 3.0192216725
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.0288639280000003,
+                3.0436783568
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.121454108,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.0214567136
+            },
+            {
+              "label": "TP2",
+              "price": 2.97330982
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.010345892,
+                3.0288639280000003
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.139972144,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 2.991827856
+            },
+            {
+              "label": "TP2",
+              "price": 2.917755712
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                2.966656817,
+                2.999737878
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.1816837135,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 2.933575756
+            },
+            {
+              "label": "TP2",
+              "price": 2.8012515120000003
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                2.867413634,
+                2.933575756
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.264386366,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 2.8012515120000003
+            },
+            {
+              "label": "TP2",
+              "price": 2.569684085
+            }
+          ],
+          "source": "analysis"
         }
       }
     },
@@ -1034,6 +2213,144 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.7519871459999999,
+                0.754135512
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.762728976,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.7519871459999999
+            },
+            {
+              "label": "TP2",
+              "price": 0.7462581699999999
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.74856702,
+                0.7519402119999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.7696494700000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.746880424
+            },
+            {
+              "label": "TP2",
+              "price": 0.7359175499999999
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.74435053,
+                0.74856702
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.7738659600000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.74013404
+            },
+            {
+              "label": "TP2",
+              "price": 0.72326808
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.73424458,
+                0.74182972
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.78354799,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.72665944
+            },
+            {
+              "label": "TP2",
+              "price": 0.69631888
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.7114891600000001,
+                0.72665944
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.80251084,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.69631888
+            },
+            {
+              "label": "TP2",
+              "price": 0.6432229
+            }
+          ],
+          "source": "analysis"
+        }
       }
     },
     {
@@ -1120,6 +2437,12 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
       }
     },
     {
@@ -1205,6 +2528,144 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.5163370110000001,
+                0.517478292
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.522043416,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.5163370110000001
+            },
+            {
+              "label": "TP2",
+              "price": 0.513293595
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.51473901,
+                0.516443406
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.5253914850000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.5138868120000001
+            },
+            {
+              "label": "TP2",
+              "price": 0.508347525
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.512608515,
+                0.51473901
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.5275219800000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.51047802
+            },
+            {
+              "label": "TP2",
+              "price": 0.50195604
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.50712009,
+                0.51108006
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.532859895,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.50316012
+            },
+            {
+              "label": "TP2",
+              "price": 0.48732024
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.49524018,
+                0.50316012
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.54275982,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.48732024
+            },
+            {
+              "label": "TP2",
+              "price": 0.45960045000000005
+            }
+          ],
+          "source": "analysis"
         }
       }
     },
@@ -1292,6 +2753,129 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Buy",
+        "risk_band": "High",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 121.760982
+            }
+          ],
+          "invalidation": {
+            "price": 120.80404800000001,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 122.108958
+            },
+            {
+              "label": "TP2",
+              "price": 122.80490999999999
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 121.98478499999999
+            }
+          ],
+          "invalidation": {
+            "price": 120.045645,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 122.663484
+            },
+            {
+              "label": "TP2",
+              "price": 123.92392499999998
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 122.275656
+            }
+          ],
+          "invalidation": {
+            "price": 119.56086,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 123.43914
+            },
+            {
+              "label": "TP2",
+              "price": 125.37827999999999
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 122.8541175
+            }
+          ],
+          "invalidation": {
+            "price": 118.3403925,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 125.11098
+            },
+            {
+              "label": "TP2",
+              "price": 128.72196
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 124.20823499999999
+            }
+          ],
+          "invalidation": {
+            "price": 116.08353000000001,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 128.72196
+            },
+            {
+              "label": "TP2",
+              "price": 135.041175
+            }
+          ],
+          "source": "analysis"
+        }
       }
     },
     {
@@ -1377,6 +2961,129 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 192.89307406
+            }
+          ],
+          "invalidation": {
+            "price": 191.41513584,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 193.43050614
+            },
+            {
+              "label": "TP2",
+              "price": 194.5053703
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 193.2330114
+            }
+          ],
+          "invalidation": {
+            "price": 190.2609658,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 194.27322736
+            },
+            {
+              "label": "TP2",
+              "price": 196.20505700000004
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 193.67881824
+            }
+          ],
+          "invalidation": {
+            "price": 189.5179544,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 195.46204559999998
+            },
+            {
+              "label": "TP2",
+              "price": 198.4340912
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 194.57755405
+            }
+          ],
+          "invalidation": {
+            "price": 187.61904055,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 198.05681080000002
+            },
+            {
+              "label": "TP2",
+              "price": 203.62362160000004
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 196.6651081
+            }
+          ],
+          "invalidation": {
+            "price": 184.1397838,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 203.62362160000004
+            },
+            {
+              "label": "TP2",
+              "price": 213.3655405
+            }
+          ],
+          "source": "analysis"
         }
       }
     },
@@ -1464,6 +3171,144 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "High",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                23.43773715,
+                23.4858498
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 23.678300399999998,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 23.43773715
+            },
+            {
+              "label": "TP2",
+              "price": 23.30943675
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                23.3736105,
+                23.4441663
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 23.814584250000003,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 23.3383326
+            },
+            {
+              "label": "TP2",
+              "price": 23.10902625
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                23.285415750000002,
+                23.3736105
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 23.902779,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 23.197221000000003
+            },
+            {
+              "label": "TP2",
+              "price": 22.844442
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                23.052624,
+                23.218416
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 24.130272,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 22.886832000000002
+            },
+            {
+              "label": "TP2",
+              "price": 22.223664
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                22.555248000000002,
+                22.886832000000002
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 24.544752000000003,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 22.223664
+            },
+            {
+              "label": "TP2",
+              "price": 21.06312
+            }
+          ],
+          "source": "analysis"
+        }
       }
     },
     {
@@ -1549,6 +3394,144 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Medium",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.2349174765,
+                0.23533855799999998
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.23702288400000002,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.2349174765
+            },
+            {
+              "label": "TP2",
+              "price": 0.2337945925
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.23441383000000002,
+                0.235008298
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.23812925499999998,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.23411659599999998
+            },
+            {
+              "label": "TP2",
+              "price": 0.23218457499999998
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.233670745,
+                0.23441383000000002
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.23887234,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.23292766
+            },
+            {
+              "label": "TP2",
+              "price": 0.22995532
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.231611338,
+                0.233040892
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.240903439,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.230181784
+            },
+            {
+              "label": "TP2",
+              "price": 0.224463568
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.227322676,
+                0.230181784
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.244477324,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.224463568
+            },
+            {
+              "label": "TP2",
+              "price": 0.21445669
+            }
+          ],
+          "source": "analysis"
         }
       }
     },
@@ -1636,6 +3619,144 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Medium",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.35671311180000004,
+                0.3573503496
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.35989930080000004,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.35671311180000004
+            },
+            {
+              "label": "TP2",
+              "price": 0.355013811
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.35595050400000006,
+                0.35685030240000004
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.361574244,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.3555006048
+            },
+            {
+              "label": "TP2",
+              "price": 0.35257626
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.35482575600000005,
+                0.35595050400000006
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.362698992,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.35370100800000004
+            },
+            {
+              "label": "TP2",
+              "price": 0.349202016
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.35169867,
+                0.35386578
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.365784885,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.34953156
+            },
+            {
+              "label": "TP2",
+              "price": 0.34086312
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.34519734,
+                0.34953156
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.37120266,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.34086312
+            },
+            {
+              "label": "TP2",
+              "price": 0.32569335
+            }
+          ],
+          "source": "analysis"
+        }
       }
     },
     {
@@ -1722,7 +3843,202 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4541.589055289999
+            }
+          ],
+          "invalidation": {
+            "price": 4514.605852559999,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4551.40112901
+            },
+            {
+              "label": "TP2",
+              "price": 4571.02527645
+            }
+          ],
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4546.8351594
+            }
+          ],
+          "invalidation": {
+            "price": 4496.414521799999,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4564.48238256
+            },
+            {
+              "label": "TP2",
+              "price": 4597.255797
+            }
+          ],
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4554.39825504
+            }
+          ],
+          "invalidation": {
+            "price": 4483.809362399999,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4584.6506376
+            },
+            {
+              "label": "TP2",
+              "price": 4635.0712752
+            }
+          ],
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4571.365343699999
+            }
+          ],
+          "invalidation": {
+            "price": 4447.580864699999,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4633.2575832
+            },
+            {
+              "label": "TP2",
+              "price": 4732.285166399999
+            }
+          ],
+          "source": "analysis"
+        },
+        "1M": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4608.5006874
+            }
+          ],
+          "invalidation": {
+            "price": 4385.6886251999995,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4732.285166399999
+            },
+            {
+              "label": "TP2",
+              "price": 4905.583437
+            }
+          ],
+          "source": "analysis"
+        }
       }
+    }
+  ],
+  "polymarket": [
+    {
+      "market_name": "Will Ethereum (ETH) hit $5,000 by August 31, 2025?",
+      "stance": "Stand Aside",
+      "readiness": "Near",
+      "edge_label": "in-line",
+      "rationale": "Market pricing is broadly inline with our view. Timing is approaching; monitor for clean triggers.",
+      "implied_prob": 0.65,
+      "implied_pct": 65.0,
+      "tb_internal_prob": 0.65,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-31T23:59:59+00:00",
+      "market_id": null,
+      "quality_score": null
+    },
+    {
+      "market_name": "Will Ethereum (ETH) hit $4,800 by August 31, 2025?",
+      "stance": "Stand Aside",
+      "readiness": "Near",
+      "edge_label": "in-line",
+      "rationale": "Market pricing is broadly inline with our view. Timing is approaching; monitor for clean triggers.",
+      "implied_prob": 0.9,
+      "implied_pct": 90.0,
+      "tb_internal_prob": 0.9,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-31T23:59:59+00:00",
+      "market_id": null,
+      "quality_score": null
+    },
+    {
+      "market_name": "Will Ethereum (ETH) hit a new all-time high by August 31, 2025?",
+      "stance": "Stand Aside",
+      "readiness": "Near",
+      "edge_label": "in-line",
+      "rationale": "Market pricing is broadly inline with our view. Timing is approaching; monitor for clean triggers.",
+      "implied_prob": 0.87,
+      "implied_pct": 87.0,
+      "tb_internal_prob": 0.87,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-31T23:59:59+00:00",
+      "market_id": null,
+      "quality_score": null
+    },
+    {
+      "market_name": "Will Bitcoin (BTC) hold above $120,000 by August 31, 2025?",
+      "stance": "Engage",
+      "readiness": "Near",
+      "edge_label": "market rich",
+      "rationale": "Market pricing looks stretched versus our view. Timing is approaching; monitor for clean triggers.",
+      "implied_prob": 0.55,
+      "implied_pct": 55.0,
+      "tb_internal_prob": 0.4746666666666668,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-31T23:59:59+00:00",
+      "market_id": null,
+      "quality_score": null
+    },
+    {
+      "market_name": "Will Bitcoin (BTC) break $123,000 resistance by August 31, 2025?",
+      "stance": "Engage",
+      "readiness": "Near",
+      "edge_label": "market rich",
+      "rationale": "Market pricing looks stretched versus our view. Timing is approaching; monitor for clean triggers.",
+      "implied_prob": 0.48,
+      "implied_pct": 48.0,
+      "tb_internal_prob": 0.35466666666666663,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-31T23:59:59+00:00",
+      "market_id": null,
+      "quality_score": null
     }
   ]
 }
