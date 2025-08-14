@@ -196,7 +196,7 @@ def render_digest(
     max_tfs = int(os.getenv("TB_DIGEST_MAX_TFS", options.get("max_tfs", 2)))
     include_prices = (os.getenv("TB_DIGEST_INCLUDE_PRICES", "1") == "1") or bool(options.get("include_prices", False))
     include_stock_prices = os.getenv("TB_DIGEST_INCLUDE_STOCK_PRICES", "0") == "1"
-    ordered_tfs = ["1h", "4h", "1D", "1W", "1M"]
+    ordered_tfs = ["1h", "4h", "1D", "1W"]
     TELEGRAM_CRYPTO_ONLY = os.getenv("TB_DIGEST_TELEGRAM_CRYPTO_ONLY", "0") == "1"
 
     def header(sym: str, a: dict) -> str:

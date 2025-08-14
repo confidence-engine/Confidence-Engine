@@ -10,6 +10,12 @@
 - Policy: Avoid committing/pushing `.py` files going forward; use safe local runs and only commit docs/artifacts when approved.
 - Verification: Ran safe digest build with TG/Discord disabled; Telegram shows no Playbook; Discord (dry) will render TF “Why”.
 
+## [v3.1.14-remove-1M-timeframe] - 2025-08-15
+- Change: Removed 1M (monthly) timeframe from all assets in both planning and renderers. TFs now: `1h, 4h, 1D, 1W`.
+  - Files: `scripts/tracer_bullet_universe.py` (ORDERED_TFS), `scripts/tg_digest_formatter.py` (ordered_tfs), `scripts/discord_formatter.py` (tf_order)
+- Artifacts: Schema unchanged; per-asset `plan` may still contain `1M` if present historically, but renderers skip it and planner no longer generates it.
+- Verification: Safe run (TG/Discord disabled) shows TF blocks for 1h/4h/1D/1W (no 1M).
+
 ## [v3.1.12-tf-why-explanations] - 2025-08-15
 - Feature: Added accurate per-timeframe explanations for entries/invalidations/targets sourced from the agent analysis.
   - `scripts/tracer_bullet_universe.py`: `synthesize_analysis_levels()` now attaches a number-free `explain` string per TF using bias/action, readiness, and TF strength; fallback plans also carry a clear heuristic `explain`.

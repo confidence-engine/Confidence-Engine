@@ -262,7 +262,7 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
                 pass
         plan = asset.get("plan") or {}
         # Preserve insertion order if dicts are ordered; otherwise display sorted by common TF order
-        tf_order = ["1h", "4h", "1D", "1W", "1M"]
+        tf_order = ["1h", "4h", "1D", "1W"]
         keys = [k for k in tf_order if k in plan] + [k for k in plan.keys() if k not in tf_order]
         for tf in keys:
             p = plan.get(tf) or {}

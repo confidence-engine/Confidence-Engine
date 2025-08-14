@@ -270,7 +270,7 @@ def main():
             return None
 
         # ---- Crypto TF plan helpers (do NOT change rotation helpers above) ----
-        ORDERED_TFS = ["1h", "4h", "1D", "1W", "1M"]
+        ORDERED_TFS = ["1h", "4h", "1D", "1W"]
 
         def _strength_from_scores(p: dict, tf: str) -> float:
             """
