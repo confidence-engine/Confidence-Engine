@@ -1,3 +1,39 @@
+## [docs-payload-schema-v3.2] - 2025-08-15
+- Docs: Updated `docs/payload.md` to reflect latest artifact schema and ops notes.
+  - `timescale_scores`: renamed `price_move_pct` → `price_change_pct`.
+  - Added `evidence_line` field description.
+  - Persisted `thesis` subset: `action`, `risk_band`, `readiness`.
+  - Documented per-timeframe `plan` schema: `entries`/`invalidation`/`targets` with `source`, `explain`, and `context`.
+  - Top-level `polymarket` array structure and fields.
+  - Consistency gate summary and env-controlled auto-commit/push of universe artifacts and `universe_runs/metrics.csv`.
+
+## [v3.1.29-consistency-gate-and-ci] - 2025-08-15
+- Feature: Added deterministic consistency gate for universe scans.
+  - New utility: `scripts/consistency_check.py` runs two scans under a safe deterministic profile, normalizes payloads (ignores timestamps), compares payload summaries and ranking; exits non-zero on drift.
+  - CI: `.github/workflows/ci.yml` now includes a "Consistency gate" step after tests with env `TB_DETERMINISTIC=1`, `TB_NO_TELEGRAM=1`, `TB_UNIVERSE_GIT_AUTOCOMMIT=0`, `TB_UNIVERSE_GIT_PUSH=0`.
+  - Verification: Local run passes; artifacts show identical payload tuples and ranking across back-to-back runs.
+  - Safety: No sends or git side effects; crypto-only default remains.
+
+## [v3.1.28-crypto-only-universe-default] - 2025-08-15
+- Change: Universe scan now excludes stocks by default to avoid stock-related errors and focus on crypto assets exclusively.
+  - Default behavior: only symbols with `get_symbol_type(...) == "crypto"` are analyzed.
+  - Opt-in: set `TB_INCLUDE_STOCKS=1` to include stocks again.
+  - Scope: filter applied both when loading from `config/universe.yaml` and when providing `--symbols` via CLI.
+  - File: `scripts/scan_universe.py` (`run_universe_scan()` symbol list construction).
+- Safety: No changes to downstream ranking/digest logic; Telegram/Discord gating unchanged.
+- Verification: Safe local run with `TB_NO_TELEGRAM=1 TB_UNIVERSE_GIT_AUTOCOMMIT=0 TB_UNIVERSE_GIT_PUSH=0` shows only crypto entries processed and saved.
+
+## [v3.1.27-deterministic-mode] - 2025-08-15
+- Feature: Introduced deterministic mode to make back-to-back digests consistent.
+  - Env flags: `TB_DETERMINISTIC=1` enables deterministic behavior; optional `TB_SEED=<int>` for reproducible runs across machines.
+  - Changes in `scripts/scan_universe.py`:
+    - Stable seeds using `hashlib.sha256` via `_stable_seed()`; avoid Python's process-randomized `hash()`.
+    - Use per-scope `random.Random` instances for: crypto bar gen, payload metrics, source_diversity, cascade_detector, contrarian flag, timescale_scores, and confirmation_checks.
+    - Snap crypto placeholder bar timestamps to minute boundaries when deterministic.
+  - Prior work: stock stub bars already snap to minute boundaries in `bars_stock.py`.
+- Impact: Telegram/Discord digests are repeatable between runs within minutes unless real underlying data changes.
+- Tests: Full suite green (105) with and without deterministic mode.
+
 ## [v3.1.26-discord-coins-today-fix] - 2025-08-15
 - Fix: Restored "Coins today" section in Discord Quick Summary.
   - Root cause: `_render_quick_summary()` referenced `_is_aplus_setup()` that was defined only inside `digest_to_discord_embeds()`, making it out of scope during summary rendering. The section silently skipped due to error handling.

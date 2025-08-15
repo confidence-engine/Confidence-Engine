@@ -11,6 +11,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
+import hashlib
+import random
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -25,6 +27,29 @@ from symbol_utils import normalize_symbol, get_symbol_type, validate_universe_co
 from trading_hours import trading_hours_state
 import tracer_bullet
 import telegram_bot
+
+
+def _deterministic_mode() -> bool:
+    """Return True if deterministic mode is enabled via env."""
+    return os.getenv("TB_DETERMINISTIC", "0") == "1"
+
+
+def _global_seed() -> Optional[int]:
+    s = os.getenv("TB_SEED")
+    try:
+        return int(s) if s is not None else None
+    except Exception:
+        return None
+
+
+def _stable_seed(*parts) -> int:
+    """Stable 64-bit seed derived from parts and optional global seed."""
+    base = ":".join(str(p) for p in parts)
+    g = _global_seed()
+    if g is not None:
+        base = f"{g}:{base}"
+    h = hashlib.sha256(base.encode()).digest()
+    return int.from_bytes(h[:8], "big", signed=False)
 
 
 def load_universe_config(config_path: str) -> Dict[str, List[str]]:
@@ -87,22 +112,30 @@ def _get_crypto_bars_placeholder(symbol: str, lookback_minutes: int) -> List[Dic
     """
     # For now, return stub data
     # In production, this would call the actual crypto bars function
-    import random
     from datetime import datetime, timezone, timedelta
     
     bars = []
     now = datetime.now(timezone.utc)
+    if _deterministic_mode():
+        # Snap to start of minute for repeatable timestamps
+        now = now.replace(second=0, microsecond=0)
     
     base_price = 50000.0 if symbol == "BTC/USD" else 3000.0
     
     for i in range(lookback_minutes):
         timestamp = now - timedelta(minutes=i)
         ts = int(timestamp.timestamp())
-        
-        random.seed(hash(symbol) + i)
-        price_change = (random.random() - 0.5) * 0.02
-        close = base_price * (1 + price_change)
-        volume = 1000000 * (0.5 + random.random())
+        # Use a local Random with stable seed when deterministic
+        if _deterministic_mode():
+            rnd = random.Random(_stable_seed(symbol, i, "crypto_bar"))
+            price_change = (rnd.random() - 0.5) * 0.02
+            close = base_price * (1 + price_change)
+            volume = int(1000000 * (0.5 + rnd.random()))
+        else:
+            random.seed(hash(symbol) + i)
+            price_change = (random.random() - 0.5) * 0.02
+            close = base_price * (1 + price_change)
+            volume = 1000000 * (0.5 + random.random())
         
         bars.append({
             "ts": ts,
@@ -177,13 +210,17 @@ def _create_minimal_payload(symbol: str, bars: List[Dict], symbol_type: str, mar
     else:
         price_change_pct = 0.0
     
-    # Generate some mock analysis results
-    import random
-    random.seed(hash(symbol))
-    
-    divergence = (random.random() - 0.5) * 2.0  # -1 to 1
-    confidence = 0.5 + random.random() * 0.4  # 0.5 to 0.9
-    volume_z = (random.random() - 0.5) * 2.0  # -1 to 1
+    # Generate some mock analysis results (optionally deterministic)
+    if _deterministic_mode():
+        rnd = random.Random(_stable_seed(symbol, "payload"))
+        divergence = (rnd.random() - 0.5) * 2.0  # -1 to 1
+        confidence = 0.5 + rnd.random() * 0.4   # 0.5 to 0.9
+        volume_z = (rnd.random() - 0.5) * 2.0   # -1 to 1
+    else:
+        random.seed(hash(symbol))
+        divergence = (random.random() - 0.5) * 2.0
+        confidence = 0.5 + random.random() * 0.4
+        volume_z = (random.random() - 0.5) * 2.0
     
     payload = {
         "symbol": symbol,
@@ -200,39 +237,82 @@ def _create_minimal_payload(symbol: str, bars: List[Dict], symbol_type: str, mar
     }
     
     # Add V2 features
-    payload["source_diversity"] = {
-        "unique": random.randint(1, 3),
-        "top_source_share": round(random.random() * 0.5 + 0.3, 2),
-        "counts": {"source1": random.randint(1, 3)},
-        "adjustment": round((random.random() - 0.5) * 0.1, 3)
-    }
+    if _deterministic_mode():
+        rnd_sd = random.Random(_stable_seed(symbol, "source_diversity"))
+        payload["source_diversity"] = {
+            "unique": rnd_sd.randint(1, 3),
+            "top_source_share": round(rnd_sd.random() * 0.5 + 0.3, 2),
+            "counts": {"source1": rnd_sd.randint(1, 3)},
+            "adjustment": round((rnd_sd.random() - 0.5) * 0.1, 3)
+        }
+    else:
+        payload["source_diversity"] = {
+            "unique": random.randint(1, 3),
+            "top_source_share": round(random.random() * 0.5 + 0.3, 2),
+            "counts": {"source1": random.randint(1, 3)},
+            "adjustment": round((random.random() - 0.5) * 0.1, 3)
+        }
     
-    payload["cascade_detector"] = {
-        "repetition_ratio": round(random.random(), 2),
-        "price_move_pct": abs(price_change_pct),
-        "max_volume_z": abs(volume_z),
-        "tag": "HYPE_ONLY" if random.random() > 0.7 else "",
-        "confidence_delta": -0.03 if random.random() > 0.7 else 0.0
-    }
+    if _deterministic_mode():
+        rnd_cd = random.Random(_stable_seed(symbol, "cascade_detector"))
+        payload["cascade_detector"] = {
+            "repetition_ratio": round(rnd_cd.random(), 2),
+            "price_move_pct": abs(price_change_pct),
+            "max_volume_z": abs(volume_z),
+            "tag": "HYPE_ONLY" if rnd_cd.random() > 0.7 else "",
+            "confidence_delta": -0.03 if rnd_cd.random() > 0.7 else 0.0
+        }
+    else:
+        payload["cascade_detector"] = {
+            "repetition_ratio": round(random.random(), 2),
+            "price_move_pct": abs(price_change_pct),
+            "max_volume_z": abs(volume_z),
+            "tag": "HYPE_ONLY" if random.random() > 0.7 else "",
+            "confidence_delta": -0.03 if random.random() > 0.7 else 0.0
+        }
     
-    payload["contrarian_viewport"] = "POTENTIAL_CROWD_MISTAKE" if random.random() > 0.8 else ""
+    if _deterministic_mode():
+        rnd_cv = random.Random(_stable_seed(symbol, "contrarian"))
+        payload["contrarian_viewport"] = "POTENTIAL_CROWD_MISTAKE" if rnd_cv.random() > 0.8 else ""
+    else:
+        payload["contrarian_viewport"] = "POTENTIAL_CROWD_MISTAKE" if random.random() > 0.8 else ""
     
     # Add V3 features
-    payload["timescale_scores"] = {
-        "short": {"divergence": round(divergence * 0.8, 3), "price_move_pct": abs(price_change_pct * 0.3), "volume_z": volume_z},
-        "mid": {"divergence": round(divergence * 1.1, 3), "price_move_pct": abs(price_change_pct * 0.6), "volume_z": volume_z * 0.8},
-        "long": {"divergence": round(divergence * 0.9, 3), "price_move_pct": abs(price_change_pct), "volume_z": volume_z * 0.6},
-        "combined_divergence": round(divergence, 3),
-        "aligned_horizons": random.randint(1, 3),
-        "alignment_flag": random.choice([True, False]),
-        "weights": {"short": 0.5, "mid": 0.35, "long": 0.15}
-    }
+    if _deterministic_mode():
+        rnd_ts = random.Random(_stable_seed(symbol, "timescales"))
+        payload["timescale_scores"] = {
+            "short": {"divergence": round(divergence * 0.8, 3), "price_move_pct": abs(price_change_pct * 0.3), "volume_z": volume_z},
+            "mid": {"divergence": round(divergence * 1.1, 3), "price_move_pct": abs(price_change_pct * 0.6), "volume_z": volume_z * 0.8},
+            "long": {"divergence": round(divergence * 0.9, 3), "price_move_pct": abs(price_change_pct), "volume_z": volume_z * 0.6},
+            "combined_divergence": round(divergence, 3),
+            "aligned_horizons": rnd_ts.randint(1, 3),
+            "alignment_flag": rnd_ts.choice([True, False]),
+            "weights": {"short": 0.5, "mid": 0.35, "long": 0.15}
+        }
+    else:
+        payload["timescale_scores"] = {
+            "short": {"divergence": round(divergence * 0.8, 3), "price_move_pct": abs(price_change_pct * 0.3), "volume_z": volume_z},
+            "mid": {"divergence": round(divergence * 1.1, 3), "price_move_pct": abs(price_change_pct * 0.6), "volume_z": volume_z * 0.8},
+            "long": {"divergence": round(divergence * 0.9, 3), "price_move_pct": abs(price_change_pct), "volume_z": volume_z * 0.6},
+            "combined_divergence": round(divergence, 3),
+            "aligned_horizons": random.randint(1, 3),
+            "alignment_flag": random.choice([True, False]),
+            "weights": {"short": 0.5, "mid": 0.35, "long": 0.15}
+        }
     
-    payload["confirmation_checks"] = [
-        {"name": "price_vs_narrative", "passed": random.choice([True, False]), "delta": -0.02 if random.random() > 0.7 else 0.0},
-        {"name": "volume_support", "passed": random.choice([True, False]), "delta": -0.01 if random.random() > 0.7 else 0.0},
-        {"name": "timescale_alignment", "passed": random.choice([True, False]), "delta": -0.02 if random.random() > 0.7 else 0.0}
-    ]
+    if _deterministic_mode():
+        rnd_cc = random.Random(_stable_seed(symbol, "confirmation"))
+        payload["confirmation_checks"] = [
+            {"name": "price_vs_narrative", "passed": rnd_cc.random() > 0.5, "delta": -0.02 if rnd_cc.random() > 0.7 else 0.0},
+            {"name": "volume_support", "passed": rnd_cc.random() > 0.5, "delta": -0.01 if rnd_cc.random() > 0.7 else 0.0},
+            {"name": "timescale_alignment", "passed": rnd_cc.random() > 0.5, "delta": -0.02 if rnd_cc.random() > 0.7 else 0.0}
+        ]
+    else:
+        payload["confirmation_checks"] = [
+            {"name": "price_vs_narrative", "passed": random.choice([True, False]), "delta": -0.02 if random.random() > 0.7 else 0.0},
+            {"name": "volume_support", "passed": random.choice([True, False]), "delta": -0.01 if random.random() > 0.7 else 0.0},
+            {"name": "timescale_alignment", "passed": random.choice([True, False]), "delta": -0.02 if random.random() > 0.7 else 0.0}
+        ]
     
     payload["confirmation_penalty"] = round(sum(check["delta"] for check in payload["confirmation_checks"]), 3)
     
@@ -356,11 +436,21 @@ def run_universe_scan(
     ts_utc_iso = now.replace(microsecond=0).isoformat().replace("+00:00","Z")
     ts_compact = now.strftime("%Y%m%d_%H%M%S")
     # Load universe config or use symbols
+    include_stocks = os.getenv("TB_INCLUDE_STOCKS", "0") == "1"
     if symbols:
-        symlist = [s.strip() for s in symbols]
+        # Respect explicit symbols but filter out stocks unless explicitly opted-in
+        raw_syms = [s.strip() for s in symbols]
+        if include_stocks:
+            symlist = raw_syms
+        else:
+            symlist = [s for s in raw_syms if get_symbol_type(s) == "crypto"]
     else:
         universe = load_universe_config(config_path or "config/universe.yaml")
-        symlist = universe["crypto"] + universe["stocks"]
+        if include_stocks:
+            symlist = universe.get("crypto", []) + universe.get("stocks", [])
+        else:
+            # Discard stocks entirely by default
+            symlist = list(universe.get("crypto", []))
     # Cap symbols if needed
     max_cap = max_symbols or int(os.getenv("TB_UNIVERSE_MAX_SYMBOLS","0") or 0) or None
     if max_cap:

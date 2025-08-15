@@ -25,9 +25,9 @@ import json
 - Structure:
 ```
 {
-  "short": {"divergence": float, "price_move_pct": float, "volume_z": float},
-  "mid": {"divergence": float, "price_move_pct": float, "volume_z": float},
-  "long": {"divergence": float, "price_move_pct": float, "volume_z": float},
+  "short": {"divergence": float, "price_change_pct": float, "volume_z": float},
+  "mid": {"divergence": float, "price_change_pct": float, "volume_z": float},
+  "long": {"divergence": float, "price_change_pct": float, "volume_z": float},
   "combined_divergence": float,
   "aligned_horizons": int,
   "alignment_flag": bool,
@@ -75,5 +75,68 @@ import json
 - Added to payload when available from symbol analysis
 
 ## V3.2 additions
+
+### evidence_line
+- Per-payload human evidence summary line attached post-scan. May be `null` if disabled/absent.
+
+### thesis snapshot (persisted subset)
+- Minimal stable fields persisted into each payload for chat/UI parity:
+  - `thesis.action`: "Buy" | "Sell" | "Watch"
+  - `thesis.risk_band`: "Low" | "Medium" | "High"
+  - `thesis.readiness`: "Now" | "Near" | "Later"
+
+### per-timeframe plan schema (TF plan)
+- When analysis levels are available (preferred) or synthesized/fallback, each payload may include a `plan` with keyed timeframes:
+```
+plan: {
+  "1h": {
+    "entries": [
+      {"type": "trigger" | "fade", "zone_or_trigger": float | [float, float]}
+    ],
+    "invalidation": {"price": float, "condition": "close below" | "close above" | "breach"},
+    "targets": [{"label": "TP1", "price": float}, ...],
+    "source": "analysis" | "fallback",
+    "explain": str,
+    "context": {"structure_hint": str | null, "pattern_hint": str | null, "weekly": "demand" | "supply" | null}
+  },
+  "4h": {...},
+  "1D": {...},
+  "1W": {...}
+}
+```
+- Notes:
+  - `analysis` plans are derived from agent signals/levels; `fallback` plans are heuristic using spot price.
+  - Crypto payloads may include full TF plans; stocks typically omit auto plans and only persist when explicitly provided.
+
+### Universe file enrichments
+- The saved universe artifact (see `universe_runs/*.json`) is enriched post-scan with:
+  - Per-payload `evidence_line` and persisted `thesis` subset (see above)
+  - Optional `plan` snapshot (per TF) when available/derived
+  - Top-level `polymarket`: array of simplified market items:
+```
+polymarket: [
+  {
+    "market_name": str,
+    "stance": str | null,
+    "readiness": str | null,
+    "edge_label": str | null,
+    "rationale": str | null,
+    "implied_prob": float | null,
+    "implied_pct": float | null,
+    "tb_internal_prob": float | null,
+    "liquidity_usd": float | null,
+    "event_end_date": str | null,
+    "market_id": str | null,
+    "quality_score": float | null
+  }, ...
+]
+```
+
+### Consistency and persistence notes
+- Consistency gate: CI runs a deterministic double-scan comparer to ensure identical payloads/rankings (timestamps ignored).
+- Persistence: universe artifacts and `universe_runs/metrics.csv` are auto-committed and optionally pushed, controlled by env:
+  - `TB_UNIVERSE_GIT_AUTOCOMMIT` (default "1")
+  - `TB_UNIVERSE_GIT_PUSH` (default "1")
+  - `TB_UNIVERSE_WRITE_METRICS` (default "1")
 
 

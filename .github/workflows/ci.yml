@@ -39,4 +39,13 @@ jobs:
         run: |
           pytest -q
 
+      - name: Consistency gate (deterministic universe scan)
+        env:
+          TB_NO_TELEGRAM: '1'
+          TB_UNIVERSE_GIT_AUTOCOMMIT: '0'
+          TB_UNIVERSE_GIT_PUSH: '0'
+          TB_DETERMINISTIC: '1'
+        run: |
+          python3 scripts/consistency_check.py --top 5 --max-symbols 6
+
 
