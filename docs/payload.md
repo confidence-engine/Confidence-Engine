@@ -73,3 +73,7 @@ import json
 - symbol_type: "crypto" | "stock" | "unknown"
 - market_hours_state: "RTH" | "CLOSED" | "24x7" | "UNKNOWN"
 - Added to payload when available from symbol analysis
+
+## V3.2 additions
+
+
