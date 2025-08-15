@@ -1,3 +1,15 @@
+## [ops-degraded-markers + gitops-guardrails] - 2025-08-15
+- Feature: Persist degraded-run markers and explicit skip reasons into universe artifacts.
+  - File: `scripts/tracer_bullet_universe.py`
+  - Collects `run_ctx.skip_reasons` during price/provider fetches (e.g., `binance_http_XXX:SYM`, `alpaca_err:SYM`, `pplx_err:SYM`, `polymarket_discovery_err`).
+  - On enrichment, writes top-level `degraded: bool` and `skip_reasons: [str]` into the saved `universe_runs/*.json` for auditability.
+- Ops: GitOps guardrails — auto-commit allowlist to prevent staging code.
+  - File: `autocommit.py`
+  - Added `_is_allowed_path()` allowlist: directories `universe_runs/`, `eval_runs/`, `bars/`, `docs/` and specific docs (`README.md`, `README_CLEAN.md`, `architecture.md`, `Dev_logs.md`).
+  - `stage_paths()` and `auto_commit_to_branch()` now filter paths via allowlist; worktree commit adds only copied safe files. Never stages `*.py` (or other blocked extensions).
+  - Universe enrichment auto-commit path stages only whitelisted files (`universe_runs/<artifact>.json`, optional `universe_runs/metrics.csv`).
+- Safety: Honors env gating. Defaults preserve no-sends (`TB_NO_TELEGRAM=1`, `TB_NO_DISCORD=1`) and no auto-commit/push when disabled.
+
 ## [docs-kids-explainer] - 2025-08-15
 - Docs: Added kid-friendly explainer `docs/kids_explainer.md`.
   - Simple metaphors (weather helper), step-by-step sections, safety notes, examples, and glossary.
