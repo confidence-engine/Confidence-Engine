@@ -75,6 +75,24 @@ python3 scripts/eval_runner.py
 
 ---
 
+## 5.1) Payload schema v3.2 + Consistency gate
+
+- Artifacts now include:
+  - `evidence_line` (concise narrative for chat; numbers retained only in artifacts)
+  - `thesis` snapshot with `action`, `risk_band`, `readiness`
+  - Per‑TF `plan[tf]` with `entries`/`invalidation`/`targets`, plus `source` and `explain`
+  - `timescale_scores.price_change_pct` (renamed from `price_move_pct`) and `alignment_flag`
+  - Optional top‑level `polymarket[]`
+- Deterministic consistency check (safe):
+```
+TB_DETERMINISTIC=1 TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 \
+TB_UNIVERSE_GIT_AUTOCOMMIT=0 TB_UNIVERSE_GIT_PUSH=0 \
+python3 scripts/consistency_check.py --config config/universe.yaml --top 10
+```
+Exit non‑zero on drift.
+
+---
+
 ## 6) Usage recipes
 - Universe digest (no sends)
 ```

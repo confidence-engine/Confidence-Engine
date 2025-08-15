@@ -1,3 +1,10 @@
+## [docs-readme-schema-v3.2-consistency-gate] - 2025-08-15
+- Docs: Refreshed key docs to reflect payload schema v3.2 + deterministic consistency gate.
+  - `README.md`: added "Payload schema v3.2" section and "Deterministic consistency gate" usage block after Git ops.
+  - `README_CLEAN.md`: added concise "5.1 Payload schema v3.2 + Consistency gate" with safe run command.
+  - `architecture.md`: added enrichment phase, clarified persistence paths, and noted env-gated git auto-commit/push.
+  - No code changes; safe-only edits. Not committed/pushed yet.
+
 ## [docs-payload-schema-v3.2] - 2025-08-15
 - Docs: Updated `docs/payload.md` to reflect latest artifact schema and ops notes.
   - `timescale_scores`: renamed `price_move_pct` → `price_change_pct`.

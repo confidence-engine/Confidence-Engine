@@ -425,6 +425,31 @@ Commit messages are prefixed (e.g., `eval: metrics <ts>`), and pushes are gated 
 
 ***
 
+## Payload schema v3.2 (artifact highlights)
+
+- Evidence line: per‑asset `evidence_line` persisted for explainability (number‑free in chat; numeric context kept in artifacts).
+- Thesis snapshot: top‑level `thesis` preserves `action`, `risk_band`, and `readiness` used for headers.
+- Per‑timeframe plan snapshot: `plan[tf]` with `entries`/`invalidation`/`targets`, plus `source` (`analysis|fallback`) and `explain` (plain English "Why").
+- Timescale scores: `timescale_scores` now use `price_change_pct` (renamed from `price_move_pct`) and include `alignment_flag`.
+- Polymarket array: top‑level `polymarket[]` when discovery is enabled; artifacts keep probabilities even when chat hides numbers.
+
+See `docs/payload.md` for the complete spec and examples.
+
+### Deterministic consistency gate
+
+Use the gate to verify back‑to‑back universe scans are identical under a safe, deterministic profile. CI can run this after unit tests.
+
+Usage (safe, no sends, no git side effects):
+```
+TB_DETERMINISTIC=1 TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 \
+TB_UNIVERSE_GIT_AUTOCOMMIT=0 TB_UNIVERSE_GIT_PUSH=0 \
+python3 scripts/consistency_check.py --config config/universe.yaml --top 10
+```
+
+Exit code is non‑zero on drift; logs print the first diff (payload tuple or ranking) to help isolate causes.
+
+***
+
 ## Polymarket data path (PPLX‑only)
 
 - Provider: `providers/polymarket_pplx.py` (Perplexity Pro API)
