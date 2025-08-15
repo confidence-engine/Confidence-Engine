@@ -1,3 +1,28 @@
+## [v3.1.25-confidence-inference-fix] - 2025-08-15
+- Fix: Resolved frequent 50%/45% confidence by properly interpreting `confirmation_checks`.
+  - Root cause: `confirmation.py` emits checks with `failed`/`delta`, while `_infer_signal_quality()` expected `passed`. This made all checks look not-passed, defaulting to "mixed" → base 0.50, and 0.45 under high risk.
+  - Change: `scripts/evidence_lines.py` now infers `passed` when absent using `failed` (passed = not failed) or `delta` sign (negative implies failure).
+  - Impact: Better `signal_quality` inference ("elevated"/"strong" when checks support it), which raises estimated confidence where appropriate.
+- Safety: No schema changes; logic is backward-compatible.
+- Tests: Full compile OK; will run test suite under safe profile.
+
+## [v3.1.24-discord-coins-today-parity] - 2025-08-15
+- Change (parity): Discord Quick Summary "Coins today" now mirrors Telegram style: "- Coin: Action — readiness." and retains the strict (A+) tag when applicable.
+  - File: `scripts/discord_formatter.py` (`_render_quick_summary()` "Coins today" section)
+- Safety: Number-free; no schema changes.
+
+## [v3.1.23-why-explanations-richer] - 2025-08-15
+- Feature: Made per-timeframe "Why" explanations specific and varied.
+  - File: `scripts/tracer_bullet_universe.py`
+    - Added `_compose_why()` to build richer, TF-aware reasoning (bias + TF descriptor, structure/pattern hints, strength bucket, timing, action).
+    - Appends weekly anchor cues when present ("into supply" / "from demand").
+    - Signals summary now reflects alignment, participation via `volume_label()`, and confirmation status (OK/weak/pending).
+    - Used in both analysis synthesis and fallback plan generation to keep behavior consistent.
+  - File: `explain.py`
+    - Reused `volume_label()` for natural participation text.
+- Parity: Telegram and Discord formatters already read `plan[tf]["explain"]`, so both renderers benefit without code changes.
+- Safety: Number-free phrasing preserved; no external dependencies added.
+
 > Prefer the concise history? See [Dev_logs_CLEAN.md](Dev_logs_CLEAN.md).
 
 ## [v3.1.22-remove-grades-from-digests] - 2025-08-15
