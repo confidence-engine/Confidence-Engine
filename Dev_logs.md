@@ -1,3 +1,9 @@
+## [docs-kids-explainer] - 2025-08-15
+- Docs: Added kid-friendly explainer `docs/kids_explainer.md`.
+  - Simple metaphors (weather helper), step-by-step sections, safety notes, examples, and glossary.
+  - Includes safe run and consistency-gate commands in kid-appropriate wording.
+  - No code changes.
+
 ## [docs-readme-schema-v3.2-consistency-gate] - 2025-08-15
 - Docs: Refreshed key docs to reflect payload schema v3.2 + deterministic consistency gate.
   - `README.md`: added "Payload schema v3.2" section and "Deterministic consistency gate" usage block after Git ops.
