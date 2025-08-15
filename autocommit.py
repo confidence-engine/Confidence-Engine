@@ -22,8 +22,36 @@ def has_changes() -> bool:
     code, out, _ = _run(["git", "status", "--porcelain"])
     return out != ""
 
+def _is_allowed_path(p: str) -> bool:
+    """Allowlist for auto-commit. Only docs/artifacts, never code.
+    Allowed prefixes: universe_runs/, eval_runs/, bars/, docs/
+    Allowed files: README.md, README_CLEAN.md, architecture.md, Dev_logs.md
+    Block extensions: .py, .sh, .ipynb, .js, .ts, .go, .rs
+    """
+    import os
+    p = p.strip()
+    if not p:
+        return False
+    # Normalize
+    p_norm = p.replace("\\", "/")
+    # Block by extension
+    blocked_ext = (".py", ".sh", ".ipynb", ".js", ".ts", ".go", ".rs")
+    if p_norm.lower().endswith(blocked_ext):
+        return False
+    # Allow by exact files
+    allow_files = {"README.md", "README_CLEAN.md", "architecture.md", "Dev_logs.md"}
+    base = os.path.basename(p_norm)
+    if base in allow_files:
+        return True
+    # Allow by directory prefixes
+    allowed_dirs = ("universe_runs/", "eval_runs/", "bars/", "docs/")
+    return any(p_norm.startswith(pref) for pref in allowed_dirs)
+
 def stage_paths(paths):
-    _run(["git", "add"] + paths)
+    safe = [p for p in paths if _is_allowed_path(p)]
+    if not safe:
+        return
+    _run(["git", "add"] + safe)
 
 def current_branch() -> str:
     code, out, _ = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
@@ -64,8 +92,14 @@ def auto_commit_to_branch(paths, target_branch="data", extra_message="") -> str:
     # Stash current changes not in our paths (avoid dirty state issues)
     _run(["git", "stash", "--keep-index", "-u"])
 
+    # Filter to allowlisted-safe paths only
+    safe_paths = [p for p in paths if _is_allowed_path(p)]
+    if not safe_paths:
+        _run(["git", "stash", "pop"])  # restore and exit
+        return "No allowed paths to commit for data branch."
+
     # Create a temporary commit on a detached tree for these paths
-    _run(["git", "add"] + paths)
+    _run(["git", "add"] + safe_paths)
     if not has_changes():
         _run(["git", "stash", "pop"])
         return "No changes to commit for data branch."
@@ -113,7 +147,7 @@ def auto_commit_to_branch(paths, target_branch="data", extra_message="") -> str:
     # Copy files into worktree
     import os, shutil
     try:
-        for p in paths:
+        for p in safe_paths:
             if not os.path.exists(p):
                 continue
             dst = os.path.join(worktree_dir, p)
@@ -126,8 +160,11 @@ def auto_commit_to_branch(paths, target_branch="data", extra_message="") -> str:
                 os.makedirs(os.path.dirname(dst) or worktree_dir, exist_ok=True)
                 shutil.copy2(p, dst)
 
-        # Commit in worktree
-        _run(["git", "-C", worktree_dir, "add", "."])
+        # Commit in worktree: add only the copied safe paths
+        add_list = []
+        for p in safe_paths:
+            add_list.append(p)
+        _run(["git", "-C", worktree_dir, "add"] + add_list)
         code, _, _ = _run(["git", "-C", worktree_dir, "status", "--porcelain"])
         if code == 0:
             # Make commit only if changes

@@ -161,6 +161,8 @@ def main():
     human_enabled = os.getenv("TB_HUMAN_DIGEST", "1") != "0"
     payloads: List[Dict] = summary.get("payloads") or []
     if human_enabled and payloads:
+        # Degraded context: collect skip reasons and mark degraded runs for auditability
+        run_ctx = {"skip_reasons": [], "degraded": False}
         # Order: BTC, ETH, other crypto, then stocks
         def is_crypto(p):
             return (p.get("symbol_type") == "crypto")
@@ -200,8 +202,13 @@ def main():
                 r = requests.get(url, timeout=10)
                 if r.status_code == 200:
                     return float(r.json().get("price"))
+                else:
+                    run_ctx["skip_reasons"].append(f"binance_http_{r.status_code}:{sym}")
+                    run_ctx["degraded"] = True
             except Exception as e:
                 # Defer handling to rotation wrapper
+                run_ctx["skip_reasons"].append(f"binance_err:{sym}")
+                run_ctx["degraded"] = True
                 raise e
 
         def _normalize_crypto_symbol(sym: str) -> str:
@@ -222,6 +229,8 @@ def main():
                 if df is not None and len(df) > 0 and "close" in df.columns:
                     return float(df["close"].iloc[-1])
             except Exception as e:
+                run_ctx["skip_reasons"].append(f"alpaca_err:{sym}")
+                run_ctx["degraded"] = True
                 raise e
             return None
 
@@ -252,6 +261,8 @@ def main():
                     return price
             except Exception as e:
                 print(f"[WARN] PPLX price fetch failed for {symbol}: {e}")
+                run_ctx["skip_reasons"].append(f"pplx_err:{symbol}")
+                run_ctx["degraded"] = True
             return None
 
         def get_stock_spot_price(symbol: str):
@@ -741,7 +752,9 @@ def main():
                 "ETH": _ctx_from(eth_info),
             }
             polymarket_items = discover_polymarket(context=ctx)
-        except Exception:
+        except Exception as pe:
+            run_ctx["skip_reasons"].append("polymarket_discovery_err")
+            run_ctx["degraded"] = True
             polymarket_items = []
         evidence_sink: Dict[str, str] = {}
         text = tg_fmt.render_digest(
@@ -759,7 +772,21 @@ def main():
         # Enrich saved artifact with evidence lines and polymarket array (storage only; no chat change)
         try:
             ufile = summary.get("universe_file")
+            # Persist degraded markers & skip reasons into artifact for auditability
             enrich_artifact(ufile, evidence_sink, polymarket_items, assets_data=assets_data)
+            if ufile and (run_ctx["degraded"] or run_ctx["skip_reasons"]):
+                import json
+                try:
+                    with open(ufile, "r") as f:
+                        udata = json.load(f)
+                    udata["degraded"] = bool(run_ctx["degraded"])   # top-level flag
+                    if isinstance(run_ctx["skip_reasons"], list):
+                        # de-dup to keep artifact tidy
+                        udata["skip_reasons"] = sorted(list({str(x) for x in run_ctx["skip_reasons"]}))
+                    with open(ufile, "w") as f:
+                        json.dump(udata, f, indent=2)
+                except Exception as we:
+                    print(f"[Artifact] Could not persist degraded markers: {we}")
             # After enrichment, the universe file is modified post scan_universe's commit.
             # If auto-commit is enabled, commit and optionally push the enrichment changes now.
             try:
@@ -767,8 +794,21 @@ def main():
                 pushc = os.getenv("TB_UNIVERSE_GIT_PUSH", "1") == "1"
                 if autoc and ufile:
                     import subprocess
-                    # Stage the modified universe file and metrics.csv if present
-                    subprocess.run(["git", "add", ufile, "universe_runs/metrics.csv"], check=False)
+                    # Stage only whitelisted artifact/doc paths (guardrails: never stage code)
+                    whitelist = [ufile]
+                    metrics_path = "universe_runs/metrics.csv"
+                    if os.path.exists(metrics_path):
+                        whitelist.append(metrics_path)
+                    safe_to_add = []
+                    for p in whitelist:
+                        # block any accidental code files
+                        if p.endswith((".py", ".sh")):
+                            run_ctx["skip_reasons"].append(f"blocked_stage:{p}")
+                            run_ctx["degraded"] = True
+                            continue
+                        safe_to_add.append(p)
+                    if safe_to_add:
+                        subprocess.run(["git", "add"] + safe_to_add, check=False)
                     msg = f"universe: enrichment (evidence_line + polymarket) for {os.path.basename(ufile)}"
                     # Commit only if there is something to commit
                     r = subprocess.run(["git", "commit", "-m", msg], check=False)
