@@ -13,6 +13,68 @@ def _hdr_val(v, default):
     return s if s else default
 
 
+def _is_aplus_setup(asset: Dict[str, Any]) -> bool:
+    """Heuristic for A+ setups using existing fields (no numbers). Visible to all functions in this module."""
+    if not isinstance(asset, dict):
+        return False
+    th = asset.get("thesis") or {}
+    action = (th.get("action") or asset.get("action") or "").lower()
+    if action not in ("buy", "long", "sell", "short"):
+        return False
+    readiness = (th.get("readiness") or asset.get("readiness") or "").lower()
+    if readiness not in ("now", "near"):
+        return False
+    # Alignment: accept any of the known flags, including nested timescale_scores.alignment_flag
+    tss = asset.get("timescale_scores") or {}
+    aligned = bool(
+        asset.get("alignment_flag")
+        or th.get("tf_aligned")
+        or (isinstance(tss, dict) and tss.get("alignment_flag"))
+    )
+    if not aligned:
+        return False
+    # Signal quality: prefer explicit field; otherwise infer from confirmation_checks
+    sigq = (asset.get("signal_quality") or th.get("signal_quality") or "").lower()
+    if not sigq:
+        checks = asset.get("confirmation_checks") or []
+        try:
+            # Be robust to providers emitting failed/delta instead of passed
+            passed: Dict[str, bool] = {}
+            for c in checks:
+                if not isinstance(c, dict):
+                    continue
+                name = str(c.get("name"))
+                if not name:
+                    continue
+                if "passed" in c:
+                    passed[name] = bool(c.get("passed"))
+                elif "failed" in c:
+                    passed[name] = not bool(c.get("failed"))
+                else:
+                    try:
+                        delta = float(c.get("delta", 0.0) or 0.0)
+                    except Exception:
+                        delta = 0.0
+                    passed[name] = (delta >= 0.0)
+            pv = passed.get("price_vs_narrative", False)
+            vol = passed.get("volume_support", False)
+            tfa = passed.get("timescale_alignment", False)
+            if pv and vol and (tfa or aligned):
+                sigq = "strong"
+            elif pv or vol:
+                sigq = "elevated"
+            else:
+                sigq = "mixed"
+        except Exception:
+            sigq = "mixed"
+    if sigq not in ("strong", "elevated"):
+        return False
+    risk_band = (th.get("risk_band") or asset.get("risk") or asset.get("risk_band") or "").lower()
+    if risk_band == "high":
+        return False
+    return True
+
+
 def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Map structured digest_data to Discord embeds.
 
@@ -49,7 +111,7 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
             return True
         return s.startswith(CRYPTO_PREFIXES)
 
-    # Helpers for simple English and A+ heuristic
+    # Helpers for simple English
     def _simple_english(text):
         if not isinstance(text, str):
             return text
@@ -66,48 +128,6 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
             out = out.replace(k, v)
         return out
 
-    def _is_aplus_setup(asset: Dict[str, Any]) -> bool:
-        if not isinstance(asset, dict):
-            return False
-        th = asset.get("thesis") or {}
-        action = (th.get("action") or asset.get("action") or "").lower()
-        if action not in ("buy", "long", "sell", "short"):
-            return False
-        readiness = (th.get("readiness") or asset.get("readiness") or "").lower()
-        if readiness not in ("now", "near"):
-            return False
-        # Alignment: accept any of the known flags, including nested timescale_scores.alignment_flag
-        tss = asset.get("timescale_scores") or {}
-        aligned = bool(
-            asset.get("alignment_flag")
-            or th.get("tf_aligned")
-            or (isinstance(tss, dict) and tss.get("alignment_flag"))
-        )
-        if not aligned:
-            return False
-        # Signal quality: prefer explicit field; otherwise infer from confirmation_checks
-        sigq = (asset.get("signal_quality") or th.get("signal_quality") or "").lower()
-        if not sigq:
-            checks = asset.get("confirmation_checks") or []
-            try:
-                passed = {str(c.get("name")): bool(c.get("passed")) for c in checks if isinstance(c, dict)}
-                pv = passed.get("price_vs_narrative", False)
-                vol = passed.get("volume_support", False)
-                tfa = passed.get("timescale_alignment", False)
-                if pv and vol and (tfa or aligned):
-                    sigq = "strong"
-                elif pv or vol:
-                    sigq = "elevated"
-                else:
-                    sigq = "mixed"
-            except Exception:
-                sigq = "mixed"
-        if sigq not in ("strong", "elevated"):
-            return False
-        risk_band = (th.get("risk_band") or asset.get("risk") or asset.get("risk_band") or "").lower()
-        if risk_band == "high":
-            return False
-        return True
 
     # Header / Executive Take
     exec_raw = digest_data.get("executive_take")

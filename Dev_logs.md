@@ -1,3 +1,10 @@
+## [v3.1.26-discord-coins-today-fix] - 2025-08-15
+- Fix: Restored "Coins today" section in Discord Quick Summary.
+  - Root cause: `_render_quick_summary()` referenced `_is_aplus_setup()` that was defined only inside `digest_to_discord_embeds()`, making it out of scope during summary rendering. The section silently skipped due to error handling.
+  - Change: Moved `_is_aplus_setup()` to module scope in `scripts/discord_formatter.py` and hardened its inference of `passed` from `failed`/`delta`.
+  - Parity: Matches Telegram `scripts/tg_digest_formatter.py` output style (`Action — readiness` + optional (A+) tag).
+- Tests: Full suite green (105) under safe profile.
+
 ## [v3.1.25-confidence-inference-fix] - 2025-08-15
 - Fix: Resolved frequent 50%/45% confidence by properly interpreting `confirmation_checks`.
   - Root cause: `confirmation.py` emits checks with `failed`/`delta`, while `_infer_signal_quality()` expected `passed`. This made all checks look not-passed, defaulting to "mixed" → base 0.50, and 0.45 under high risk.

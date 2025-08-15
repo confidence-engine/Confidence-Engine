@@ -79,11 +79,12 @@ def _get_stub_bars_stock(symbol: str, lookback_minutes: int) -> List[Dict]:
         base_price = 400.0
     
     bars = []
-    now = datetime.now(timezone.utc)
+    # Snap to the start of the current minute to ensure deterministic timestamps across calls
+    now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
     
     # Generate bars going backwards in time
     for i in range(max(1, lookback_minutes)):  # Ensure at least 1 bar
-        # Create timestamp (1-minute intervals)
+        # Create timestamp (1-minute intervals) from a fixed minute anchor
         timestamp = now - timedelta(minutes=i)
         ts = int(timestamp.timestamp())
         
