@@ -10,6 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.scan_universe import run_universe_scan
 from typing import Dict, List
+from explain import volume_label
 
 # New additive imports for human digest
 from scripts import tg_weekly_engine
@@ -297,6 +298,77 @@ def main():
             m = max(0.0, min(1.0, abs(v)))
             return 0.5 + m  # 0.5..1.5
 
+        def _compose_why(tf: str, direction: int, struct_hint: str, pattern_hint: str, strength: float, readiness: str, action: str, payload: dict, thesis: dict) -> str:
+            """Build a richer, number-free explanation string for a TF.
+            Includes: bias + TF, structure, optional pattern, strength bucket, timing, action,
+            weekly anchors (if present), and Signals: alignment/participation/confirmation.
+            """
+            # TF descriptor for variety
+            tf_desc = {
+                "1h": "intraday",
+                "4h": "swing",
+                "1D": "daily",
+                "1W": "weekly",
+                "1M": "monthly",
+            }.get(tf, tf)
+            # Base clause by direction
+            if direction > 0:
+                why = f"Bias up on {tf} ({tf_desc}); using trigger entries aligned with momentum ({struct_hint})."
+            elif direction < 0:
+                why = f"Bias down on {tf} ({tf_desc}); using fade entries into structure ({struct_hint})."
+            else:
+                why = f"Neutral bias on {tf} ({tf_desc}); tight trigger and symmetric guard ({struct_hint})."
+            if pattern_hint:
+                why += f" {pattern_hint}."
+            # Strength bucket
+            strength_lbl = ("elevated" if strength > 1.15 else ("balanced" if strength > 0.85 else "muted"))
+            why += f" Strength {strength_lbl}, timing {readiness}, action {action}."
+            # Weekly anchors
+            try:
+                wk = payload.get("weekly_anchor") or {}
+                if isinstance(wk, dict):
+                    if wk.get("supply_zone") and direction <= 0:
+                        why += " Weekly: into supply."
+                    if wk.get("demand_zone") and direction >= 0:
+                        why += " Weekly: from demand."
+            except Exception:
+                pass
+            # Signals: alignment, flow, confirmation
+            try:
+                aligned = bool(payload.get("alignment_flag") or thesis.get("tf_aligned") or False)
+                # map tf to band for participation
+                if tf in ("1h",):
+                    band = "short"
+                elif tf in ("4h", "1D"):
+                    band = "mid"
+                else:
+                    band = "long"
+                z = None
+                tss = payload.get("timescale_scores", {})
+                if isinstance(tss.get(band), dict):
+                    z = tss.get(band, {}).get("volume_z")
+                flow = volume_label(z) if isinstance(z, (int, float)) else None
+                conf_pen = payload.get("confirmation_penalty")
+                conf_checks = payload.get("confirmation_checks")
+                if conf_checks is not None:
+                    if isinstance(conf_pen, (int, float)) and conf_pen < 0:
+                        conf_txt = "confirmation weak"
+                    else:
+                        conf_txt = "confirmation OK"
+                else:
+                    conf_txt = "confirmation pending"
+                parts = []
+                parts.append("aligned" if aligned else "mixed alignment")
+                if flow:
+                    parts.append(flow)
+                if conf_txt:
+                    parts.append(conf_txt)
+                if parts:
+                    why += " Signals: " + ", ".join(parts) + "."
+            except Exception:
+                pass
+            return why
+
         def synthesize_analysis_levels(sym: str, p: dict, spot: float, thesis: dict) -> dict:
             """
             Create analysis-derived per-TF levels from agent signals when explicit levels are absent.
@@ -310,14 +382,16 @@ def main():
             readiness = str(thesis.get("readiness", "")).lower() or "later"
             action = str(thesis.get("action", "")).lower() or "watch"
             struct_txt = str((p.get("structure") or p.get("pattern") or "")).lower()
-            if "trend" in struct_txt:
+            if "breakout" in struct_txt or "bo" in struct_txt:
+                struct_hint = "breakout context"
+            elif "trend" in struct_txt:
                 struct_hint = "trend continuation"
             elif "range" in struct_txt or "reversion" in struct_txt:
                 struct_hint = "range context"
             else:
-                struct_hint = "structure context"
+                struct_hint = "neutral structure"
             # Pattern specificity
-            if any(k in struct_txt for k in ("breakout", "bo")):
+            if any(k in struct_txt for k in ("breakout", "bo", "b/o")):
                 pattern_hint = "breakout setup"
             elif "retest" in struct_txt:
                 pattern_hint = "retest setup"
@@ -342,61 +416,8 @@ def main():
                 # Scale offsets by strength (analysis-driven)
                 for k in pcts:
                     pcts[k] *= strength
-                # Build concise explanation from analysis context (number-free)
-                if direction > 0:
-                    why = f"Bias up on {tf}; using trigger entries aligned with momentum ({struct_hint})."
-                elif direction < 0:
-                    why = f"Bias down on {tf}; using fade entries into structure ({struct_hint})."
-                else:
-                    why = f"Neutral bias on {tf}; tight trigger and symmetric guard ({struct_hint})."
-                if pattern_hint:
-                    why += f" {pattern_hint}."
-                # Strength, timing, action
-                why += f" Strength {('elevated' if strength>1.15 else ('balanced' if strength>0.85 else 'muted'))}, timing {readiness}, action {action}."
-                # Optional weekly anchor reference if available on payload
-                try:
-                    wk = p.get("weekly_anchor") or {}
-                    if isinstance(wk, dict):
-                        if wk.get("supply_zone") and direction <= 0:
-                            why += " Weekly: into supply."
-                        if wk.get("demand_zone") and direction >= 0:
-                            why += " Weekly: from demand."
-                except Exception:
-                    pass
-                # Signals: alignment, participation, confirmation (number-free)
-                try:
-                    aligned = bool(p.get("alignment_flag") or thesis.get("tf_aligned") or False)
-                    # map tf to band for participation
-                    if tf in ("1h",):
-                        band = "short"
-                    elif tf in ("4h", "1D"):
-                        band = "mid"
-                    else:
-                        band = "long"
-                    z = None
-                    tss = p.get("timescale_scores", {})
-                    if isinstance(tss.get(band), dict):
-                        z = tss.get(band, {}).get("volume_z")
-                    flow = volume_label(z) if isinstance(z, (int, float)) else None
-                    conf_pen = p.get("confirmation_penalty")
-                    conf_checks = p.get("confirmation_checks")
-                    if conf_checks is not None:
-                        if isinstance(conf_pen, (int, float)) and conf_pen < 0:
-                            conf_txt = "confirmation weak"
-                        else:
-                            conf_txt = "confirmation OK"
-                    else:
-                        conf_txt = "confirmation pending"
-                    parts = []
-                    parts.append("aligned" if aligned else "mixed alignment")
-                    if flow:
-                        parts.append(flow)
-                    if conf_txt:
-                        parts.append(conf_txt)
-                    if parts:
-                        why += " Signals: " + ", ".join(parts) + "."
-                except Exception:
-                    pass
+                # Build concise explanation using helper
+                why = _compose_why(tf, direction, struct_hint, pattern_hint, strength, readiness, action, p, thesis)
                 if direction > 0:
                     out[tf] = {
                         "entry_type": "trigger",
@@ -557,6 +578,7 @@ def main():
                         }
                         for tf in ORDERED_TFS:
                             pcts = tf_pcts.get(str(tf), tf_pcts.get("daily"))
+                            strength = _strength_from_scores(p, tf)
                             if thesis["bias"] == "up":
                                 entries_items = [{"type": "trigger", "zone_or_trigger": spot_price * (1.0 + pcts["trig"])}]
                                 invalid = {"price": spot_price * (1.0 - pcts["inv"]), "condition": "close below"}
@@ -564,20 +586,60 @@ def main():
                                     {"label": "TP1", "price": spot_price * (1.0 + pcts["tp1"] )},
                                     {"label": "TP2", "price": spot_price * (1.0 + pcts["tp2"] )},
                                 ]
-                                explain = f"Bias up on {tf}; using trigger entries aligned with momentum. Strength {'elevated' if _strength_from_scores(p, tf)>1.15 else ('balanced' if _strength_from_scores(p, tf)>0.85 else 'muted')}, timing {thesis['readiness']}, action {thesis['action']}."
+                                # Compose richer explanation similar to analysis path
+                                struct_txt = str((p.get("structure") or p.get("pattern") or "")).lower()
+                                if any(k in struct_txt for k in ("breakout", "bo", "b/o")):
+                                    pattern_hint = "breakout setup"
+                                    struct_hint = "breakout context"
+                                elif "trend" in struct_txt:
+                                    pattern_hint = "pullback setup" if "pullback" in struct_txt or "pb" in struct_txt else None
+                                    struct_hint = "trend continuation"
+                                elif "range" in struct_txt or "reversion" in struct_txt:
+                                    pattern_hint = "range fade"
+                                    struct_hint = "range context"
+                                else:
+                                    pattern_hint = None
+                                    struct_hint = "neutral structure"
+                                explain = _compose_why(tf, +1, struct_hint, pattern_hint, strength, thesis['readiness'], thesis['action'], p, thesis)
                             elif thesis["bias"] == "down":
-                                entries_items = [{"type": "fade", "zone_or_trigger": [spot_price * (1.0 - pcts["fade_hi"]), spot_price * (1.0 - pcts["fade_lo"]) ]}]
+                                entries_items = [{"type": "fade", "zone_or_trigger": [spot_price * (1.0 - pcts["fade_hi"]), spot_price * (1.0 - pcts["fade_lo"] )]}]
                                 invalid = {"price": spot_price * (1.0 + pcts["inv"]), "condition": "close above"}
                                 targets = [
                                     {"label": "TP1", "price": spot_price * (1.0 - pcts["tp1"] )},
                                     {"label": "TP2", "price": spot_price * (1.0 - pcts["tp2"] )},
                                 ]
-                                explain = f"Bias down on {tf}; using fade entries into structure. Strength {'elevated' if _strength_from_scores(p, tf)>1.15 else ('balanced' if _strength_from_scores(p, tf)>0.85 else 'muted')}, timing {thesis['readiness']}, action {thesis['action']}."
+                                struct_txt = str((p.get("structure") or p.get("pattern") or "")).lower()
+                                if any(k in struct_txt for k in ("breakout", "bo", "b/o")):
+                                    pattern_hint = "breakout fail"
+                                    struct_hint = "breakout context"
+                                elif "trend" in struct_txt:
+                                    pattern_hint = "lower-high fade" if ("pullback" in struct_txt or "pb" in struct_txt) else None
+                                    struct_hint = "trend continuation"
+                                elif "range" in struct_txt or "reversion" in struct_txt:
+                                    pattern_hint = "range fade"
+                                    struct_hint = "range context"
+                                else:
+                                    pattern_hint = None
+                                    struct_hint = "neutral structure"
+                                explain = _compose_why(tf, -1, struct_hint, pattern_hint, strength, thesis['readiness'], thesis['action'], p, thesis)
                             else:
                                 entries_items = [{"type": "trigger", "zone_or_trigger": spot_price}]
                                 invalid = {"price": spot_price * (1.0 - max(0.01, pcts["trig"])), "condition": "breach"}
                                 targets = [{"label": "TP1", "price": spot_price * (1.0 + max(0.01, pcts["trig"]))}]
-                                explain = f"Neutral bias on {tf}; tight trigger and symmetric guard. Strength {'balanced' if 0.85<=_strength_from_scores(p, tf)<=1.15 else ('muted' if _strength_from_scores(p, tf)<0.85 else 'elevated')}, timing {thesis['readiness']}, action {thesis['action']}."
+                                struct_txt = str((p.get("structure") or p.get("pattern") or "")).lower()
+                                if any(k in struct_txt for k in ("breakout", "bo", "b/o")):
+                                    pattern_hint = "watch the breakout retest"
+                                    struct_hint = "breakout context"
+                                elif "trend" in struct_txt:
+                                    pattern_hint = "neutral pullback"
+                                    struct_hint = "trend continuation"
+                                elif "range" in struct_txt or "reversion" in struct_txt:
+                                    pattern_hint = "range balance"
+                                    struct_hint = "range context"
+                                else:
+                                    pattern_hint = None
+                                    struct_hint = "neutral structure"
+                                explain = _compose_why(tf, 0, struct_hint, pattern_hint, strength, thesis['readiness'], thesis['action'], p, thesis)
                             base_plan[tf] = {"entries": entries_items, "invalidation": invalid, "targets": targets, "source": "fallback", "explain": explain}
                     else:
                         base_plan = {}

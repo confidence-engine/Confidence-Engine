@@ -495,13 +495,13 @@ def _render_quick_summary(weekly: Any, engine: Any, assets: List[Dict[str, Any]]
         try:
             sym = a.get("symbol")
             th0 = a.get("thesis") or {}
-            act = th0.get("action") or a.get("action")
-            ready = th0.get("readiness") or a.get("readiness")
+            act = (th0.get("action") or a.get("action") or "").strip()
+            ready = (th0.get("readiness") or a.get("readiness") or "").strip()
             if not act:
                 continue
             label = _name(sym)
             tag = " (A+)" if _is_aplus_setup(a) else ""
-            coin_lines.append(f"- {label}: {_simple_action(act)} — {_readiness_note(ready)}.{tag}")
+            coin_lines.append(f"- {label}: {act.title()} — {_readiness_note(ready)}.{tag}")
         except Exception:
             continue
     if coin_lines:

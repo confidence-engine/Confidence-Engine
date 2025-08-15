@@ -164,7 +164,27 @@ def _infer_signal_quality(asset: Dict[str, Any], th: Dict[str, Any], aligned: bo
         return sigq
     checks = asset.get("confirmation_checks") or []
     try:
-        passed = {str(c.get("name")): bool(c.get("passed")) for c in checks if isinstance(c, dict)}
+        # Robustly infer 'passed' when providers only supply 'failed'/'delta'
+        passed: Dict[str, bool] = {}
+        for c in checks:
+            if not isinstance(c, dict):
+                continue
+            name = str(c.get("name"))
+            if not name:
+                continue
+            if "passed" in c:
+                passed[name] = bool(c.get("passed"))
+            else:
+                # Infer: if 'failed' key present, passed = not failed
+                if "failed" in c:
+                    passed[name] = not bool(c.get("failed"))
+                else:
+                    # As a last resort, use delta sign: negative delta implies a failure (not passed)
+                    try:
+                        delta = float(c.get("delta", 0.0) or 0.0)
+                    except Exception:
+                        delta = 0.0
+                    passed[name] = (delta >= 0.0)
         pv = passed.get("price_vs_narrative", False)
         vol = passed.get("volume_support", False)
         tfa = passed.get("timescale_alignment", False)
