@@ -252,6 +252,54 @@ def render_digest(
             lines.append("- No qualifying BTC/ETH markets today.")
         lines.append("")
 
+    # Polymarket — Full (optional expanded section)
+    try:
+        if os.getenv("TB_POLYMARKET_FULL", "0") == "1" and pm_list:
+            lines.append("Polymarket — Full")
+            for pm in pm_list:
+                title = pm.get("title") or "Crypto market"
+                stance = pm.get("stance") or "Stand Aside"
+                readiness = pm.get("readiness") or "Later"
+                edge = pm.get("edge_label") or "in-line"
+                lines.append(f"- {title}")
+                lines.append(f"  {stance} | {readiness} | {edge}")
+                rat = pm.get("rationale_chat")
+                if rat:
+                    lines.append("  " + rat)
+                if os.getenv("TB_POLYMARKET_SHOW_CONFIDENCE", "0") == "1":
+                    ip = pm.get("internal_prob")
+                    try:
+                        if isinstance(ip, (int, float)):
+                            lines.append(f"  Confidence: {round(float(ip)*100)}% (internal)")
+                    except Exception:
+                        pass
+                if os.getenv("TB_POLYMARKET_SHOW_OUTCOME", "1") == "1" and os.getenv("TB_POLYMARKET_NUMBERS_IN_CHAT", "0") == "1":
+                    out_label = pm.get("outcome_label") or pm.get("implied_side") or "-"
+                    if os.getenv("TB_POLYMARKET_SHOW_PROB", "0") == "1":
+                        pct = pm.get("implied_pct")
+                        try:
+                            if isinstance(pct, int):
+                                out_label = f"{out_label} ({pct}%)"
+                            else:
+                                if isinstance(pm.get("implied_prob"),(int,float)):
+                                    out_label = f"{out_label} ({float(pm['implied_prob'])*100:.0f}%)"
+                        except Exception:
+                            pass
+                        try:
+                            ip = pm.get("internal_prob")
+                            imp = pm.get("implied_prob")
+                            if isinstance(ip,(int,float)) and isinstance(imp,(int,float)):
+                                ipct = round(float(ip)*100)
+                                mpct = round(float(imp)*100)
+                                if abs(ipct - mpct) >= 3:
+                                    out_label += f" | Model: {ipct}%"
+                        except Exception:
+                            pass
+                    lines.append(f"  Outcome: {out_label}")
+            lines.append("")
+    except Exception:
+        pass
+
     # Asset blocks
     drift_warn = float(os.getenv("TB_DIGEST_DRIFT_WARN_PCT", options.get("drift_warn_pct", 0.5)))
     max_tfs = int(os.getenv("TB_DIGEST_MAX_TFS", options.get("max_tfs", 2)))
@@ -470,11 +518,6 @@ def render_digest(
         if coin_lines:
             qs_lines.append("Coins today:")
             qs_lines.extend(coin_lines)
-
-        # How to trade
-        qs_lines.append("How to trade this:")
-        qs_lines.append("- Take only A+ setups that match both story and price.")
-        qs_lines.append("- If the move breaks, exit quickly; if it confirms, add slowly.")
         lines.extend(qs_lines)
     except Exception:
         pass

@@ -292,6 +292,63 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
             "color": 0x8A2BE2,
         })
 
+    # Polymarket — Full (optional expanded section)
+    try:
+        if (os.getenv("TB_POLYMARKET_FULL", "0") == "1") and pm_list:
+            pm_fields_full: List[Dict[str, Any]] = []
+            for pm in pm_list:
+                title = pm.get("title") or "Crypto market"
+                stance = pm.get("stance") or "Stand Aside"
+                readiness = pm.get("readiness") or "Later"
+                edge = pm.get("edge_label") or "in-line"
+                val_lines = [f"{stance} | {readiness} | {edge}"]
+                rat = pm.get("rationale_chat")
+                if rat:
+                    val_lines.append(rat)
+                if os.getenv("TB_POLYMARKET_SHOW_CONFIDENCE", "0") == "1":
+                    ip = pm.get("internal_prob")
+                    try:
+                        if isinstance(ip,(int,float)):
+                            val_lines.append(f"Confidence: {round(float(ip)*100)}% (internal)")
+                    except Exception:
+                        pass
+                if os.getenv("TB_POLYMARKET_SHOW_OUTCOME", "1") == "1" and os.getenv("TB_POLYMARKET_NUMBERS_IN_CHAT", "0") == "1":
+                    out_label = pm.get("outcome_label") or pm.get("implied_side") or "-"
+                    if os.getenv("TB_POLYMARKET_SHOW_PROB", "0") == "1":
+                        pct = pm.get("implied_pct")
+                        try:
+                            if isinstance(pct, int):
+                                out_label = f"{out_label} ({pct}%)"
+                            else:
+                                imp = pm.get("implied_prob")
+                                if isinstance(imp,(int,float)):
+                                    out_label = f"{out_label} ({float(imp)*100:.0f}%)"
+                        except Exception:
+                            pass
+                        try:
+                            ip = pm.get("internal_prob")
+                            imp = pm.get("implied_prob")
+                            if isinstance(ip,(int,float)) and isinstance(imp,(int,float)):
+                                ipct = round(float(ip)*100)
+                                mpct = round(float(imp)*100)
+                                if abs(ipct - mpct) >= 3:
+                                    out_label += f" | Model: {ipct}%"
+                        except Exception:
+                            pass
+                    val_lines.append(f"Outcome: {out_label}")
+                pm_fields_full.append({
+                    "name": title,
+                    "value": "\n".join(val_lines) or "-",
+                    "inline": False,
+                })
+            embeds.append({
+                "title": "Polymarket — Full",
+                "fields": pm_fields_full or [{"name": "-", "value": "-", "inline": False}],
+                "color": 0x6A5ACD,
+            })
+    except Exception:
+        pass
+
     # Assets
     for asset in digest_data.get("assets", []):
         # Optional: hide equities if no live provider (spot None)
@@ -527,11 +584,5 @@ def _render_quick_summary(weekly: Any, engine: Any, assets: List[Dict[str, Any]]
     if coin_lines:
         parts.append("Coins today:")
         parts.extend(coin_lines)
-
-    # How to trade
-    parts.append("How to trade this:")
-    parts.append("- Take only A+ setups that match both story and price.")
-    parts.append("- If the move breaks, exit quickly; if it confirms, add slowly.")
-    parts.append("- Use the invalidation as your safety line so losses stay small.")
 
     return "\n".join([p for p in parts if isinstance(p, str) and p.strip()])

@@ -509,10 +509,20 @@ python3 scripts/eval_ingest.py --input eval_data/resolved/sample.csv
 python3 scripts/eval_runner.py
 ```
 
+- Standalone Polymarket digest:
+```
+# Default (PPLX provider). Request 30 items, no client-side cap, write Markdown
+TB_POLYMARKET_LIMIT=30 TB_POLYMARKET_PPLX_MAX=0 \
+python3 scripts/polymarket_digest.py --format md --output polymarket.md
+
+# Use native public API explicitly (and remove local cap)
+python3 scripts/polymarket_digest.py --provider native --full
+```
+Notes: `--full` applies to the native provider. PPLX count is controlled via `TB_POLYMARKET_LIMIT` and optional `TB_POLYMARKET_PPLX_MAX`.
+
 ***
 
-## Non‑bias design (how we keep it honest)
-
+## Polymarket configuration (.env)
 - **Objective tape vs narrative cross‑check**
   - Tape: `alpaca.py`, `price.py`, `bars_stock.py`, `timescales.py`
   - Narrative: `perplexity_fetcher.py`, `pplx_fetcher.py`, `narrative_dev.py`
@@ -613,6 +623,12 @@ TB_POLYMARKET_DEBUG=0
 Notes:
 - Native provider always enforces a sane end-date window and requires `resolutionSource`.
 - PPLX provider relaxes windowing by default; the bridge applies final windowing and caps and honors liquidity gating when enabled.
+
+#### Sender-specific flags
+- `TB_POLYMARKET_PPLX_USE_PLAIN_ONLY=1` — force only the dedicated `PPLX_API_KEY` for digest runs (no rotation).
+- `TB_POLYMARKET_FALLBACK_NATIVE=1` — allow native fallback when PPLX returns zero items.
+- `TB_AUTOCOMMIT_DOCS=1` — auto-commit/push `polymarket_digest.md` after a run (disable with `0` for dry-runs).
+- `TB_NO_DISCORD=1` — suppress Discord sends (Telegram already gated by `TB_NO_TELEGRAM`).
 
 ## 5) Runbook
 

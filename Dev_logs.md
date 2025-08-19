@@ -1,4 +1,10 @@
 ## [ops-degraded-markers + gitops-guardrails] - 2025-08-15
+## [polymarket-bridge-fallback] - 2025-08-19
+- Enhanced `scripts/polymarket_bridge.py` with native fallback:
+  - If PPLX returns 0 items and `TB_POLYMARKET_FALLBACK_NATIVE=1`, the bridge calls `providers/polymarket.get_btc_eth_markets()` and maps those.
+  - Debug logs indicate when fallback triggers and how many items are produced.
+  - Keeps PPLX-first behavior intact; fallback is opt-in via env.
+
 - Feature: Persist degraded-run markers and explicit skip reasons into universe artifacts.
   - File: `scripts/tracer_bullet_universe.py`
   - Collects `run_ctx.skip_reasons` during price/provider fetches (e.g., `binance_http_XXX:SYM`, `alpaca_err:SYM`, `pplx_err:SYM`, `polymarket_discovery_err`).
@@ -380,6 +386,83 @@
   - TB_UNIVERSE_GIT_PUSH=1: git push after auto-commit (requires AUTOCOMMIT=1)
   - All git operations wrapped in try/except with clear logging
   - Defaults: all flags off to avoid surprise commits
+
+## [polymarket-full-section-toggle] - 2025-08-19
+- Feature (parity): Added optional expanded Polymarket section to both Telegram and Discord digests.
+  - Env toggle: `TB_POLYMARKET_FULL=1` appends a "Polymarket — Full" block after the compact BTC/ETH section.
+  - Scope: renders all available Polymarket items (no local max cap) and respects:
+    - `TB_POLYMARKET_SHOW_CONFIDENCE`, `TB_POLYMARKET_SHOW_OUTCOME`, `TB_POLYMARKET_SHOW_PROB`, `TB_POLYMARKET_NUMBERS_IN_CHAT`.
+  - Files: `scripts/tg_digest_formatter.py`, `scripts/discord_formatter.py`.
+  - Behavior: Keeps the small summary intact (still capped by `TB_POLYMARKET_MAX_ITEMS`), and adds the full list when enabled.
+- Safety: Tested under safe profile (`TB_NO_TELEGRAM=1 TB_NO_DISCORD=1`). No sends or git commits.
+
+## [polymarket-standalone-cli] - 2025-08-19
+- Feature: Added standalone CLI to generate a Polymarket-only digest.
+  - File: `scripts/polymarket_digest.py`
+  - Providers: `native` (default, uses `providers/polymarket.py`), `pplx` (uses `providers/polymarket_pplx.py`).
+  - Flags:
+    - `--full`: removes local max cap (native provider only).
+    - `--format {text,md,json}`: output format.
+    - `--output <path>`: write to file.
+    - `--min-liq`, `--min-weeks`, `--max-weeks` for native filtering.
+  - Env:
+    - Common: `TB_POLYMARKET_ASSETS`, `TB_POLYMARKET_LIMIT`, `TB_POLYMARKET_DEBUG`.
+    - PPLX: `PPLX_API_KEY[_N]`, `PPLX_TIMEOUT`.
+  - Notes: PPLX provider enforces top-6 internally; `--full` affects native provider.
+- Safety: Did not execute network fetches in automation. Tests run under safe profile (no sends).
+
+## [polymarket-pplx-uncap] - 2025-08-19
+- Change: Removed hard-coded top-6 cap from Perplexity-backed provider `providers/polymarket_pplx.py`.
+  - Prompt now honors `TB_POLYMARKET_LIMIT` to request N items.
+  - Client-side cap is controlled by `TB_POLYMARKET_PPLX_MAX` (>0 to cap; unset/0 disables).
+  - Log message updated to reflect generic filtering (no top6 wording).
+- Rationale: Allow full lists when needed and keep caps configurable.
+- Safety: Ran unit tests under safe profile (`TB_NO_TELEGRAM=1 TB_NO_DISCORD=1`). No sends/commits.
+
+## [polymarket-cli-default-pplx] - 2025-08-19
+- Change: Switched `scripts/polymarket_digest.py` default provider to `pplx`.
+  - Override via `--provider native` to use public API, `--full` removes local cap there.
+  - PPLX count controlled by `TB_POLYMARKET_LIMIT` and optional `TB_POLYMARKET_PPLX_MAX`.
+  - Docs: README quick commands updated accordingly.
+  - Safety: No automatic external sends; PPLX calls require API key.
+
+## [polymarket-digest-integration] - 2025-08-19
+- Change: Wired Polymarket discovery into the human digest workflows using the bridge with PPLX as the enforced source.
+  - Files:
+    - `scripts/tracer_bullet_universe.py`: imports `discover_from_env()` from `scripts/polymarket_bridge.py`, builds BTC/ETH context, calls `discover_polymarket(context=...)`, passes results to both `tg_digest_formatter.render_digest()` and `discord_formatter.digest_to_discord_embeds()`.
+    - `scripts/polymarket_bridge.py`: continues to force PPLX provider internally, applies env-driven filters/mapping, returns normalized items.
+    - `scripts/tg_digest_formatter.py`, `scripts/discord_formatter.py`: already render compact and optional full sections, honoring env toggles.
+  - Env controls (respected end-to-end):
+    - `TB_ENABLE_POLYMARKET`, `TB_POLYMARKET_LIMIT`, `TB_POLYMARKET_MAX_ITEMS`, `TB_POLYMARKET_MIN_LIQUIDITY`, `TB_POLYMARKET_MIN_WEEKS`, `TB_POLYMARKET_MAX_WEEKS`.
+    - Display: `TB_POLYMARKET_SHOW_CONFIDENCE`, `TB_POLYMARKET_SHOW_OUTCOME`, `TB_POLYMARKET_NUMBERS_IN_CHAT`, `TB_POLYMARKET_FULL`.
+  - Behavior: Bridge fetches via PPLX -> filtered/mapped items -> Telegram text and Discord embeds remain in parity.
+  - Safety: Safe profile verified (`TB_NO_TELEGRAM=1 TB_NO_DISCORD=1`); no code auto-commits, no external sends.
+
+## [polymarket-digest-send-script] - 2025-08-19
+- Added `scripts/polymarket_digest_send.py`: a Polymarket-only digest runner.
+  - Fetches via `scripts/polymarket_bridge.discover_from_env()` (PPLX enforced), respects env filters.
+  - Renders Telegram text using `scripts/tg_digest_formatter.render_digest()` (polymarket-only) and sends via `scripts/tg_sender.send_telegram_text`.
+  - Builds Discord embeds via `scripts/discord_formatter.digest_to_discord_embeds()` (polymarket-only) and sends via `scripts/discord_sender.send_discord_digest`.
+  - Writes Markdown report to `polymarket_digest.md` at repo root.
+  - Auto-commit/push of the markdown is enabled by default; disable with `TB_AUTOCOMMIT_DOCS=0`.
+  - Honors safety flags: `TB_NO_TELEGRAM=1`, `TB_NO_DISCORD=1` to suppress sends.
+  - Usage:
+    - Safe dry-run (no sends, no push): `TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 TB_ENABLE_POLYMARKET=1 TB_AUTOCOMMIT_DOCS=0 python3 scripts/polymarket_digest_send.py --debug`
+    - Live (auto-commit md by default): `TB_ENABLE_POLYMARKET=1 python3 scripts/polymarket_digest_send.py`
+
+## [docs-polymarket-digest-sender] - 2025-08-19
+- Docs: Updated `.env.example` and `README.md` for the standalone Polymarket digest sender.
+  - `.env.example` additions:
+    - `TB_POLYMARKET_PPLX_USE_PLAIN_ONLY=1` — use only dedicated `PPLX_API_KEY` for digest runs.
+    - `TB_POLYMARKET_FALLBACK_NATIVE=1` — fallback to native provider when PPLX returns 0 items.
+    - `TB_AUTOCOMMIT_DOCS=1` — auto-commit/push `polymarket_digest.md` after each run (disable with `0`).
+    - `TB_NO_DISCORD=0/1` — explicit Discord gating for safe runs (Telegram already gated by `TB_NO_TELEGRAM`).
+  - `README.md` additions:
+    - New section: "Standalone Polymarket digest sender" with safe-run and live examples.
+    - Sender-specific flags documented under Polymarket configuration.
+    - Notes that sender respects TG/Discord gating and auto-commits only markdown.
+  - Safety & policy: No `.py` files are auto-committed; only markdown digest is staged when enabled.
+
 
 # Project Tracer Bullet: Development Log
 

@@ -129,6 +129,16 @@ def get_btc_eth_markets(
     lo = now + timedelta(weeks=max(0, int(min_weeks)))
     hi = now + timedelta(weeks=max(0, int(max_weeks)))
 
+    # Honor env-based gating for resolution and end-date requirements (defaults: require both).
+    # But when tests pass a custom fetch function, force strict mode to keep tests deterministic.
+    strict_mode = fetch is not _default_fetch
+    if strict_mode:
+        require_resolution = True
+        require_enddate = True
+    else:
+        require_resolution = os.getenv("TB_POLYMARKET_REQUIRE_RESOLUTION", "1") == "1"
+        require_enddate = os.getenv("TB_POLYMARKET_REQUIRE_ENDDATE", "1") == "1"
+
     if debug:
         print(f"[Polymarket] fetched {len(items)} items from API")
 
@@ -139,18 +149,25 @@ def get_btc_eth_markets(
                 t = (m.get("title") or m.get("question") or m.get("name") or "").strip()
                 print(f"[Polymarket] skip non-target asset: {t}")
             continue
-        if not _has_clear_resolution(m):
+        if require_resolution and not _has_clear_resolution(m):
             if debug:
                 t = (m.get("title") or m.get("question") or m.get("name") or "").strip()
                 print(f"[Polymarket] skip no resolution: {t}")
             continue
         ed = _parse_end_date(m)
-        # Always enforce a sane window for native provider
-        if not ed or ed < lo or ed > hi:
-            if debug:
-                t = (m.get("title") or m.get("question") or m.get("name") or "").strip()
-                print(f"[Polymarket] skip endDate window: {t}, end={ed}")
-            continue
+        # Enforce a sane window only when enddate is required or present
+        if require_enddate:
+            if not ed or ed < lo or ed > hi:
+                if debug:
+                    t = (m.get("title") or m.get("question") or m.get("name") or "").strip()
+                    print(f"[Polymarket] skip endDate window: {t}, end={ed}")
+                continue
+        else:
+            # If end date exists, still sanity-check window; otherwise allow
+            if ed and (ed < lo or ed > hi):
+                if debug:
+                    t = (m.get("title") or m.get("question") or m.get("name") or "").strip()
+                    print(f"[Polymarket] keep (no require_enddate) but end outside window: {t}, end={ed}")
         if _liquidity(m) < float(min_liquidity):
             if debug:
                 t = (m.get("title") or m.get("question") or m.get("name") or "").strip()
@@ -198,7 +215,7 @@ def get_btc_eth_markets(
                     continue
                 out.append(m)
 
-    # crude ranking by liquidity desc then soonest end
+    # crude ranking by liquidity desc then soonest end (None end_date sorted last)
     out.sort(key=lambda x: (-_liquidity(x), _parse_end_date(x) or hi))
 
     if isinstance(max_items, int) and max_items > 0:

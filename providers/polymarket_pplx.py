@@ -30,13 +30,14 @@ def _default_fetch(url: str, data: bytes, headers: Dict[str, str], timeout: int)
 
 
 def _build_prompt(assets: List[str], limit: Optional[int]) -> str:
-    # Implement crypto-wide prompt (emphasis BTC/ETH), request multiple strikes/variants, up to 6
+    # Implement crypto-wide prompt (emphasis BTC/ETH), request multiple strikes/variants, up to 'limit' (fallback 6)
+    lim = limit if isinstance(limit, int) and limit > 0 else 6
     return (
         "You are a precise data extraction engine.\n"
         "List all current active Polymarket markets related to crypto, especially Bitcoin (BTC) and Ethereum (ETH).\n"
         "Include all relevant price prediction markets, strike thresholds, and up/down daily outcome questions. If a market family has multiple strikes/targets, return separate items per strike that are live.\n"
         "Apply all filters strictly: live/active, not expired; end date between now+1h and now+12 weeks; liquidityUSD ≥ 10000; resolution source must be clearly specified; exclude non-crypto/meme/politics/sports.\n"
-        "Return up to the 6 highest-liquidity crypto markets, ordered by liquidity (desc) then recency (earlier endDate preferred).\n\n"
+        f"Return up to the {lim} highest-liquidity crypto markets, ordered by liquidity (desc) then recency (earlier endDate preferred).\n\n"
         "For each market, return ONLY these keys (use the exact Polymarket title as market_name, preserving any numeric thresholds/targets verbatim; do not paraphrase):\n"
         "- market_name (string)\n"
         "- event_end_date (ISO 8601 string, UTC)\n"
@@ -50,12 +51,13 @@ def _build_prompt(assets: List[str], limit: Optional[int]) -> str:
 
 
 def _build_fallback_prompt(assets: List[str], limit: Optional[int]) -> str:
-    # Reiterate schema and constraints for crypto-wide top-6
+    # Reiterate schema and constraints for crypto-wide; request up to 'limit' (fallback 6)
+    lim = limit if isinstance(limit, int) and limit > 0 else 6
     return (
         "Return ONLY a JSON array (no markdown) of current active Polymarket crypto markets (crypto only; emphasize BTC/ETH).\n"
         "Include price/threshold/up-down daily variants. If there are multiple live strikes, include them as separate items.\n"
         "Filters: live/active; end between now+1h and now+12w; liquidityUSD ≥ 10000; resolution source specified and unambiguous; exclude non-crypto/meme/politics/sports.\n"
-        "Return up to 6 by liquidity desc then earliest endDate.\n"
+        f"Return up to {lim} by liquidity desc then earliest endDate.\n"
         "Each item keys: market_name (exact Polymarket title with any numeric thresholds intact), event_end_date (ISO8601), implied_probability (0–1 YES), liquidity_usd, resolution_source, asset (symbol), market_id or slug."
     )
 
@@ -99,19 +101,26 @@ def get_crypto_markets_via_pplx(
     # Relax filters in tests when a custom fetch function is provided
     relax_filters = fetch is not _default_fetch
     debug = os.getenv("TB_POLYMARKET_DEBUG", "0") == "1"
-    # Build list of API keys to try: PPLX_API_KEY_1..N (sorted), then PPLX_API_KEY
+    # Build list of API keys to try.
+    # If TB_POLYMARKET_PPLX_USE_PLAIN_ONLY=1, use ONLY PPLX_API_KEY (dedicated plain key).
+    use_plain_only = os.getenv("TB_POLYMARKET_PPLX_USE_PLAIN_ONLY", "0") == "1"
     key_items = []
-    for k, v in os.environ.items():
-        if k.startswith("PPLX_API_KEY_") and v.strip():
-            try:
-                idx = int(k.split("_")[-1])
-            except Exception:
-                idx = 0
-            key_items.append((idx, v.strip()))
-    key_items.sort(key=lambda x: x[0])
-    if os.getenv("PPLX_API_KEY", "").strip():
-        # Fallback single-key goes last
-        key_items.append((10_000_000, os.getenv("PPLX_API_KEY").strip()))
+    if use_plain_only:
+        if os.getenv("PPLX_API_KEY", "").strip():
+            key_items.append((0, os.getenv("PPLX_API_KEY").strip()))
+    else:
+        # Normal rotation: numbered keys first, then plain key last
+        for k, v in os.environ.items():
+            if k.startswith("PPLX_API_KEY_") and v.strip():
+                try:
+                    idx = int(k.split("_")[-1])
+                except Exception:
+                    idx = 0
+                key_items.append((idx, v.strip()))
+        key_items.sort(key=lambda x: x[0])
+        if os.getenv("PPLX_API_KEY", "").strip():
+            # Fallback single-key goes last
+            key_items.append((10_000_000, os.getenv("PPLX_API_KEY").strip()))
 
     if debug:
         print(f"[Polymarket:PPLX] key rotation: {len(key_items)} keys discovered")
@@ -427,8 +436,14 @@ def _parse_and_normalize(resp: Dict[str, Any], debug: bool, *, relax_filters: bo
         # Prefer titles that contain explicit numeric thresholds (likely strike/target markets), then liquidity, then recency
         return (0 if has_num else 1, -liq, dtx)
     filtered.sort(key=_key)
-    if len(filtered) > 6:
-        filtered = filtered[:6]
+    # Optional client-side cap: TB_POLYMARKET_PPLX_MAX (>0). Unset or <=0 disables capping
+    try:
+        cap_env = os.getenv("TB_POLYMARKET_PPLX_MAX", "0").strip()
+        cap = int(cap_env) if cap_env else 0
+    except Exception:
+        cap = 0
+    if cap > 0 and len(filtered) > cap:
+        filtered = filtered[:cap]
     if debug:
-        print(f"[Polymarket:PPLX] normalized {len(items)} items -> strict_filtered {len(filtered)} (crypto top6)")
+        print(f"[Polymarket:PPLX] normalized {len(items)} items -> strict_filtered {len(filtered)} (crypto filtered)")
     return filtered
