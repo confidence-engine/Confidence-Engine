@@ -132,6 +132,13 @@
   - Aligns with repo policy: auto‑commit artifacts and docs; never auto‑commit `.py`.
   - Addresses reports of `runs/99.json` and `universe_runs/metrics.csv` not being pushed by ensuring staging includes them.
 
+## [hit-rate plot + commands cheat-sheet] - 2025-08-20
+- New: `scripts/plot_hit_rate_trend.py` plots `eval_runs/hit_rate_trend.csv` → `eval_runs/hit_rate_trend.png` (CI-friendly: soft‑fail if CSV missing).
+- Workflow: `.github/workflows/safe_qa_nightly.yml` now includes a "Plot hit-rate trend" step after trend append.
+- Docs: Added `docs/commands.md` with concise, safe commands for universe runs, tests, hit‑rate checks, compare, and plotting.
+- Deps: Added `matplotlib` to `requirements.txt` for plotting; `pytest` added for consistent local/CI testing.
+- Policy: No `.py` files are auto‑committed; nightly commit continues to stage all then unstage `*.py` before push.
+
 ## [v3.1.22-remove-grades-from-digests] - 2025-08-15
 - Change (parity): Removed all grade computation and rendering from both Telegram and Discord digest formatters to normalize outputs and avoid discrepancies.
   - Files: `scripts/discord_formatter.py`, `scripts/tg_digest_formatter.py`

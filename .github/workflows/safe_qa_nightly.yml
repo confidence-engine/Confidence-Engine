@@ -50,6 +50,10 @@ jobs:
             --failures_csv eval_runs/hit_rate_failures.csv \
             --markdown_out eval_runs/hit_rate_summary.md
 
+      - name: Plot hit-rate trend (safe)
+        run: |
+          python scripts/plot_hit_rate_trend.py --csv eval_runs/hit_rate_trend.csv --out eval_runs/hit_rate_trend.png
+
       - name: Compare nightly hit-rate vs previous (log only)
         env:
           TB_HITRATE_REG_THRESH: '0.05'
