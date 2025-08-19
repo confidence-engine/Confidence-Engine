@@ -425,6 +425,24 @@ Commit messages are prefixed (e.g., `eval: metrics <ts>`), and pushes are gated 
 
 ***
 
+## Hit‑rate self‑checks & nightly automation
+
+- Asset hit‑rate checks compute 1h/4h/1D directional correctness by joining `universe_runs/*.json` with `bars/*.csv`.
+- Tunables:
+  - `TB_HITRATE_SIDEWAYS_EPS` (default 0.1): sideways band in percent.
+  - `TB_HITRATE_W_1H`, `TB_HITRATE_W_4H`, `TB_HITRATE_W_1D` (default 1.0): horizon weights for weighted vote.
+  - `TB_HITRATE_REG_THRESH` (default 0.05): nightly regression threshold.
+- Nightly workflow `.github/workflows/safe_qa_nightly.yml` runs in safe mode, appends trend to `eval_runs/hit_rate_trend.csv`, logs regression compare, and commits non‑.py artifacts.
+- Auto‑commit scope in nightly: stages all changes and then unstages `*.py`, ensuring artifacts like `runs/*.json`, `universe_runs/metrics.csv`, `eval_runs/*`, and `bars/*` are pushed.
+
+Quick CLI:
+```
+python scripts/asset_hit_rate.py --runs_dir universe_runs --bars_dir bars --runs_map_dir runs --debug \
+  --failures_csv eval_runs/hit_rate_failures.csv --markdown_out eval_runs/hit_rate_summary.md
+```
+
+***
+
 ## Payload schema v3.2 (artifact highlights)
 
 - Evidence line: per‑asset `evidence_line` persisted for explainability (number‑free in chat; numeric context kept in artifacts).

@@ -72,3 +72,11 @@ A concise development history highlighting milestones, major features, testing, 
 - Polymarket: `providers/polymarket_pplx.py`, `scripts/polymarket_bridge.py`
 - Evaluation: `scripts/eval_metrics.py`, `scripts/eval_runner.py`, `scripts/eval_ingest.py`, `scripts/eval_weekly.py`
 - Ops: `autocommit.py`
+
+---
+
+## Latest (2025-08-20 — nightly self-checks + auto-commit scope)
+- Clean docs refreshed:
+  - `README_CLEAN.md`: added 5.2 “Nightly self‑checks & artifact auto‑commit” (tunables, quick CLI, scope).
+  - `Roadmap_CLEAN.md`: date/status and Now→Near→Next note nightly hit‑rate self‑checks and broadened non‑.py auto‑commit.
+- Nightly workflow policy: stage all; unstage `*.py`; push only artifacts/docs (e.g., `runs/*.json`, `universe_runs/metrics.csv`, `eval_runs/*`, `bars/*`).

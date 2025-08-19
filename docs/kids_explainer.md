@@ -21,7 +21,16 @@
 
 ---
 
-## 3) Why is a disagreement useful?
+## 3) How does Tracer Bullet check itself?
+- It looks back later and asks: “Was I right?”
+- It checks 1 hour, 4 hours, and 1 day later.
+- It keeps score in a notebook (hit‑rate) so we can see if it’s learning.
+- If something goes wrong (like missing price data), it writes a little note about why.
+- Every night, it updates its notebook automatically.
+
+---
+
+## 4) Why is a disagreement useful?
 - People sometimes overreact to news or ignore it.
 - If the news is positive but the price hasn’t moved yet, maybe the price will catch up.
 - If the news is negative but the price is still high, maybe the price could fall.
@@ -29,7 +38,7 @@
 
 ---
 
-## 4) How it stays safe and fair
+## 5) How it stays safe and fair
 - Number‑free chat: messages avoid hard numbers, so it’s easy to read and safe to share.
 - Full details in files: saved files keep the precise info so we can study carefully.
 - Safe mode: we can run it quietly with no chat messages and without pushing anything to the internet.
@@ -37,7 +46,7 @@
 
 ---
 
-## 5) The detective’s toolkit (kid view)
+## 6) The detective’s toolkit (kid view)
 - News glasses: reads structured news summaries.
 - Price compass: checks if price is going up, down, or flat on different time windows (1h, 4h, 1D, 1W).
 - Honesty checkers: makes sure the news story and the price story agree (or notices when they don’t).
@@ -46,7 +55,7 @@
 
 ---
 
-## 6) What it saves for us
+## 7) What it saves for us
 - A file for each big run with:
   - Evidence line: the one‑sentence reason.
   - Thesis: what we think (action), how risky it feels (risk band), and how ready we are (readiness).
@@ -57,7 +66,7 @@ These files live in the `universe_runs/` folder next to your project.
 
 ---
 
-## 7) A tiny example story
+## 8) A tiny example story
 - The news says: “Builders are launching something big on Ethereum this week.”
 - The price is still flat today.
 - Tracer Bullet says: “News is sunny but the thermometer is cool. ETH might warm up soon.”
@@ -65,7 +74,7 @@ These files live in the `universe_runs/` folder next to your project.
 
 ---
 
-## 8) How to use it safely (with a grown‑up)
+## 9) How to use it safely (with a grown‑up)
 - Make sure chat is off if you don’t want messages:
 ```
 TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 \
@@ -80,7 +89,7 @@ python3 scripts/consistency_check.py --config config/universe.yaml --top 10
 
 ---
 
-## 9) Words you might hear (Kid Glossary)
+## 10) Words you might hear (Kid Glossary)
 - Narrative: the story news is telling.
 - Price action: how the coin’s price moves.
 - Divergence: when the story and the price don’t match.
@@ -90,7 +99,7 @@ python3 scripts/consistency_check.py --config config/universe.yaml --top 10
 
 ---
 
-## 10) What the grown‑ups like about it
+## 11) What the grown‑ups like about it
 - It’s explainable: always gives a simple reason.
 - It’s careful: keeps numbers in files but keeps chat friendly.
 - It learns: by saving files, we can study what worked and improve.
@@ -98,7 +107,7 @@ python3 scripts/consistency_check.py --config config/universe.yaml --top 10
 
 ---
 
-## 11) Quick Q&A
+## 12) Quick Q&A
 - Q: Does it buy coins by itself?
   - A: Not by default. It mostly explains and saves. Grown‑ups can choose what to do next.
 - Q: Can it be wrong?
@@ -108,5 +117,5 @@ python3 scripts/consistency_check.py --config config/universe.yaml --top 10
 
 ---
 
-## 12) Last thought
+## 13) Last thought
 Think of Tracer Bullet like a kind, honest friend who reads a lot, watches calmly, and writes down clear, simple reasons. It helps you learn and make better choices over time.

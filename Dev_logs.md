@@ -1,3 +1,25 @@
+## [hit-rate tunables + failures CSV + mapping fallback + trend] - 2025-08-20
+- Added env knob `TB_HITRATE_SIDEWAYS_EPS` to tune sideways correctness band in `scripts/asset_hit_rate.py`.
+- Added `--failures_csv` (effective with `--debug`) to write per-item join failure reasons.
+- Improved symbol→bars mapping to also consider symbol-named CSVs in `bars/` (e.g., `BTC_USD.csv`, `BTCUSD.csv`).
+- New script `scripts/hit_rate_trend.py` appends one-line summaries to `eval_runs/hit_rate_trend.csv` for nightly tracking.
+- Verified synthetic slice still passes; CI regression gate runs `scripts/check_asset_hit_rate_synth.py`.
+
+## [eval-hit-rate-diagnostics + synth-validation] - 2025-08-20
+- Diagnostics: `scripts/asset_hit_rate.py` now supports `--debug` and returns `summary['diagnostics']` with join coverage (e.g., `symbols_mapped`, `no_bars_mapping`, `no_covering_window`, `event_ts_unparseable`, `unrealized_items`).
+- Validation: Added synthetic fixture to prove bars-join path:
+  - `runs/99.json` (maps BTC/USD → `bars/99.csv`), `bars/99.csv` (minute-ish anchors), and `universe_runs/universe_20250819_synth.json`.
+  - Result: non-zero outcomes; 1h horizon computed with hit_rate=1.0. Markdown summary written to `eval_runs/hit_rate_summary_synth.md`.
+- No external sends or commits; code-only changes kept local.
+
+## [eval-hit-rate-bars-join + nightly-safe-qa] - 2025-08-19
+- Feature: Enhanced `scripts/asset_hit_rate.py` to compute realized 1h/4h/1D returns by joining `universe_runs/*.json` with `bars/*.csv`.
+  - Heuristic symbol→bars mapping inferred from `runs/*.json` IDs (e.g., `runs/10.json` + `bars/10.csv`).
+  - Normalizes timestamps to timezone-aware UTC to avoid comparison errors.
+  - CLI: `--bars_dir`, `--runs_map_dir`, `--markdown_out` for concise report output.
+  - Current result: no realizations found on repo data (universe timestamps don't overlap available bars or mapping incomplete). Next: enrich mapping or expand bars coverage.
+- CI: Added nightly Safe QA workflow `.github/workflows/safe_qa_nightly.yml` to run `scripts/safe_qa.py` at 06:00 UTC with safe env toggles (no sends/commits).
+
 ## [ops-degraded-markers + gitops-guardrails] - 2025-08-15
 ## [polymarket-bridge-fallback] - 2025-08-19
 - Enhanced `scripts/polymarket_bridge.py` with native fallback:
@@ -98,6 +120,17 @@
 - Safety: Number-free phrasing preserved; no external dependencies added.
 
 > Prefer the concise history? See [Dev_logs_CLEAN.md](Dev_logs_CLEAN.md).
+
+## [docs + nightly auto-commit broaden] - 2025-08-20
+- Docs refresh:
+  - `README.md`: added "Hit‑rate self‑checks & nightly automation" section documenting tunables (`TB_HITRATE_SIDEWAYS_EPS`, `TB_HITRATE_W_*`, `TB_HITRATE_REG_THRESH`), CLI usage, and nightly scope.
+  - `roadmap.md`: updated date and Status/Now→Near→Next to reflect nightly hit‑rate self‑checks and broadened non‑.py auto‑commit policy.
+  - `docs/kids_explainer.md`: inserted kid‑friendly "How does Tracer Bullet check itself?" section and renumbered following sections.
+- Nightly workflow:
+  - `.github/workflows/safe_qa_nightly.yml`: broadened commit step to `git add -A` then `git restore --staged "**/*.py"` so all non‑.py artifacts (e.g., `runs/*.json`, `universe_runs/metrics.csv`, `eval_runs/*`, `bars/*`) are auto‑committed and pushed; `.py` files remain excluded.
+- Notes:
+  - Aligns with repo policy: auto‑commit artifacts and docs; never auto‑commit `.py`.
+  - Addresses reports of `runs/99.json` and `universe_runs/metrics.csv` not being pushed by ensuring staging includes them.
 
 ## [v3.1.22-remove-grades-from-digests] - 2025-08-15
 - Change (parity): Removed all grade computation and rendering from both Telegram and Discord digest formatters to normalize outputs and avoid discrepancies.

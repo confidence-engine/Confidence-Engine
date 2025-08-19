@@ -2,7 +2,7 @@
 
 A living, milestone-driven plan from V1 tracer bullet to small live capital, emphasizing reliability, explainability, and leak-free validation.
 
-Last updated: 2025-08-14.
+Last updated: 2025-08-20.
 
 > Prefer a concise, structured version? See [Roadmap_CLEAN.md](Roadmap_CLEAN.md).
 
@@ -15,7 +15,7 @@ Last updated: 2025-08-14.
 
 ***
 
-## Status Summary (as of 2025-08-14)
+## Status Summary (as of 2025-08-20)
 
 - V1 — Tracer Bullet: DONE
 - V2 — Crowd Immunity: DONE
@@ -24,7 +24,7 @@ Last updated: 2025-08-14.
 - V3.3 — Evidence Lines + Polymarket (read-only): DONE
 - V3.4 — Evaluation Pipeline: NOT DONE
 - V4.2 — Backtesting & Governance: NOT DONE
-- V4.3 — Reliability Ops Hardening: IN PROGRESS
+- V4.3 — Reliability Ops Hardening: IN PROGRESS (nightly hit‑rate self‑checks wired, broadened non‑.py auto‑commit)
 - V5 — 24/7 Cloud Agent: NOT DONE
 - V6 — Paper Execution & Risk: NOT DONE
 - V7 — Live Capital: NOT DONE
@@ -32,9 +32,10 @@ Last updated: 2025-08-14.
 ## Now → Near → Next
 
 - Now — v4.3 Reliability Ops Hardening
-  - Auto-commit/push polish (stage JSON/CSV, explicit logs, skip reasons, non-interactive push verification)
-  - Unified self-checks: schema/digest validations, degraded-run markers, circuit breakers
-  - Acceptance: 3-day burn-in; <1% degraded runs; zero crashes
+  - Nightly self‑checks: asset hit‑rate trend append + regression compare, with env tunables
+  - Auto‑commit scope broadened (stage all; unstage *.py) to ensure `runs/*.json` and `universe_runs/metrics.csv` are pushed
+  - Unified self‑checks: schema/digest validations, degraded‑run markers, circuit breakers
+  - Acceptance: 3‑day burn‑in; <1% degraded runs; zero crashes
 
 - Near — v3.4 Evaluation Pipeline
   - Outcome capture: event-ordered snapshots; resolved outcomes archived to CSV/JSON
@@ -540,7 +541,7 @@ Why this matters: Begin live exposure safely, learning from real frictions witho
 
 ## What to do next (immediate focus)
 
-- Finish v3.1.x hardening: confirm staging includes metrics.csv and JSON; add explicit commit/push logs; test non-interactive push.  
+- Finish v3.1.x hardening: confirm broadened non‑.py staging covers `runs/*.json`, `universe_runs/metrics.csv`, `eval_runs/*`; logs show commit/push summaries.  
 - Start v3.2: implement retries/backoff and schema/digest self-checks; ensure graceful degradation and actionable logs when inputs are thin.  
 - Prepare v3.3 backlog for “all alts + evidence lines” with the digest template unchanged in tone and structure.
 

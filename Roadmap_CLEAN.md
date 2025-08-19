@@ -2,7 +2,7 @@
 
 A milestone-driven plan from V1 tracer bullet to V7 live capital, with crisp DoD (definition of done), acceptance criteria, risks, and operating cadence.
 
-Last updated: 2025-08-14.
+Last updated: 2025-08-20.
 
 ---
 
@@ -14,7 +14,7 @@ Last updated: 2025-08-14.
 - V3.3 — Evidence Lines + Polymarket (read-only): DONE
 - V3.4 — Evaluation Pipeline: IN PROGRESS (runner/metrics shipped; accumulating obs)
 - V4.2 — Backtesting & Governance: NOT STARTED
-- V4.3 — Reliability Ops Hardening: IN PROGRESS
+- V4.3 — Reliability Ops Hardening: IN PROGRESS (nightly hit‑rate self‑checks; broadened non‑.py auto‑commit)
 - V5 — 24/7 Cloud Agent: NOT STARTED
 - V6 — Paper Execution & Risk: NOT STARTED
 - V7 — Live Capital: NOT STARTED
@@ -23,9 +23,10 @@ Last updated: 2025-08-14.
 
 ## 1) Now → Near → Next
 - Now — v4.3 Reliability Ops Hardening
-  - Retries/backoff, timeouts, schema/digest self-checks, degraded-run markers, circuit breakers
-  - Git auto-commit/push polish for artifacts; explicit logs and skip reasons
-  - Acceptance: 3-day burn-in; <1% degraded runs; zero crashes
+  - Nightly self‑checks: hit‑rate trend append + regression compare (env‑tunable)
+  - Auto‑commit scope broadened (stage all; unstage *.py) so `runs/*.json` and `universe_runs/metrics.csv` are pushed
+  - Retries/backoff, timeouts, schema/digest self‑checks, degraded‑run markers, circuit breakers
+  - Acceptance: 3‑day burn‑in; <1% degraded runs; zero crashes
 - Near — v3.4 Evaluation Pipeline
   - ≥50 resolved obs; weekly snapshots; Brier/log-loss, calibration bins, cohorts
   - Optional calibration plots; commit/push artifacts by default (env-gated)

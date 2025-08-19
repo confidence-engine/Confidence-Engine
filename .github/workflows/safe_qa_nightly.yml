@@ -1,0 +1,84 @@
+name: Safe QA Nightly
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # 06:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  safe-qa:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run Safe QA (no external sends)
+        env:
+          TB_NO_TELEGRAM: '1'
+          TB_NO_DISCORD: '1'
+          TB_POLYMARKET_PPLX_USE_PLAIN_ONLY: '1'
+          TB_POLYMARKET_FALLBACK_NATIVE: '1'
+        run: |
+          python scripts/safe_qa.py
+
+      - name: Update hit-rate trend and summaries (safe)
+        env:
+          TB_NO_TELEGRAM: '1'
+          TB_NO_DISCORD: '1'
+        run: |
+          # Append trend CSV
+          python scripts/hit_rate_trend.py
+          # Also write a Markdown summary and failures CSV for the latest repo-wide run
+          python scripts/asset_hit_rate.py \
+            --runs_dir universe_runs \
+            --bars_dir bars \
+            --runs_map_dir runs \
+            --debug \
+            --failures_csv eval_runs/hit_rate_failures.csv \
+            --markdown_out eval_runs/hit_rate_summary.md
+
+      - name: Compare nightly hit-rate vs previous (log only)
+        env:
+          TB_HITRATE_REG_THRESH: '0.05'
+        run: |
+          python scripts/hit_rate_compare.py
+
+      - name: Commit and push artifacts (non-.py)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          # Stage ALL changes, then unstage any Python files to respect no-.py policy
+          git add -A
+          # Unstage any .py changes if present (ignore errors on old git)
+          git restore --staged "**/*.py" || true
+          echo "== Git status (working tree) =="
+          git status --porcelain
+          echo "== Staged files (after unstage *.py) =="
+          git diff --cached --name-only | sed 's/^/ - /'
+          echo "== Verifying no .py staged =="
+          if git diff --cached --name-only | grep -E "\\.py$" >/dev/null; then
+            echo "WARNING: Detected staged .py files. Attempting to unstage again..."
+            # Try unstage again using file list
+            git diff --cached --name-only | grep -E "\\.py$" | xargs -r git restore --staged || true
+            echo "Post-fix staged files:"
+            git diff --cached --name-only | sed 's/^/ - /'
+          fi
+          if git diff --cached --quiet; then
+            echo "No non-.py artifact changes to commit"
+          else
+            git commit -m "Nightly QA: update non-script artifacts (eval_runs, universe_runs, runs, bars) [skip ci]"
+            git push
+          fi

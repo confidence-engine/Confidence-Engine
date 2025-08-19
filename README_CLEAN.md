@@ -93,6 +93,21 @@ Exit non‑zero on drift.
 
 ---
 
+## 5.2) Nightly self‑checks & artifact auto‑commit
+
+- Hit‑rate checks: compute 1h/4h/1D directional correctness by joining `universe_runs/*.json` with `bars/*.csv`.
+- Tunables: `TB_HITRATE_SIDEWAYS_EPS` (sideways band), `TB_HITRATE_W_1H/_4H/_1D` (weighted vote), `TB_HITRATE_REG_THRESH` (regression warn).
+- Nightly workflow runs in safe mode, appends `eval_runs/hit_rate_trend.csv`, compares vs previous, and auto‑commits non‑.py artifacts.
+- Auto‑commit scope: stage all, then unstage `*.py` to ensure only JSON/CSV/MD/YAML land (e.g., `runs/*.json`, `universe_runs/metrics.csv`, `eval_runs/*`, `bars/*`).
+
+Quick check (local):
+```
+python scripts/asset_hit_rate.py --runs_dir universe_runs --bars_dir bars --runs_map_dir runs \
+  --debug --failures_csv eval_runs/hit_rate_failures.csv --markdown_out eval_runs/hit_rate_summary.md
+```
+
+---
+
 ## 6) Usage recipes
 - Universe digest (no sends)
 ```

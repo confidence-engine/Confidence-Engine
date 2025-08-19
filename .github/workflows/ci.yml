@@ -39,6 +39,13 @@ jobs:
         run: |
           pytest -q
 
+      - name: Asset hit-rate (synthetic regression)
+        env:
+          TB_NO_TELEGRAM: '1'
+          TB_NO_DISCORD: '1'
+        run: |
+          python3 scripts/check_asset_hit_rate_synth.py
+
       - name: Consistency gate (deterministic universe scan)
         env:
           TB_NO_TELEGRAM: '1'
