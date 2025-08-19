@@ -25,8 +25,9 @@ Last updated: 2025-08-20.
 - Now — v4.3 Reliability Ops Hardening
   - Nightly self‑checks: hit‑rate trend append + regression compare (env‑tunable)
   - Auto‑commit scope broadened (stage all; unstage *.py) so `runs/*.json` and `universe_runs/metrics.csv` are pushed
+  - Plot: generate `eval_runs/hit_rate_trend.png` (soft‑fail if CSV missing) for quick visual trend
   - Retries/backoff, timeouts, schema/digest self‑checks, degraded‑run markers, circuit breakers
-  - Acceptance: 3‑day burn‑in; <1% degraded runs; zero crashes
+  - Acceptance: 3‑day burn‑in; <1% degraded runs; zero crashes; staged‑file logs show no `.py` committed
 - Near — v3.4 Evaluation Pipeline
   - ≥50 resolved obs; weekly snapshots; Brier/log-loss, calibration bins, cohorts
   - Optional calibration plots; commit/push artifacts by default (env-gated)

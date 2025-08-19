@@ -139,6 +139,12 @@
 - Deps: Added `matplotlib` to `requirements.txt` for plotting; `pytest` added for consistent local/CI testing.
 - Policy: No `.py` files are auto‑committed; nightly commit continues to stage all then unstage `*.py` before push.
 
+## [roadmap refresh] - 2025-08-20
+- Updated `roadmap.md` and `Roadmap_CLEAN.md`:
+  - Set V3.4 Evaluation Pipeline to IN PROGRESS (runner/metrics shipped; accumulating obs).
+  - Now→Near→Next (v4.3): added PNG plotting step and explicit staged‑file log acceptance (no `*.py`).
+  - Kept “Last updated” at 2025-08-20; preserved structure.
+
 ## [v3.1.22-remove-grades-from-digests] - 2025-08-15
 - Change (parity): Removed all grade computation and rendering from both Telegram and Discord digest formatters to normalize outputs and avoid discrepancies.
   - Files: `scripts/discord_formatter.py`, `scripts/tg_digest_formatter.py`

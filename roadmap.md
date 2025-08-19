@@ -22,7 +22,7 @@ Last updated: 2025-08-20.
 - V3 — Bias Immunity + Sizing: DONE
 - V3.1 — Multi-Asset Foundations: DONE
 - V3.3 — Evidence Lines + Polymarket (read-only): DONE
-- V3.4 — Evaluation Pipeline: NOT DONE
+- V3.4 — Evaluation Pipeline: IN PROGRESS (runner/metrics shipped; accumulating observations)
 - V4.2 — Backtesting & Governance: NOT DONE
 - V4.3 — Reliability Ops Hardening: IN PROGRESS (nightly hit‑rate self‑checks wired, broadened non‑.py auto‑commit)
 - V5 — 24/7 Cloud Agent: NOT DONE
@@ -34,8 +34,10 @@ Last updated: 2025-08-20.
 - Now — v4.3 Reliability Ops Hardening
   - Nightly self‑checks: asset hit‑rate trend append + regression compare, with env tunables
   - Auto‑commit scope broadened (stage all; unstage *.py) to ensure `runs/*.json` and `universe_runs/metrics.csv` are pushed
+  - Plot hit‑rate trend to PNG (`eval_runs/hit_rate_trend.png`) for quick visual progress; soft‑fail if CSV missing
+  - Workflow logs: print staged files; verify no `*.py` staged; warn on regressions without failing run
   - Unified self‑checks: schema/digest validations, degraded‑run markers, circuit breakers
-  - Acceptance: 3‑day burn‑in; <1% degraded runs; zero crashes
+  - Acceptance: 3‑day burn‑in; <1% degraded runs; zero crashes; staged‑file logs show no `.py` committed
 
 - Near — v3.4 Evaluation Pipeline
   - Outcome capture: event-ordered snapshots; resolved outcomes archived to CSV/JSON
