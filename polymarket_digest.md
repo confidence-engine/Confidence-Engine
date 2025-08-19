@@ -1,3 +1,32 @@
 # Polymarket — Standalone Digest
 
-_No qualifying markets found._
+- **Tether insolvent in 2025?**
+  - stance: `Stand Aside`; timing: `Later`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is later; keep on watch and reassess."
+- **Will Bitcoin reach $1,000,000 by December 31, 2025?**
+  - stance: `Stalk`; timing: `Later`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is later; keep on watch and reassess."
+- **Will Bitcoin reach $250,000 by December 31, 2025?**
+  - stance: `Stalk`; timing: `Later`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is later; keep on watch and reassess."
+- **Will Bitcoin reach $200,000 by December 31, 2025?**
+  - stance: `Stalk`; timing: `Later`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is later; keep on watch and reassess."
+- **Will Bitcoin reach $150,000 by December 31, 2025?**
+  - stance: `Stalk`; timing: `Later`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is later; keep on watch and reassess."
+- **Will Bitcoin reach $130,000 by December 31, 2025?**
+  - stance: `Stalk`; timing: `Later`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is later; keep on watch and reassess."
+- **Will Bitcoin dip to $70,000 by December 31, 2025?**
+  - stance: `Stand Aside`; timing: `Later`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is later; keep on watch and reassess."
+- **Will Bitcoin dip to $50,000 by December 31, 2025?**
+  - stance: `Stand Aside`; timing: `Later`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is later; keep on watch and reassess."
+- **Will Bitcoin dip to $20,000 by December 31, 2025?**
+  - stance: `Stand Aside`; timing: `Later`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is later; keep on watch and reassess."
+- **Will Ethereum hit $10,000 by December 31?**
+  - stance: `Stand Aside`; timing: `Later`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is later; keep on watch and reassess."
+- **Will Ethereum hit $8,000 by December 31?**
+  - stance: `Stand Aside`; timing: `Later`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is later; keep on watch and reassess."
+- **Will Ethereum hit $7,000 by December 31?**
+  - stance: `Stand Aside`; timing: `Later`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is later; keep on watch and reassess."
+- **Will Ethereum hit $6,000 by December 31?**
+  - stance: `Stand Aside`; timing: `Later`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is later; keep on watch and reassess."
+- **Will Ethereum hit $5,000 by December 31?**
+  - stance: `Stand Aside`; timing: `Later`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is later; keep on watch and reassess."
+- **Will Ethereum dip to $1,000 by December 31?**
+  - stance: `Stand Aside`; timing: `Later`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is later; keep on watch and reassess."
