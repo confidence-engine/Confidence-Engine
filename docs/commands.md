@@ -65,6 +65,95 @@ python3 scripts/polymarket_digest_send.py
 
 - Falls back to default `DISCORD_WEBHOOK_URL` if `DISCORD_POLYMARKET_WEBHOOK_URL` is unset.
 
+## Crypto Signals → Alpaca (paper)
+- Configure `.env`:
+```
+ALPACA_API_KEY_ID=...
+ALPACA_API_SECRET_KEY=...
+ALPACA_BASE_URL=https://paper-api.alpaca.markets
+TB_TRADER_OFFLINE=1   # preview-only
+TB_NO_TRADE=1         # safety gate
+```
+
+- Preview-only (no API calls, no orders):
+```
+TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 \
+python3 scripts/crypto_signals_trader.py --tf 1h --max-coins 6 --debug
+```
+
+- Paper live (API calls enabled; flip gate to allow orders):
+```
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=1 \
+python3 scripts/crypto_signals_trader.py --tf 1h --max-coins 6 --debug
+
+# When ready to actually place orders, flip TB_NO_TRADE=0
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 \
+python3 scripts/crypto_signals_trader.py --tf 1h --max-coins 6 --debug
+```
+
+- Behavior:
+  - Builds digest via `scripts/crypto_signals_digest.py` internals and extracts per-TF plans.
+  - Maps plan entries/invalidation/targets to bracket orders sized by risk fraction.
+  - Defaults: timescale `1h`, risk 0.5% equity; configurable via flags/env.
+  - Duplicate protections: checks existing positions and open orders per symbol/side.
+  - Cooldown/state: persists `state/crypto_trader_state.json` to avoid rapid re-entry (configurable via `TB_TRADER_COOLDOWN_SEC`).
+  - Live price trigger: requires current price to cross entry in the direction of trade.
+
+- Continuous scheduling (every N seconds):
+```
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=1 \
+python3 scripts/crypto_signals_trader.py --tf 1h --loop --interval-sec 60 --debug
+```
+
+- Place-and-cancel test order (paper):
+  - Safely validates submission/cancel permissions without filling (deep limit)
+  - Adjusts quantity to satisfy Alpaca's minimum notional ($10)
+```
+python3 - << 'PY'
+import os, time, math
+from pathlib import Path
+from dotenv import load_dotenv
+from alpaca_trade_api.rest import REST
+
+root = Path('.').resolve()
+load_dotenv(dotenv_path=root / '.env')
+
+key=os.getenv('ALPACA_API_KEY_ID'); sec=os.getenv('ALPACA_API_SECRET_KEY'); url=os.getenv('ALPACA_BASE_URL','https://paper-api.alpaca.markets')
+assert key and sec, "Missing ALPACA keys in env"
+api=REST(key, sec, base_url=url)
+
+symbol='BTC/USD'
+bars = api.get_crypto_bars([symbol], '1Min', limit=5).df
+px = float(bars['close'].iloc[-1]) if len(bars)>0 else 50000.0
+limit_price = round(px * 0.80, 2)  # deep buy to avoid fill
+min_notional = 10.50
+qty = math.ceil((min_notional / limit_price) * 1e6) / 1e6  # 6dp precision
+
+print(f"Placing test limit BUY {symbol} qty={qty} @ {limit_price} (px~{px}) notional~${qty*limit_price:.2f}")
+order = api.submit_order(
+    symbol=symbol,
+    side='buy',
+    type='limit',
+    time_in_force='gtc',
+    qty=qty,
+    limit_price=limit_price,
+)
+oid = getattr(order, 'id', None) or getattr(order, 'client_order_id', None)
+print("Submitted order_id:", oid)
+
+time.sleep(1.0)
+api.cancel_order(oid)
+time.sleep(0.5)
+try:
+    o = api.get_order(oid)
+    print("Post-cancel status:", getattr(o, 'status', None))
+except Exception as e:
+    print("Fetch after cancel errored (ok if purged):", e)
+PY
+```
+
+Note: Alpaca requires a minimum order notional (~$10). Use a deep limit to avoid accidental fills.
+
 ## Evaluation and accuracy
 - Update hit-rate trend + write daily summary and failures (local safe):
 ```

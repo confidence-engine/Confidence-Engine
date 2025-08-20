@@ -30,6 +30,26 @@
 - Docs: `docs/commands.md` updated with Polymarket sender commands and dedicated webhook usage.
 - Safety: Gating unchanged; respects `TB_ENABLE_DISCORD` and `TB_NO_DISCORD`.
 
+## [crypto-signals-alpaca-trader]
+- Added `scripts/crypto_signals_trader.py` (safe-by-default) to translate crypto signals digest plans into Alpaca paper bracket orders.
+  - Offline/preview gating via `TB_TRADER_OFFLINE=1` and global safety gate `TB_NO_TRADE=1`.
+  - Uses digest per-timescale plans (entries/invalidation/targets) with risk-based sizing (default 0.5% equity).
+- Docs: `docs/commands.md` now includes a "Crypto Signals → Alpaca (paper)" section with configuration and run examples.
+- `.env.example`: Added Alpaca keys/endpoints and `TB_NO_TRADE` safety variable.
+- Note: Trader script is not auto-committed; only documentation and examples are staged/committed.
+
+- Enhancements:
+  - Duplicate protections: check existing positions and open orders per symbol/side before placing.
+  - Cooldown/state: persist to `state/crypto_trader_state.json`; configurable via `TB_TRADER_COOLDOWN_SEC`.
+  - Live price trigger: require current price to be on the proper side of the entry before acting.
+  - Scheduler: optional `--loop` with `--interval-sec` (or `TB_TRADER_INTERVAL_SEC`) for 1–5 min cadence.
+
+- Verification (2025-08-20):
+  - Connectivity: `account_status=ACTIVE`, `equity=100000`; recent crypto bars available.
+  - Paper place-and-cancel test on `BTC/USD`:
+    - Deep limit buy, qty auto-adjusted to satisfy ~$10 minimum notional.
+    - Submitted and then canceled successfully; final status: `canceled`.
+
 ## [eval-hit-rate-diagnostics + synth-validation]
 - Diagnostics: `scripts/asset_hit_rate.py` now supports `--debug` and returns `summary['diagnostics']` with join coverage (e.g., `symbols_mapped`, `no_bars_mapping`, `no_covering_window`, `event_ts_unparseable`, `unrealized_items`).
 - Validation: Added synthetic fixture to prove bars-join path:
