@@ -50,6 +50,15 @@
     - Deep limit buy, qty auto-adjusted to satisfy ~$10 minimum notional.
     - Submitted and then canceled successfully; final status: `canceled`.
 
+- Observability:
+  - Added CSV journaling to `state/trade_journal.csv` for intents and submissions.
+  - Added optional Discord notifications for intents/submissions (live-trades channel) gated by `TB_TRADER_NOTIFY=1` and `TB_ENABLE_DISCORD=1` using `DISCORD_TRADER_WEBHOOK_URL`.
+
+- Fixes:
+  - Alpaca SDK import compatibility: switched to string literals for `time_in_force`/`type` and import only `REST` to support versions lacking `TimeInForce` symbols.
+  - Enforced `$10` minimum notional via `TB_TRADER_MIN_NOTIONAL` default and CLI `--min-notional`.
+  - Test: one-shot online no-trade run succeeded (keys loaded; candidates[1h]=0), confirming connectivity.
+
 ## [eval-hit-rate-diagnostics + synth-validation]
 - Diagnostics: `scripts/asset_hit_rate.py` now supports `--debug` and returns `summary['diagnostics']` with join coverage (e.g., `symbols_mapped`, `no_bars_mapping`, `no_covering_window`, `event_ts_unparseable`, `unrealized_items`).
 - Validation: Added synthetic fixture to prove bars-join path:
