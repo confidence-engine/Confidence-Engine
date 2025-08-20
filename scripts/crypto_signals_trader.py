@@ -91,6 +91,13 @@ def _get_alpaca() -> Optional[REST]:
         return None
 
 
+def _broker_supports_crypto_shorts() -> bool:
+    """Return whether the connected broker supports shorting spot crypto.
+    Alpaca spot crypto does NOT support shorting, so this returns False.
+    """
+    return False
+
+
 def _calc_qty(equity: float, entry: float, stop: float, risk_frac: float = 0.005) -> float:
     per_unit_risk = abs(entry - stop)
     if per_unit_risk <= 0:
@@ -222,7 +229,7 @@ def _decimals_for(sym: str) -> int:
     return 4
 
 
-def _place_bracket(api: REST, symbol: str, side: str, qty: float, entry: float, tp: float, sl: float, debug: bool = False) -> Tuple[bool, Optional[str]]:
+def _place_bracket(api: REST, symbol: str, side: str, qty: float, entry: float, tp: float, sl: float, debug: bool = False) -> Tuple[bool, Optional[str], Optional[str]]:
     try:
         # Use literal strings for broad SDK compatibility
         tif = "gtc"
@@ -239,11 +246,11 @@ def _place_bracket(api: REST, symbol: str, side: str, qty: float, entry: float, 
         oid = getattr(order, "id", None) or getattr(order, "client_order_id", None)
         if debug:
             print(f"[trade] submitted bracket: sym={symbol} side={side} qty={qty:.6f} tp={tp:.4f} sl={sl:.4f} id={oid}")
-        return True, str(oid) if oid else None
+        return True, (str(oid) if oid else None), None
     except Exception as e:
         if debug:
             print(f"[trade] submit failed: {e}")
-        return False, None
+        return False, None, str(e)
 
 
 def _decide_side(thesis: Dict[str, Any]) -> Optional[str]:
@@ -390,6 +397,31 @@ def _has_open_in_direction(api: REST, symbol: str, side: str) -> bool:
     return False
 
 
+def _position_qty(api: REST, symbol: str) -> float:
+    """Return current base position quantity for symbol (0.0 if none).
+    Tries to match both slash and non-slash symbol forms returned by Alpaca.
+    """
+    try:
+        target = _normalize_symbol(symbol).upper()
+        target_noslash = target.replace("/", "")
+        poss = api.list_positions()
+        for p in poss or []:
+            sym = (getattr(p, "symbol", "") or getattr(p, "asset_id", "")).upper()
+            if not sym:
+                continue
+            if sym == target or sym == target_noslash:
+                q = getattr(p, "qty", None)
+                if q is None:
+                    q = getattr(p, "qty_available", 0.0)
+                try:
+                    return float(q)
+                except Exception:
+                    return 0.0
+    except Exception:
+        return 0.0
+    return 0.0
+
+
 def _cancel_stale_orders(api: REST, ttl_min: int, debug: bool = False) -> None:
     try:
         from datetime import datetime, timezone
@@ -441,6 +473,7 @@ def main() -> int:
     ap.add_argument("--order-ttl-min", type=int, default=int(os.getenv("TB_TRADER_ORDER_TTL_MIN", "0")), help="Cancel open orders older than this many minutes (0=disabled)")
     ap.add_argument("--show-current-price", action="store_true", help="When --debug, also print live current price for each candidate")
     ap.add_argument("--min-rr", type=float, default=float(os.getenv("TB_TRADER_MIN_RR", "0.0")), help="Minimum risk-reward ratio required to trade (0 disables)")
+    ap.add_argument("--allow-shorts", action="store_true", default=(os.getenv("TB_TRADER_ALLOW_SHORTS", "0") == "1"), help="Allow short sells (default off). When off, SELL requires existing base position > 0")
     ap.add_argument("--debug", action="store_true", help="Verbose logging")
     args = ap.parse_args()
 
@@ -574,6 +607,38 @@ def main() -> int:
                     print(f"[gate] open position/order exists for {sym} side={c['side']}; skip")
                 continue
 
+            # Position-aware SELL gate (spot): require inventory; shorts unsupported on Alpaca crypto
+            if c["side"] == "sell" and not no_trade:
+                pos_qty = _position_qty(api, sym)
+                if pos_qty <= 0:
+                    if not args.allow_shorts or not _broker_supports_crypto_shorts():
+                        # Skip instead of attempting submit that will be rejected by broker
+                        reason = "skipped:no_position_for_sell" if not args.allow_shorts else "skipped:shorts_not_supported"
+                        if args.debug:
+                            print(f"[gate] SELL {sym} blocked: {reason}")
+                        payload = {
+                            "ts": _now_utc().isoformat(),
+                            "event": "skipped",
+                            "artifact": Path(uni).name,
+                            "symbol": sym,
+                            "tf": args.tf,
+                            "side": c["side"],
+                            "bias": None,
+                            "entry": c["entry"],
+                            "stop": c["stop"],
+                            "tp": c["tp"],
+                            "price": px,
+                            "qty": "",
+                            "risk_frac": args.risk_frac,
+                            "cooldown_sec": args.cooldown_sec,
+                            "order_id": "",
+                            "status": "skipped",
+                            "note": reason,
+                        }
+                        _journal_append(payload)
+                        _notify_discord("skipped", payload, debug=args.debug)
+                        continue
+
             qty = _calc_qty(equity, c["entry"], c["stop"], args.risk_frac)
             # Enforce minimum notional for Alpaca paper trading
             min_notional = max(0.0, float(args.min_notional))
@@ -586,9 +651,44 @@ def main() -> int:
                     print(f"[trade] skip {sym} invalid qty (entry={c['entry']:.4f}, stop={c['stop']:.4f})")
                 continue
 
+            # Final SELL safety: cap to available position, or skip if none
+            note_extra = ""
+            if c["side"] == "sell" and not no_trade:
+                pos_qty2 = _position_qty(api, sym)
+                if args.debug:
+                    print(f"[gate] SELL {sym} pos_qty={pos_qty2:.6f} planned_qty={qty:.6f}")
+                if pos_qty2 <= 0:
+                    if args.debug:
+                        print(f"[gate] SELL {sym} blocked at submit: no_position_for_sell")
+                    payload = {
+                        "ts": _now_utc().isoformat(),
+                        "event": "skipped",
+                        "artifact": Path(uni).name,
+                        "symbol": sym,
+                        "tf": args.tf,
+                        "side": c["side"],
+                        "bias": None,
+                        "entry": c["entry"],
+                        "stop": c["stop"],
+                        "tp": c["tp"],
+                        "price": px,
+                        "qty": "",
+                        "risk_frac": args.risk_frac,
+                        "cooldown_sec": args.cooldown_sec,
+                        "order_id": "",
+                        "status": "skipped",
+                        "note": "skipped:no_position_for_sell",
+                    }
+                    _journal_append(payload)
+                    _notify_discord("skipped", payload, debug=args.debug)
+                    continue
+                if qty > pos_qty2:
+                    note_extra = f" qty_capped_to_position({pos_qty2:.6f})"
+                    qty = pos_qty2
+
             if no_trade:
                 if args.debug:
-                    print(f"[trade] no-trade gate: would submit {sym} {c['side']} qty={qty:.6f}")
+                    print(f"[trade] no-trade gate: would submit {sym} {c['side']} qty={qty:.6f}{note_extra}")
                 payload = {
                     "ts": _now_utc().isoformat(),
                     "event": "would_submit",
@@ -606,14 +706,14 @@ def main() -> int:
                     "cooldown_sec": args.cooldown_sec,
                     "order_id": "",
                     "status": "preview",
-                    "note": (f"no_trade rr={rr:.2f}" if rr is not None else "no_trade"),
+                    "note": ((f"no_trade rr={rr:.2f}" if rr is not None else "no_trade") + note_extra).strip(),
                 }
                 _journal_append(payload)
                 _notify_discord("would_submit", payload, debug=args.debug)
                 _mark_action(st, sym)
                 continue
 
-            ok, oid = _place_bracket(api, sym, c["side"], qty, c["entry"], c["tp"], c["stop"], debug=args.debug)
+            ok, oid, err = _place_bracket(api, sym, c["side"], qty, c["entry"], c["tp"], c["stop"], debug=args.debug)
             payload = {
                 "ts": _now_utc().isoformat(),
                 "event": "submit",
@@ -631,7 +731,7 @@ def main() -> int:
                 "cooldown_sec": args.cooldown_sec,
                 "order_id": oid or "",
                 "status": "submitted" if ok else "failed",
-                "note": (f"rr={rr:.2f}" if rr is not None else ""),
+                "note": ((f"rr={rr:.2f}" if rr is not None else "") + note_extra + (f" err={err}" if (not ok and err) else "")).strip(),
             }
             _journal_append(payload)
             _notify_discord("submit", payload, debug=args.debug)

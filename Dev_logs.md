@@ -1,3 +1,28 @@
+## [trader: crypto shorts gate + submit error journaling]
+- Hardening: `scripts/crypto_signals_trader.py`
+  - Broker capability gate for SELL on spot crypto: if no base position and shorts unsupported, skip with `note=skipped:shorts_not_supported` (or `skipped:no_position_for_sell` when `--allow-shorts` is off). Avoids pointless broker rejections.
+  - Observability: `_place_bracket()` now returns the broker/API error string; failed submissions write `note` like `rr=1.65 err=insufficient balance for ETH (requested: 24.67, available: 0)` to `state/trade_journal.csv` and Discord (when enabled).
+- Safety: No change to external behavior under `TB_TRADER_OFFLINE=1` or `TB_NO_TRADE=1`. New gate prevents SELL submits that would fail on Alpaca spot crypto (no shorting).
+- Verification: Ran safe dry-run `TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 python3 scripts/crypto_signals_trader.py --tf 4h --symbols ETH/USD --debug` — candidates rendered; no API calls; journal preview lines written.
+
+## [trader: final SELL safety clamp + debug]
+- Hardening: `scripts/crypto_signals_trader.py`
+  - Added `_broker_supports_crypto_shorts()` (returns `False` for Alpaca spot crypto) and used it alongside the SELL gate.
+  - Final pre-submit SELL safety: if SELL qty exceeds available base position, cap qty to position; if position is zero, skip with `note=skipped:no_position_for_sell`.
+  - Debug: extra logs around SELL gates showing `pos_qty` and planned qty; logs when qty is capped or SELL is skipped.
+- Observability: Journal `note` can include `qty_capped_to_position(<qty>)` when clamped.
+- Safety: Preserves `TB_TRADER_OFFLINE`/`TB_NO_TRADE` behavior; no external calls when offline.
+
+## [trader: position-aware SELL gate + allow-shorts]
+- Feature: Added a position-aware SELL gate in `scripts/crypto_signals_trader.py`.
+  - When `--allow-shorts` is not set (or `TB_TRADER_ALLOW_SHORTS=0`), SELL orders are skipped if there is no base position for the symbol (spot venues usually disallow shorts).
+  - Journal/Discord note: `skipped:no_position_for_sell` for observability.
+- CLI/Env:
+  - New flag `--allow-shorts` (default off). Env: `TB_TRADER_ALLOW_SHORTS=0|1`.
+  - `.env.example` updated with `TB_TRADER_ALLOW_SHORTS` and description.
+- Docs: `docs/commands.md` updated — added the flag under recommended options and documented SELL gate behavior in the Behavior section.
+- Safe verification: Performed offline preview and online no-trade runs to validate gating and ensure no unintended submissions.
+
 ## [docs-policy: milestone-only enforcement]
 - Enforced milestone-only documentation across repo (no calendar dates):
   - `README.md`: removed date from "Dev log summary" heading.

@@ -97,6 +97,7 @@ python3 scripts/crypto_signals_trader.py --tf 1h --max-coins 6 --debug
   - `--min-rr 2.0` — require minimum risk-reward ratio (plan-based)
   - `--cooldown-sec 3600` — 1h cooldown to avoid rapid re-entry
   - `--order-ttl-min 30` — cancel stale open orders older than 30 minutes
+  - `--allow-shorts` — allow short sells; when omitted (default), SELLs require an existing base position > 0 (env: `TB_TRADER_ALLOW_SHORTS`)
   - Example:
   ```
   TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 \
@@ -113,6 +114,9 @@ python3 scripts/crypto_signals_trader.py --tf 1h --max-coins 6 --debug
   - Duplicate protections: checks existing positions and open orders per symbol/side.
   - Cooldown/state: persists `state/crypto_trader_state.json` to avoid rapid re-entry (configurable via `TB_TRADER_COOLDOWN_SEC`).
   - Live price trigger: requires current price to cross entry in the direction of trade.
+  - Position-aware SELL gate: on spot crypto, SELL orders are skipped when there is no base position and `--allow-shorts` is not set (or `TB_TRADER_ALLOW_SHORTS=0`). Discord/journal note shows `skipped:no_position_for_sell`.
+  - Final SELL safety clamp: before submit, SELL qty is capped to available base position; if position is zero, trade is skipped. Journal `note` includes `qty_capped_to_position(<qty>)` when clamped.
+  - Shorts support: Alpaca spot crypto does not support shorting. Keep `--allow-shorts` off unless trading on a venue that supports crypto shorts.
 
 - Continuous scheduling (loop, every N seconds):
 ```

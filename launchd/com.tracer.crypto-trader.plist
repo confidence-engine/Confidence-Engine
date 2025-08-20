@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.tracer.crypto-trader</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/env</string>
+    <string>bash</string>
+    <string>-lc</string>
+    <string>"/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/trader_run_and_commit.sh"</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet</string>
+  <key>StandardOutPath</key><string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/trader_loop.log</string>
+  <key>StandardErrorPath</key><string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/trader_loop.err</string>
+  <key>StartInterval</key><integer>300</integer>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><false/>
+</dict>
+</plist>
