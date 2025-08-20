@@ -1,18 +1,24 @@
-## [hit-rate tunables + failures CSV + mapping fallback + trend] - 2025-08-20
+## [docs-policy: milestone-only enforcement]
+- Enforced milestone-only documentation across repo (no calendar dates):
+  - `README.md`: removed date from "Dev log summary" heading.
+  - `knowledge_wiki.md`: removed "Last updated" line; added milestone-only note.
+  - `Dev_logs.md`: stripped date suffixes from recent section headers and removed time-based phrasing.
+
+## [hit-rate tunables + failures CSV + mapping fallback + trend]
 - Added env knob `TB_HITRATE_SIDEWAYS_EPS` to tune sideways correctness band in `scripts/asset_hit_rate.py`.
 - Added `--failures_csv` (effective with `--debug`) to write per-item join failure reasons.
 - Improved symbol→bars mapping to also consider symbol-named CSVs in `bars/` (e.g., `BTC_USD.csv`, `BTCUSD.csv`).
 - New script `scripts/hit_rate_trend.py` appends one-line summaries to `eval_runs/hit_rate_trend.csv` for nightly tracking.
 - Verified synthetic slice still passes; CI regression gate runs `scripts/check_asset_hit_rate_synth.py`.
 
-## [eval-hit-rate-diagnostics + synth-validation] - 2025-08-20
+## [eval-hit-rate-diagnostics + synth-validation]
 - Diagnostics: `scripts/asset_hit_rate.py` now supports `--debug` and returns `summary['diagnostics']` with join coverage (e.g., `symbols_mapped`, `no_bars_mapping`, `no_covering_window`, `event_ts_unparseable`, `unrealized_items`).
 - Validation: Added synthetic fixture to prove bars-join path:
   - `runs/99.json` (maps BTC/USD → `bars/99.csv`), `bars/99.csv` (minute-ish anchors), and `universe_runs/universe_20250819_synth.json`.
   - Result: non-zero outcomes; 1h horizon computed with hit_rate=1.0. Markdown summary written to `eval_runs/hit_rate_summary_synth.md`.
 - No external sends or commits; code-only changes kept local.
 
-## [eval-hit-rate-bars-join + nightly-safe-qa] - 2025-08-19
+## [eval-hit-rate-bars-join + nightly-safe-qa]
 - Feature: Enhanced `scripts/asset_hit_rate.py` to compute realized 1h/4h/1D returns by joining `universe_runs/*.json` with `bars/*.csv`.
   - Heuristic symbol→bars mapping inferred from `runs/*.json` IDs (e.g., `runs/10.json` + `bars/10.csv`).
   - Normalizes timestamps to timezone-aware UTC to avoid comparison errors.
@@ -20,8 +26,8 @@
   - Current result: no realizations found on repo data (universe timestamps don't overlap available bars or mapping incomplete). Next: enrich mapping or expand bars coverage.
 - CI: Added nightly Safe QA workflow `.github/workflows/safe_qa_nightly.yml` to run `scripts/safe_qa.py` at 06:00 UTC with safe env toggles (no sends/commits).
 
-## [ops-degraded-markers + gitops-guardrails] - 2025-08-15
-## [polymarket-bridge-fallback] - 2025-08-19
+## [ops-degraded-markers + gitops-guardrails]
+## [polymarket-bridge-fallback]
 - Enhanced `scripts/polymarket_bridge.py` with native fallback:
   - If PPLX returns 0 items and `TB_POLYMARKET_FALLBACK_NATIVE=1`, the bridge calls `providers/polymarket.get_btc_eth_markets()` and maps those.
   - Debug logs indicate when fallback triggers and how many items are produced.
@@ -38,20 +44,20 @@
   - Universe enrichment auto-commit path stages only whitelisted files (`universe_runs/<artifact>.json`, optional `universe_runs/metrics.csv`).
 - Safety: Honors env gating. Defaults preserve no-sends (`TB_NO_TELEGRAM=1`, `TB_NO_DISCORD=1`) and no auto-commit/push when disabled.
 
-## [docs-kids-explainer] - 2025-08-15
+## [docs-kids-explainer]
 - Docs: Added kid-friendly explainer `docs/kids_explainer.md`.
   - Simple metaphors (weather helper), step-by-step sections, safety notes, examples, and glossary.
   - Includes safe run and consistency-gate commands in kid-appropriate wording.
   - No code changes.
 
-## [docs-readme-schema-v3.2-consistency-gate] - 2025-08-15
+## [docs-readme-schema-v3.2-consistency-gate]
 - Docs: Refreshed key docs to reflect payload schema v3.2 + deterministic consistency gate.
   - `README.md`: added "Payload schema v3.2" section and "Deterministic consistency gate" usage block after Git ops.
   - `README_CLEAN.md`: added concise "5.1 Payload schema v3.2 + Consistency gate" with safe run command.
   - `architecture.md`: added enrichment phase, clarified persistence paths, and noted env-gated git auto-commit/push.
   - No code changes; safe-only edits. Not committed/pushed yet.
 
-## [docs-payload-schema-v3.2] - 2025-08-15
+## [docs-payload-schema-v3.2]
 - Docs: Updated `docs/payload.md` to reflect latest artifact schema and ops notes.
   - `timescale_scores`: renamed `price_move_pct` → `price_change_pct`.
   - Added `evidence_line` field description.
@@ -60,14 +66,14 @@
   - Top-level `polymarket` array structure and fields.
   - Consistency gate summary and env-controlled auto-commit/push of universe artifacts and `universe_runs/metrics.csv`.
 
-## [v3.1.29-consistency-gate-and-ci] - 2025-08-15
+## [v3.1.29-consistency-gate-and-ci]
 - Feature: Added deterministic consistency gate for universe scans.
   - New utility: `scripts/consistency_check.py` runs two scans under a safe deterministic profile, normalizes payloads (ignores timestamps), compares payload summaries and ranking; exits non-zero on drift.
   - CI: `.github/workflows/ci.yml` now includes a "Consistency gate" step after tests with env `TB_DETERMINISTIC=1`, `TB_NO_TELEGRAM=1`, `TB_UNIVERSE_GIT_AUTOCOMMIT=0`, `TB_UNIVERSE_GIT_PUSH=0`.
   - Verification: Local run passes; artifacts show identical payload tuples and ranking across back-to-back runs.
   - Safety: No sends or git side effects; crypto-only default remains.
 
-## [v3.1.28-crypto-only-universe-default] - 2025-08-15
+## [v3.1.28-crypto-only-universe-default]
 - Change: Universe scan now excludes stocks by default to avoid stock-related errors and focus on crypto assets exclusively.
   - Default behavior: only symbols with `get_symbol_type(...) == "crypto"` are analyzed.
   - Opt-in: set `TB_INCLUDE_STOCKS=1` to include stocks again.
@@ -76,7 +82,7 @@
 - Safety: No changes to downstream ranking/digest logic; Telegram/Discord gating unchanged.
 - Verification: Safe local run with `TB_NO_TELEGRAM=1 TB_UNIVERSE_GIT_AUTOCOMMIT=0 TB_UNIVERSE_GIT_PUSH=0` shows only crypto entries processed and saved.
 
-## [v3.1.27-deterministic-mode] - 2025-08-15
+## [v3.1.27-deterministic-mode]
 - Feature: Introduced deterministic mode to make back-to-back digests consistent.
   - Env flags: `TB_DETERMINISTIC=1` enables deterministic behavior; optional `TB_SEED=<int>` for reproducible runs across machines.
   - Changes in `scripts/scan_universe.py`:
@@ -87,7 +93,7 @@
 - Impact: Telegram/Discord digests are repeatable between runs within minutes unless real underlying data changes.
 - Tests: Full suite green (105) with and without deterministic mode.
 
-## [v3.1.26-discord-coins-today-fix] - 2025-08-15
+## [v3.1.26-discord-coins-today-fix]
 - Fix: Restored "Coins today" section in Discord Quick Summary.
   - Root cause: `_render_quick_summary()` referenced `_is_aplus_setup()` that was defined only inside `digest_to_discord_embeds()`, making it out of scope during summary rendering. The section silently skipped due to error handling.
   - Change: Moved `_is_aplus_setup()` to module scope in `scripts/discord_formatter.py` and hardened its inference of `passed` from `failed`/`delta`.
@@ -121,7 +127,7 @@
 
 > Prefer the concise history? See [Dev_logs_CLEAN.md](Dev_logs_CLEAN.md).
 
-## [docs + nightly auto-commit broaden] - 2025-08-20
+## [docs + nightly auto-commit broaden]
 - Docs refresh:
   - `README.md`: added "Hit‑rate self‑checks & nightly automation" section documenting tunables (`TB_HITRATE_SIDEWAYS_EPS`, `TB_HITRATE_W_*`, `TB_HITRATE_REG_THRESH`), CLI usage, and nightly scope.
   - `roadmap.md`: updated date and Status/Now→Near→Next to reflect nightly hit‑rate self‑checks and broadened non‑.py auto‑commit policy.
@@ -132,20 +138,20 @@
   - Aligns with repo policy: auto‑commit artifacts and docs; never auto‑commit `.py`.
   - Addresses reports of `runs/99.json` and `universe_runs/metrics.csv` not being pushed by ensuring staging includes them.
 
-## [hit-rate plot + commands cheat-sheet] - 2025-08-20
+## [hit-rate plot + commands cheat-sheet]
 - New: `scripts/plot_hit_rate_trend.py` plots `eval_runs/hit_rate_trend.csv` → `eval_runs/hit_rate_trend.png` (CI-friendly: soft‑fail if CSV missing).
 - Workflow: `.github/workflows/safe_qa_nightly.yml` now includes a "Plot hit-rate trend" step after trend append.
 - Docs: Added `docs/commands.md` with concise, safe commands for universe runs, tests, hit‑rate checks, compare, and plotting.
 - Deps: Added `matplotlib` to `requirements.txt` for plotting; `pytest` added for consistent local/CI testing.
 - Policy: No `.py` files are auto‑committed; nightly commit continues to stage all then unstage `*.py` before push.
 
-## [roadmap refresh] - 2025-08-20
+## [roadmap refresh]
 - Updated `roadmap.md` and `Roadmap_CLEAN.md`:
   - Set V3.4 Evaluation Pipeline to IN PROGRESS (runner/metrics shipped; accumulating obs).
   - Now→Near→Next (v4.3): added PNG plotting step and explicit staged‑file log acceptance (no `*.py`).
-  - Kept “Last updated” at 2025-08-20; preserved structure.
+  - Removed any "Last updated" date per milestone-only policy; preserved structure.
 
-## [v3.1.22-remove-grades-from-digests] - 2025-08-15
+## [v3.1.22-remove-grades-from-digests]
 - Change (parity): Removed all grade computation and rendering from both Telegram and Discord digest formatters to normalize outputs and avoid discrepancies.
   - Files: `scripts/discord_formatter.py`, `scripts/tg_digest_formatter.py`
   - Details:
@@ -155,7 +161,7 @@
 - Tests: Updated `tests/test_digest_formatters.py` to stop expecting grade tags; now verify provenance-only. Test run: 2 passed.
 - Notes: Environment variables related to grading remain but are unused by formatters.
 
-## [v3.1.19-digest-provenance-parity-fix] - 2025-08-15
+## [v3.1.19-digest-provenance-parity-fix]
 - Fix (parity): Standardized timeframe provenance label across chat renderers — when `plan[tf].source == "analysis"`, show `(agent mode)` instead of `(analysis)`.
   - Files: `scripts/discord_formatter.py`, `scripts/tg_digest_formatter.py`
 - Fix (Telegram UI): Removed a duplicate per-timeframe label line under each TF block; now a single header line carries provenance and the per-timeframe micro‑grade.
@@ -163,14 +169,14 @@
 - Result: Per‑timeframe headers render as e.g., `1h: (agent mode) [Grade: B]` on both Discord and Telegram.
 - Safety: No change to grading math; both renderers call `compute_setup_grade()` for consistency.
 
-## [v3.1.20-per-tf-grading] - 2025-08-15
+## [v3.1.20-per-tf-grading]
 - Feature: Added per‑timeframe micro‑grading via `compute_setup_grade_for_tf()` in `scripts/evidence_lines.py`.
   - TF‑local adjustments: small bias for `(agent mode)` vs `(fallback)`, and presence of `explain`.
 - Discord: timeframe field names now include `[Grade: <micro>]` computed per TF.
 - Telegram: timeframe header line now includes `[Grade: <micro>]` computed per TF.
 - Safety: Overall asset grade remains for headers; environment tunables `TB_GRADE_W_*` and `TB_GRADE_THRESH_*` still control distributions.
 
-## [v3.1.21-grading-defaults-and-cli] - 2025-08-15
+## [v3.1.21-grading-defaults-and-cli]
 - Tuning: Tightened default grading thresholds and shifted weights toward confirmation checks in `.env.example`.
   - `TB_GRADE_W_CONF=0.45`, `TB_GRADE_W_CONFCHK=0.35`, `TB_GRADE_W_ALIGN=0.20`
   - `TB_GRADE_THRESH_A=0.85`, `TB_GRADE_THRESH_B=0.70`, `TB_GRADE_THRESH_C=0.55`
@@ -178,7 +184,7 @@
   - Flags: `--file`, `--per-tf`, `--aggregate`, `--symbols`
 - Tests: Added `tests/test_digest_formatters.py` covering provenance mapping, per‑TF grades, and header harmonization.
 
-## [v3.1.17-digest-letter-grades] - 2025-08-15
+## [v3.1.17-digest-letter-grades]
 - Feature (parity): Added consistent setup letter grades (A+..D) to both Telegram and Discord digests.
   - Computation centralized in `scripts/evidence_lines.py` via `compute_setup_grade()` and `compute_polymarket_grade()`.
   - Asset headers now append ` [Grade: X]` next to Risk/Timing/Stance.
@@ -206,7 +212,7 @@
   - Logic: Treats strong when both price_vs_narrative and volume_support pass (and either timescale_alignment passes or overall aligned); elevated when at least one of price/volume passes.
   - Files: `scripts/discord_formatter.py` and `scripts/tg_digest_formatter.py` updated identically.
 
-## [v3.1.18-digest-grade-tuning-and-ui] - 2025-08-15
+## [v3.1.18-digest-grade-tuning-and-ui]
 - Change (polymarket): Removed letter-grade badges from Polymarket items in both Telegram and Discord digests (kept stance | readiness | edge and optional internal confidence when enabled).
   - Files: `scripts/tg_digest_formatter.py`, `scripts/discord_formatter.py`
 - Feature (parity): Added setup grade to Quick Summary coin lines (e.g., "- Bitcoin: sideways … [Grade: B]") while preserving the strict `(A+)` tag when applicable.
@@ -220,9 +226,9 @@
 - Tests: Formatter tests green after changes.
 - Safety: For local renders, disable auto-commit/push with `TB_UNIVERSE_GIT_AUTOCOMMIT=0 TB_UNIVERSE_GIT_PUSH=0` to avoid remote changes.
 
-## [v3.1.16-digest-aplus-plain-english] - 2025-08-15
+## [v3.1.16-digest-aplus-plain-english]
 
-## [v3.1.13-discord-why-and-no-playbook] - 2025-08-15
+## [v3.1.13-discord-why-and-no-playbook]
 - Feature: Discord digest now includes per-timeframe number-free “Why” explanations derived from agent analysis, matching Telegram.
   - File: `scripts/discord_formatter.py` (adds `Why:` under each TF field using `plan[tf]['explain']`)
 - Change: Removed the Playbook section from Telegram human digest per user request.
@@ -232,7 +238,7 @@
 - Policy: Avoid committing/pushing `.py` files going forward; use safe local runs and only commit docs/artifacts when approved.
 - Verification: Ran safe digest build with TG/Discord disabled; Telegram shows no Playbook; Discord (dry) will render TF “Why”.
 
-## [v3.1.14-remove-1M-timeframe] - 2025-08-15
+## [v3.1.14-remove-1M-timeframe]
 - Change: Removed 1M (monthly) timeframe from all assets in both planning and renderers. TFs now: `1h, 4h, 1D, 1W`.
   - Files: `scripts/tracer_bullet_universe.py` (ORDERED_TFS), `scripts/tg_digest_formatter.py` (ordered_tfs), `scripts/discord_formatter.py` (tf_order)
 - Artifacts: Schema unchanged; per-asset `plan` may still contain `1M` if present historically, but renderers skip it and planner no longer generates it.

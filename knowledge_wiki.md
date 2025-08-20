@@ -2,7 +2,7 @@
 
 A living, milestone-driven plan from V1 tracer bullet to small live capital, emphasizing reliability, explainability, and leak-free validation.
 
-Last updated: 2025-08-14.
+Maintained under milestone-only policy (no calendar dates).
 
 ---
 

@@ -695,7 +695,7 @@ Tuning:
 
 ---
 
-## 7) Dev log summary (2025-08-09)
+## 7) Dev log summary
 
 - Added multi-source ingest: Perplexity Pro API (key rotation), CoinDesk RSS
 - Implemented robust FinBERT sentiment (MAD + trimmed mean) on relevant-only
