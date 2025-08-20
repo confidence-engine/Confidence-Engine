@@ -2,7 +2,7 @@
 
 A milestone-driven plan from V1 tracer bullet to V7 live capital, with crisp DoD (definition of done), acceptance criteria, risks, and operating cadence.
 
-Last updated: 2025-08-20.
+Roadmap snapshot: milestone-based (no calendar dates).
 
 ---
 

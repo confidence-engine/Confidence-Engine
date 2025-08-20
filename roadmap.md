@@ -2,7 +2,7 @@
 
 A living, milestone-driven plan from V1 tracer bullet to small live capital, emphasizing reliability, explainability, and leak-free validation.
 
-Last updated: 2025-08-20.
+Roadmap snapshot: milestone-based (no calendar dates).
 
 > Prefer a concise, structured version? See [Roadmap_CLEAN.md](Roadmap_CLEAN.md).
 
@@ -15,7 +15,7 @@ Last updated: 2025-08-20.
 
 ***
 
-## Status Summary (as of 2025-08-20)
+## Status Summary
 
 - V1 — Tracer Bullet: DONE
 - V2 — Crowd Immunity: DONE
