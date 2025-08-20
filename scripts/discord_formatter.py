@@ -231,10 +231,11 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
         "color": 0x00BFFF,
     })
 
-    # Polymarket BTC/ETH (optional)
+    # Polymarket BTC/ETH (optional, fully suppressible)
+    include_poly = os.getenv("TB_POLYMARKET_SECTION", "1") == "1"
     pm_list = digest_data.get("polymarket") or []
     show_empty = os.getenv("TB_POLYMARKET_SHOW_EMPTY", "0") == "1"
-    if pm_list or show_empty:
+    if include_poly and (pm_list or show_empty):
         pm_fields: List[Dict[str, Any]] = []
         max_items = int(os.getenv("TB_POLYMARKET_MAX_ITEMS", "2"))
         if pm_list:
@@ -294,7 +295,7 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
 
     # Polymarket — Full (optional expanded section)
     try:
-        if (os.getenv("TB_POLYMARKET_FULL", "0") == "1") and pm_list:
+        if include_poly and (os.getenv("TB_POLYMARKET_FULL", "0") == "1") and pm_list:
             pm_fields_full: List[Dict[str, Any]] = []
             for pm in pm_list:
                 title = pm.get("title") or "Crypto market"
@@ -473,11 +474,12 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
 
     # Quick Summary (simple English) as a final embed
     try:
+        pm_for_summary = (pm_list if include_poly else [])
         qs = _render_quick_summary(
             digest_data.get("weekly") or {},
             digest_data.get("engine") or {},
             digest_data.get("assets") or [],
-            digest_data.get("polymarket") or [],
+            pm_for_summary or [],
         )
         if qs:
             embeds.append({

@@ -12,6 +12,59 @@ TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 \
 python3 scripts/tracer_bullet_universe.py --config config/universe.yaml --top 10
 ```
 
+## Crypto signals digest (Discord)
+- Dry run (latest universe, no sends):
+```
+python3 scripts/crypto_signals_digest.py
+```
+
+- Print Markdown preview:
+```
+python3 scripts/crypto_signals_digest.py --print-md
+```
+
+- Send to crypto-signals channel via webhook:
+```
+TB_ENABLE_DISCORD=1 DISCORD_CRYPTO_SIGNALS_WEBHOOK_URL="https://discord.com/api/webhooks/…" \
+python3 scripts/crypto_signals_digest.py --send
+```
+
+- Seamless autosend via .env (no flags):
+```
+# .env
+TB_ENABLE_DISCORD=1
+TB_CRYPTO_DIGEST_AUTOSEND=1
+DISCORD_CRYPTO_SIGNALS_WEBHOOK_URL="https://discord.com/api/webhooks/…"
+
+# then simply run
+python3 scripts/crypto_signals_digest.py
+```
+
+- Behavior notes:
+  - Crypto digest mirrors the full universe digest formatting and per-timeframe plans but excludes Polymarket by default.
+  - Suppression is controlled via env toggles read by the script: `TB_POLYMARKET_SECTION=0`, `TB_POLYMARKET_SHOW_EMPTY=0`.
+  - Universe digests are unchanged and still include Polymarket.
+
+- Specify an explicit universe artifact:
+```
+python3 scripts/crypto_signals_digest.py --universe universe_runs/universe_YYYYMMDD_HHMMSS_v31.json
+```
+
+## Polymarket-only digest
+- Safe dry-run (no sends; writes polymarket_digest.md):
+```
+TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 TB_ENABLE_POLYMARKET=1 \
+python3 scripts/polymarket_digest_send.py
+```
+
+- Send to a dedicated Discord channel via separate webhook:
+```
+TB_ENABLE_DISCORD=1 DISCORD_POLYMARKET_WEBHOOK_URL="https://discord.com/api/webhooks/…" \
+python3 scripts/polymarket_digest_send.py
+```
+
+- Falls back to default `DISCORD_WEBHOOK_URL` if `DISCORD_POLYMARKET_WEBHOOK_URL` is unset.
+
 ## Evaluation and accuracy
 - Update hit-rate trend + write daily summary and failures (local safe):
 ```
@@ -54,3 +107,4 @@ python3 -m pytest -q
 - TB_HITRATE_REG_THRESH — nightly regression warning threshold
 - TB_NO_TELEGRAM, TB_NO_DISCORD — disable sends during safe runs
 - TB_UNIVERSE_GIT_AUTOCOMMIT/PUSH, TB_EVAL_GIT_AUTOCOMMIT/PUSH — control git ops
+

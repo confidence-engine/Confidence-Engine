@@ -58,7 +58,7 @@ from scripts.polymarket_bridge import discover_from_env as discover_polymarket
 from scripts import tg_digest_formatter as tg_fmt
 from scripts.discord_formatter import digest_to_discord_embeds
 from scripts.tg_sender import send_telegram_text
-from scripts.discord_sender import send_discord_digest
+from scripts.discord_sender import send_discord_digest, send_discord_digest_to
 
 
 def _now_iso() -> str:
@@ -205,7 +205,12 @@ def main() -> int:
     if os.getenv('TB_NO_DISCORD', '0') != '1':
         try:
             if embeds:
-                send_discord_digest(embeds)
+                # Prefer dedicated polymarket webhook when provided
+                poly_webhook = os.getenv('DISCORD_POLYMARKET_WEBHOOK_URL')
+                if poly_webhook:
+                    send_discord_digest_to(poly_webhook, embeds)
+                else:
+                    send_discord_digest(embeds)
                 if debug:
                     print('[discord] sent')
         except Exception as e:

@@ -5,11 +5,30 @@
   - `Dev_logs.md`: stripped date suffixes from recent section headers and removed time-based phrasing.
 
 ## [hit-rate tunables + failures CSV + mapping fallback + trend]
-- Added env knob `TB_HITRATE_SIDEWAYS_EPS` to tune sideways correctness band in `scripts/asset_hit_rate.py`.
-- Added `--failures_csv` (effective with `--debug`) to write per-item join failure reasons.
-- Improved symbol→bars mapping to also consider symbol-named CSVs in `bars/` (e.g., `BTC_USD.csv`, `BTCUSD.csv`).
-- New script `scripts/hit_rate_trend.py` appends one-line summaries to `eval_runs/hit_rate_trend.csv` for nightly tracking.
-- Verified synthetic slice still passes; CI regression gate runs `scripts/check_asset_hit_rate_synth.py`.
+## [crypto-signals-discord-digest]
+- New script: `scripts/crypto_signals_digest.py` generates a crypto-only digest and can send to a dedicated Discord channel via webhook.
+- Defaults: dry-run (prints preview) — no sends unless `--send` and `TB_ENABLE_DISCORD=1`.
+- Webhook: pass `--webhook <URL>` or set `DISCORD_CRYPTO_SIGNALS_WEBHOOK_URL`.
+- Input: reads latest `universe_runs/universe_*.json` by default or `--universe <file>`.
+- Output: Reuses `scripts/discord_formatter.digest_to_discord_embeds()` for embeds; chunked posting like `discord_sender`.
+- Docs: Added run instructions to `docs/commands.md` under "Crypto signals digest (Discord)".
+
+## [crypto-digest-parity-minus-polymarket + autosend]
+- Parity: `scripts/crypto_signals_digest.py` now mirrors the full tracer-bullet digest format, including detailed per-timeframe plans (entries, invalidation, targets, "Why"), but excludes Polymarket content by default.
+- Suppression: controlled via env toggles consumed by the script (`TB_POLYMARKET_SECTION=0`, `TB_POLYMARKET_SHOW_EMPTY=0`). Universe digest remains unchanged and includes Polymarket.
+- Provenance: header shows source artifact filename and git short SHA to match universe digest.
+- Autosend: seamless Discord posting via `.env` without flags:
+  - `TB_ENABLE_DISCORD=1`, `TB_CRYPTO_DIGEST_AUTOSEND=1`, `DISCORD_CRYPTO_SIGNALS_WEBHOOK_URL=…`
+  - Just run: `python3 scripts/crypto_signals_digest.py`
+- Docs: Updated `docs/commands.md` with autosend instructions and behavior notes.
+
+## [polymarket-discord-routing]
+- Feature: Added dedicated Discord webhook routing for the Polymarket-only digest.
+  - `scripts/discord_sender.py`: new `send_discord_digest_to(webhook_url, embeds)` helper.
+  - `scripts/polymarket_digest_send.py`: uses `DISCORD_POLYMARKET_WEBHOOK_URL` when set; falls back to `DISCORD_WEBHOOK_URL`.
+  - `.env.example`: added `DISCORD_POLYMARKET_WEBHOOK_URL` with notes.
+- Docs: `docs/commands.md` updated with Polymarket sender commands and dedicated webhook usage.
+- Safety: Gating unchanged; respects `TB_ENABLE_DISCORD` and `TB_NO_DISCORD`.
 
 ## [eval-hit-rate-diagnostics + synth-validation]
 - Diagnostics: `scripts/asset_hit_rate.py` now supports `--debug` and returns `summary['diagnostics']` with join coverage (e.g., `symbols_mapped`, `no_bars_mapping`, `no_covering_window`, `event_ts_unparseable`, `unrealized_items`).

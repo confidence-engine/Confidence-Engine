@@ -39,9 +39,12 @@ def _chunk_embeds(embeds):
     return chunks
 
 
-def send_discord_digest(embeds):
-    """Send digest via Discord webhook, splitting into multiple messages if needed."""
-    if not ENABLE_DISCORD or not DISCORD_WEBHOOK_URL:
+def send_discord_digest_to(webhook_url: str, embeds):
+    """Send embeds to a specific Discord webhook URL, respecting TB_ENABLE_DISCORD.
+
+    Returns True on complete success, False otherwise.
+    """
+    if not ENABLE_DISCORD or not webhook_url:
         print("[Discord] Disabled or missing webhook URL.")
         return False
     chunks = _chunk_embeds(embeds)
@@ -52,7 +55,7 @@ def send_discord_digest(embeds):
             "embeds": chunk,
         }
         try:
-            resp = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=15)
+            resp = requests.post(webhook_url, json=payload, timeout=15)
         except Exception as e:
             print(f"[Discord] Exception: {e}")
             ok_all = False
@@ -63,3 +66,8 @@ def send_discord_digest(embeds):
         else:
             print(f"[Discord] Sent part {idx}/{len(chunks)} with {len(chunk)} embeds.")
     return ok_all
+
+
+def send_discord_digest(embeds):
+    """Send digest via Discord webhook, splitting into multiple messages if needed."""
+    return send_discord_digest_to(DISCORD_WEBHOOK_URL, embeds)
