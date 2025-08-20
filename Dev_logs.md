@@ -59,6 +59,22 @@
   - Enforced `$10` minimum notional via `TB_TRADER_MIN_NOTIONAL` default and CLI `--min-notional`.
   - Test: one-shot online no-trade run succeeded (keys loaded; candidates[1h]=0), confirming connectivity.
 
+### [trader: entry-tolerance + mid-zone + cooldown + TTL]
+- Trigger tolerance: new `--entry-tolerance-bps` (env `TB_TRADER_ENTRY_TOL_BPS`) allows a band around entry when checking live price triggers (buy: px >= entry*(1 - tol), sell: px <= entry*(1 + tol)).
+- Mid-of-zone: new `--entry-mid-zone` (env `TB_TRADER_ENTRY_MID_ZONE=1`) uses the midpoint of an entry zone when available for trigger checks.
+- Cooldown: reduced default cooldown to 300s (was 900). CLI `--cooldown-sec` or env `TB_TRADER_COOLDOWN_SEC` can override.
+- Order TTL: optional cancellation of stale open orders via `--order-ttl-min` (env `TB_TRADER_ORDER_TTL_MIN`). If >0 and not in `TB_NO_TRADE`, cancels open orders older than TTL minutes before new submissions.
+- Safety: All features respect existing gates (`TB_TRADER_OFFLINE`, `TB_NO_TRADE`).
+- Verification: safe dry-run (offline+no-trade) on `--tf 4h --symbols BTC/USD,ETH/USD --debug` produced candidates and preview journaling without API calls.
+
+### [trader: min risk-reward gate]
+- Added `--min-rr` (env `TB_TRADER_MIN_RR`) to require minimum risk-reward using plan levels:
+  - Buy: `(tp - entry_for_trigger) / (entry_for_trigger - stop)`
+  - Sell: `(entry_for_trigger - tp) / (stop - entry_for_trigger)`
+- Gate runs after live trigger check and before sizing; logs reason when filtered.
+- Journal/Discord `note` now includes `rr=..` for observability.
+- Example loop profile: `--entry-tolerance-bps 10 --entry-mid-zone --min-rr 2.0 --cooldown-sec 300 --order-ttl-min 30`.
+
 ## [eval-hit-rate-diagnostics + synth-validation]
 - Diagnostics: `scripts/asset_hit_rate.py` now supports `--debug` and returns `summary['diagnostics']` with join coverage (e.g., `symbols_mapped`, `no_bars_mapping`, `no_covering_window`, `event_ts_unparseable`, `unrealized_items`).
 - Validation: Added synthetic fixture to prove bars-join path:

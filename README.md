@@ -742,6 +742,31 @@ Agent V1:
 - Improved: Narrative from accepted-only; confidence heuristic
 - Improved: Relevance gating with enriched BTC topic and debug visibility
 - Fixed: Tokenizer parallelism warnings silenced
+
+---
+
+## Crypto trader (paper) quickstart
+
+- Configure `.env` with Alpaca paper keys and optional Discord webhook.
+- Recommended quality/safety flags in `scripts/crypto_signals_trader.py`:
+  - `--entry-tolerance-bps 10` (trigger tolerance)
+  - `--entry-mid-zone` (midpoint entry when plan has a zone)
+  - `--min-rr 2.0` (minimum risk-reward gate based on plan levels)
+  - `--cooldown-sec 3600` (1h cooldown)
+  - `--order-ttl-min 30` (cancel stale orders)
+- Example (single pass):
+```
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 \
+python3 scripts/crypto_signals_trader.py \
+  --tf 4h --symbols BTC/USD,ETH/USD \
+  --entry-tolerance-bps 10 --entry-mid-zone --min-rr 2.0 \
+  --cooldown-sec 3600 --order-ttl-min 30 --debug
+```
+
+### 24/7 background (macOS)
+- Use a LaunchAgent to run every 5 minutes (no `--loop`); cooldown gates re-entry for 1 hour.
+- Logs: `trader_loop.log`, `trader_loop.err` in project root.
+- Full plist and commands are in `docs/commands.md` (section: "24/7 background via launchd").
 - Tooling: Debug scripts for env inspection and API auth validations
 
 ---

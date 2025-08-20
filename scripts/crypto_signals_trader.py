@@ -31,7 +31,7 @@ import sys
 import time
 import argparse
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Set
 from datetime import datetime, timezone, timedelta
 
 # Project path
@@ -42,15 +42,16 @@ if str(_PROJ_ROOT) not in sys.path:
 
 # Local imports
 from scripts.crypto_signals_digest import _load_dotenv_if_present, _latest_universe_file, _build_digest_data  # type: ignore
+from scripts.discord_sender import send_discord_digest_to  # type: ignore
 from alpaca import recent_bars as alpaca_recent_bars  # price helper
+import requests
 
 try:
-    from alpaca_trade_api.rest import REST, TimeInForce, OrderSide, OrderType
-except Exception:  # pragma: no cover
+    from alpaca_trade_api.rest import REST
+except Exception as _e:  # pragma: no cover
+    if os.getenv("TB_TRADER_IMPORT_DEBUG", "0") == "1":
+        print(f"[trader] alpaca_trade_api import error: {_e}")
     REST = None  # type: ignore
-    TimeInForce = None  # type: ignore
-    OrderSide = None  # type: ignore
-    OrderType = None  # type: ignore
 
 
 def _bool(env: str, default: bool = False) -> bool:
@@ -107,6 +108,54 @@ def _state_path() -> Path:
     return p / "crypto_trader_state.json"
 
 
+def _journal_path() -> Path:
+    p = _PROJ_ROOT / "state"
+    p.mkdir(exist_ok=True)
+    return p / "trade_journal.csv"
+
+
+def _journal_append(row: Dict[str, Any]) -> None:
+    import csv
+    jp = _journal_path()
+    headers = [
+        "ts","event","artifact","symbol","tf","side","bias","entry","stop","tp","price","qty",
+        "risk_frac","cooldown_sec","order_id","status","note"
+    ]
+    exists = jp.exists()
+    with jp.open("a", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=headers)
+        if not exists:
+            w.writeheader()
+        w.writerow({k: row.get(k) for k in headers})
+
+
+def _notify_discord(event: str, payload: Dict[str, Any], debug: bool = False) -> None:
+    if os.getenv("TB_TRADER_NOTIFY", "0") != "1":
+        return
+    webhook = os.getenv("DISCORD_TRADER_WEBHOOK_URL", "").strip()
+    if not webhook:
+        if debug:
+            print("[notify] DISCORD_TRADER_WEBHOOK_URL not set")
+        return
+    title = f"Trader: {event} {payload.get('side','').upper()} {payload.get('symbol','')}"
+    desc_lines = [
+        f"tf={payload.get('tf')} qty={payload.get('qty')}",
+        f"entry={payload.get('entry')} tp={payload.get('tp')} sl={payload.get('stop')}",
+        f"price={payload.get('price')} risk={payload.get('risk_frac')} cooldown={payload.get('cooldown_sec')}s",
+        f"artifact={payload.get('artifact')} status={payload.get('status')}"
+    ]
+    embed = {
+        "title": title,
+        "description": "\n".join([str(x) for x in desc_lines if x is not None]),
+        "color": 0x2ecc71 if event.lower() in ("submit","would_submit") else 0x95a5a6,
+    }
+    try:
+        send_discord_digest_to(webhook, [embed])
+    except Exception as e:
+        if debug:
+            print(f"[notify] error: {e}")
+
+
 def _load_state() -> Dict[str, Any]:
     sp = _state_path()
     try:
@@ -152,6 +201,19 @@ def _normalize_symbol(sym: str) -> str:
     return s
 
 
+def _mid_of_zone(entries: Any, side: str) -> Optional[float]:
+    # Support mid-of-zone selection for entry triggers when entries represent a zone
+    if isinstance(entries, (list, tuple)) and len(entries) == 2 and all(isinstance(x, (int, float)) for x in entries):
+        lo, hi = float(entries[0]), float(entries[1])
+        return (lo + hi) / 2.0
+    if isinstance(entries, (list, tuple)) and len(entries) > 0 and isinstance(entries[0], dict):
+        z = entries[0].get("zone_or_trigger")
+        if isinstance(z, (list, tuple)) and len(z) == 2 and all(isinstance(x, (int, float)) for x in z):
+            lo, hi = float(z[0]), float(z[1])
+            return (lo + hi) / 2.0
+    return None
+
+
 def _decimals_for(sym: str) -> int:
     # Simple heuristic for crypto prices; refine per-symbol later
     base = (sym or "").split("/")[0]
@@ -162,8 +224,9 @@ def _decimals_for(sym: str) -> int:
 
 def _place_bracket(api: REST, symbol: str, side: str, qty: float, entry: float, tp: float, sl: float, debug: bool = False) -> Tuple[bool, Optional[str]]:
     try:
-        tif = TimeInForce.gtc if hasattr(TimeInForce, "gtc") else "gtc"
-        otype = OrderType.market if hasattr(OrderType, "market") else "market"
+        # Use literal strings for broad SDK compatibility
+        tif = "gtc"
+        otype = "market"
         order = api.submit_order(
             symbol=_normalize_symbol(symbol),
             side=side,
@@ -192,10 +255,15 @@ def _decide_side(thesis: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _iterate_candidates(digest: Dict[str, Any], tf: str) -> List[Dict[str, Any]]:
+def _iterate_candidates(digest: Dict[str, Any], tf: str, allowed_symbols: Optional[Set[str]] = None) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     for a in (digest.get("assets") or []):
         sym = a.get("symbol")
+        if allowed_symbols is not None:
+            # Match using uppercase normalized form
+            nsym = _normalize_symbol(sym or "").upper()
+            if nsym not in allowed_symbols:
+                continue
         plan = a.get("plan") or {}
         thesis = a.get("thesis") or a.get("thesis_text") or {}
         if not sym or tf not in plan:
@@ -206,19 +274,39 @@ def _iterate_candidates(digest: Dict[str, Any], tf: str) -> List[Dict[str, Any]]
         targets = tfp.get("targets") or []
         if entries is None or invalid is None or not targets:
             continue
-        tp1 = targets[0].get("price") if isinstance(targets[0], dict) else None
-        if tp1 is None:
-            continue
         side = _decide_side(a.get("thesis") or {})
         if not side:
             continue
-        # entries might be float or [lo, hi]
+        # Pick TP1
+        tp1 = None
+        if isinstance(targets, (list, tuple)) and len(targets) > 0:
+            t0 = targets[0]
+            if isinstance(t0, (int, float)):
+                tp1 = float(t0)
+            elif isinstance(t0, dict) and isinstance(t0.get("price"), (int, float)):
+                tp1 = float(t0["price"])
+        if tp1 is None:
+            continue
+        # entries might be:
+        # - float
+        # - [lo, hi]
+        # - list of dicts with key 'zone_or_trigger' that is float or [lo, hi]
+        entry_price: Optional[float] = None
         if isinstance(entries, (int, float)):
             entry_price = float(entries)
-        elif isinstance(entries, (list, tuple)) and len(entries) == 2:
-            lo, hi = entries
-            entry_price = float(lo if side == "sell" else hi)
-        else:
+        elif isinstance(entries, (list, tuple)):
+            if len(entries) == 2 and all(isinstance(x, (int, float)) for x in entries):
+                lo, hi = entries
+                entry_price = float(lo if side == "sell" else hi)
+            elif len(entries) > 0 and isinstance(entries[0], dict):
+                e0 = entries[0]
+                z = e0.get("zone_or_trigger")
+                if isinstance(z, (int, float)):
+                    entry_price = float(z)
+                elif isinstance(z, (list, tuple)) and len(z) == 2 and all(isinstance(x, (int, float)) for x in z):
+                    lo, hi = z
+                    entry_price = float(lo if side == "sell" else hi)
+        if entry_price is None:
             continue
         out.append({
             "symbol": sym,
@@ -233,13 +321,45 @@ def _iterate_candidates(digest: Dict[str, Any], tf: str) -> List[Dict[str, Any]]
 
 
 def _current_price(symbol: str) -> Optional[float]:
+    # Try Alpaca with given symbol (may include slash)
     try:
         df = alpaca_recent_bars(symbol, minutes=5)
-        if df is not None and len(df) > 0:
+        if df is not None and len(df) > 0 and "close" in df.columns:
             return float(df["close"].iloc[-1])
     except Exception:
-        return None
+        pass
+    # Try Alpaca with normalized symbol (ensure slash form) and also noslash form
+    try:
+        nsym = _normalize_symbol(symbol)
+        if nsym != symbol:
+            df = alpaca_recent_bars(nsym, minutes=5)
+            if df is not None and len(df) > 0 and "close" in df.columns:
+                return float(df["close"].iloc[-1])
+        noslash = nsym.replace("/", "")
+        df = alpaca_recent_bars(noslash, minutes=5)
+        if df is not None and len(df) > 0 and "close" in df.columns:
+            return float(df["close"].iloc[-1])
+    except Exception:
+        pass
+    # Binance fallback (maps USD/USDC → USDT)
+    try:
+        bsym = _map_to_binance(symbol)
+        url = f"https://api.binance.com/api/v3/ticker/price?symbol={bsym}"
+        r = requests.get(url, timeout=10)
+        if r.status_code == 200:
+            px = r.json().get("price")
+            return float(px) if px is not None else None
+    except Exception:
+        pass
     return None
+
+def _map_to_binance(sym: str) -> str:
+    s = (sym or "").upper()
+    base, _, quote = s.partition("/")
+    q = quote or "USDT"
+    if q in ("USD", "USDC"):
+        q = "USDT"
+    return f"{base}{q}"
 
 
 def _has_open_in_direction(api: REST, symbol: str, side: str) -> bool:
@@ -270,6 +390,40 @@ def _has_open_in_direction(api: REST, symbol: str, side: str) -> bool:
     return False
 
 
+def _cancel_stale_orders(api: REST, ttl_min: int, debug: bool = False) -> None:
+    try:
+        from datetime import datetime, timezone
+        ttl = timedelta(minutes=int(ttl_min))
+        now = _now_utc()
+        orders = api.list_orders(status="open", nested=True)
+        for o in orders or []:
+            try:
+                created = getattr(o, "created_at", None) or getattr(o, "submitted_at", None)
+                if isinstance(created, str):
+                    try:
+                        # Parse RFC3339/ISO format
+                        created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    except Exception:
+                        created_dt = now
+                elif isinstance(created, datetime):
+                    created_dt = created if created.tzinfo else created.replace(tzinfo=timezone.utc)
+                else:
+                    created_dt = now
+                if now - created_dt >= ttl:
+                    if debug:
+                        cid = getattr(o, "id", None) or getattr(o, "client_order_id", None)
+                        print(f"[ttl] cancel stale order id={cid} sym={getattr(o,'symbol','')} age={(now-created_dt)}")
+                    try:
+                        api.cancel_order(getattr(o, "id", None))
+                    except Exception:
+                        pass
+            except Exception:
+                continue
+    except Exception:
+        if debug:
+            print("[ttl] error during stale order cancellation")
+
+
 def main() -> int:
     _load_dotenv_if_present()
     ap = argparse.ArgumentParser(description="Crypto Signals → Alpaca paper trader")
@@ -277,9 +431,16 @@ def main() -> int:
     ap.add_argument("--max-coins", type=int, default=6, help="Max coins to include (default: 6)")
     ap.add_argument("--tf", default=os.getenv("TB_TRADER_TF", "1h"), help="Timescale to trade (1h/4h/1D/1W)")
     ap.add_argument("--risk-frac", type=float, default=float(os.getenv("TB_TRADER_RISK_FRAC", "0.005")), help="Fraction of equity to risk per trade (default 0.5%)")
+    ap.add_argument("--min-notional", type=float, default=float(os.getenv("TB_TRADER_MIN_NOTIONAL", "10")), help="Minimum order notional in quote currency (default $10)")
+    ap.add_argument("--symbols", default=os.getenv("TB_TRADER_SYMBOLS", "").strip(), help="Comma-separated symbols to include (e.g., BTC/USD,ETH/USD)")
     ap.add_argument("--loop", action="store_true", help="Run continuously with interval sleeps")
     ap.add_argument("--interval-sec", type=int, default=int(os.getenv("TB_TRADER_INTERVAL_SEC", "60")), help="Loop interval seconds (default 60)")
-    ap.add_argument("--cooldown-sec", type=int, default=int(os.getenv("TB_TRADER_COOLDOWN_SEC", "900")), help="Per-symbol cooldown seconds to avoid re-entry (default 900)")
+    ap.add_argument("--cooldown-sec", type=int, default=int(os.getenv("TB_TRADER_COOLDOWN_SEC", "300")), help="Per-symbol cooldown seconds to avoid re-entry (default 300)")
+    ap.add_argument("--entry-tolerance-bps", type=float, default=float(os.getenv("TB_TRADER_ENTRY_TOL_BPS", "0")), help="Entry trigger tolerance in basis points (default 0)")
+    ap.add_argument("--entry-mid-zone", action="store_true", default=(os.getenv("TB_TRADER_ENTRY_MID_ZONE", "0") == "1"), help="Use mid of entry zone for trigger checks when available")
+    ap.add_argument("--order-ttl-min", type=int, default=int(os.getenv("TB_TRADER_ORDER_TTL_MIN", "0")), help="Cancel open orders older than this many minutes (0=disabled)")
+    ap.add_argument("--show-current-price", action="store_true", help="When --debug, also print live current price for each candidate")
+    ap.add_argument("--min-rr", type=float, default=float(os.getenv("TB_TRADER_MIN_RR", "0.0")), help="Minimum risk-reward ratio required to trade (0 disables)")
     ap.add_argument("--debug", action="store_true", help="Verbose logging")
     args = ap.parse_args()
 
@@ -297,11 +458,21 @@ def main() -> int:
         digest = _build_digest_data(universe, max_coins=args.max_coins)
         digest.setdefault("provenance", {}).update({"artifact": Path(uni).name, **_provenance()})
 
-        candidates = _iterate_candidates(digest, args.tf)
+        allowed: Optional[Set[str]] = None
+        if args.symbols:
+            parts = [p.strip().upper() for p in args.symbols.split(",") if p.strip()]
+            allowed = { _normalize_symbol(p).upper() for p in parts }
+
+        candidates = _iterate_candidates(digest, args.tf, allowed_symbols=allowed)
         if args.debug:
             print(f"[trader] candidates[{args.tf}]={len(candidates)}")
             for c in candidates:
-                print(f"  - {c['symbol']} {c['side']} entry={c['entry']:.4f} tp={c['tp']:.4f} sl={c['stop']:.4f}")
+                line = f"  - {c['symbol']} {c['side']} entry={c['entry']:.4f} tp={c['tp']:.4f} sl={c['stop']:.4f}"
+                if args.show_current_price:
+                    px = _current_price(c['symbol'])
+                    if px is not None:
+                        line += f" | live={px:.4f}"
+                print(line)
 
         offline = _bool("TB_TRADER_OFFLINE", True)
         no_trade = _bool("TB_NO_TRADE", True)
@@ -310,6 +481,29 @@ def main() -> int:
         if offline:
             if args.debug:
                 print("[trader] offline=1: no API calls; preview-only.")
+            # In offline mode, emit preview intents to journal/discord for observability
+            for c in candidates:
+                payload = {
+                    "ts": _now_utc().isoformat(),
+                    "event": "would_submit",
+                    "artifact": Path(uni).name,
+                    "symbol": c["symbol"],
+                    "tf": args.tf,
+                    "side": c["side"],
+                    "bias": None,
+                    "entry": c["entry"],
+                    "stop": c["stop"],
+                    "tp": c["tp"],
+                    "price": _current_price(c["symbol"]) or "",
+                    "qty": "",
+                    "risk_frac": args.risk_frac,
+                    "cooldown_sec": args.cooldown_sec,
+                    "order_id": "",
+                    "status": "preview",
+                    "note": "offline",
+                }
+                _journal_append(payload)
+                _notify_discord("would_submit", payload, debug=args.debug)
             return 0
 
         api = _get_alpaca()
@@ -323,6 +517,10 @@ def main() -> int:
             print(f"[trader] failed to read account: {e}")
             return 2
 
+        # Optional: cancel stale open orders before new submissions (disabled in no-trade mode)
+        if args.order_ttl_min > 0 and not _bool("TB_NO_TRADE", True):
+            _cancel_stale_orders(api, args.order_ttl_min, debug=args.debug)
+
         ok_all = True
         for c in candidates:
             sym = c["symbol"]
@@ -331,16 +529,44 @@ def main() -> int:
                 if args.debug:
                     print(f"[gate] cooldown active for {sym}; skip")
                 continue
-            # Price trigger check
+            # Price trigger check (with optional mid-of-zone entry and tolerance)
             px = _current_price(sym)
             if px is None:
                 if args.debug:
                     print(f"[gate] no price for {sym}; skip")
                 continue
-            trig_ok = (px >= c["entry"]) if c["side"] == "buy" else (px <= c["entry"])
+            entry_for_trigger = c["entry"]
+            if args.entry_mid_zone:
+                mid = _mid_of_zone(c.get("raw_entries"), c["side"])
+                if mid is not None:
+                    entry_for_trigger = float(mid)
+            tol = max(0.0, float(args.entry_tolerance_bps)) / 10000.0
+            if c["side"] == "buy":
+                trig_ok = px >= entry_for_trigger * (1.0 - tol)
+            else:
+                trig_ok = px <= entry_for_trigger * (1.0 + tol)
             if not trig_ok:
                 if args.debug:
-                    print(f"[gate] trigger not met for {sym}: px={px:.4f} vs entry={c['entry']:.4f}")
+                    print(f"[gate] trigger not met for {sym}: px={px:.4f} vs entry={entry_for_trigger:.4f} tol_bps={args.entry_tolerance_bps}")
+                continue
+            # Risk-Reward gate (based on plan levels)
+            rr = None
+            try:
+                if c["side"] == "buy":
+                    risk = float(entry_for_trigger) - float(c["stop"])
+                    reward = float(c["tp"]) - float(entry_for_trigger)
+                else:
+                    risk = float(c["stop"]) - float(entry_for_trigger)
+                    reward = float(entry_for_trigger) - float(c["tp"]) 
+                if risk > 0 and reward > 0:
+                    rr = reward / risk
+                else:
+                    rr = 0.0
+            except Exception:
+                rr = 0.0
+            if float(args.min_rr) > 0.0 and (rr is None or rr < float(args.min_rr)):
+                if args.debug:
+                    print(f"[gate] RR below min for {sym}: rr={rr:.2f} < min_rr={args.min_rr}")
                 continue
             # Duplicate protection
             if _has_open_in_direction(api, sym, c["side"]):
@@ -349,6 +575,12 @@ def main() -> int:
                 continue
 
             qty = _calc_qty(equity, c["entry"], c["stop"], args.risk_frac)
+            # Enforce minimum notional for Alpaca paper trading
+            min_notional = max(0.0, float(args.min_notional))
+            if min_notional > 0 and c["entry"] > 0:
+                notional = qty * c["entry"]
+                if notional < min_notional:
+                    qty = min_notional / c["entry"]
             if qty <= 0:
                 if args.debug:
                     print(f"[trade] skip {sym} invalid qty (entry={c['entry']:.4f}, stop={c['stop']:.4f})")
@@ -357,10 +589,52 @@ def main() -> int:
             if no_trade:
                 if args.debug:
                     print(f"[trade] no-trade gate: would submit {sym} {c['side']} qty={qty:.6f}")
+                payload = {
+                    "ts": _now_utc().isoformat(),
+                    "event": "would_submit",
+                    "artifact": Path(uni).name,
+                    "symbol": sym,
+                    "tf": args.tf,
+                    "side": c["side"],
+                    "bias": None,
+                    "entry": c["entry"],
+                    "stop": c["stop"],
+                    "tp": c["tp"],
+                    "price": px,
+                    "qty": qty,
+                    "risk_frac": args.risk_frac,
+                    "cooldown_sec": args.cooldown_sec,
+                    "order_id": "",
+                    "status": "preview",
+                    "note": (f"no_trade rr={rr:.2f}" if rr is not None else "no_trade"),
+                }
+                _journal_append(payload)
+                _notify_discord("would_submit", payload, debug=args.debug)
                 _mark_action(st, sym)
                 continue
 
-            ok, _ = _place_bracket(api, sym, c["side"], qty, c["entry"], c["tp"], c["stop"], debug=args.debug)
+            ok, oid = _place_bracket(api, sym, c["side"], qty, c["entry"], c["tp"], c["stop"], debug=args.debug)
+            payload = {
+                "ts": _now_utc().isoformat(),
+                "event": "submit",
+                "artifact": Path(uni).name,
+                "symbol": sym,
+                "tf": args.tf,
+                "side": c["side"],
+                "bias": None,
+                "entry": c["entry"],
+                "stop": c["stop"],
+                "tp": c["tp"],
+                "price": px,
+                "qty": qty,
+                "risk_frac": args.risk_frac,
+                "cooldown_sec": args.cooldown_sec,
+                "order_id": oid or "",
+                "status": "submitted" if ok else "failed",
+                "note": (f"rr={rr:.2f}" if rr is not None else ""),
+            }
+            _journal_append(payload)
+            _notify_discord("submit", payload, debug=args.debug)
             if ok:
                 _mark_action(st, sym)
             ok_all = ok_all and ok

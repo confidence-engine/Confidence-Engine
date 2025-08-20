@@ -91,6 +91,21 @@ TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 \
 python3 scripts/crypto_signals_trader.py --tf 1h --max-coins 6 --debug
 ```
 
+- Recommended flags for higher-quality trades:
+  - `--entry-tolerance-bps 10` — small band around entry to reduce misses
+  - `--entry-mid-zone` — use mid of entry zone for trigger checks
+  - `--min-rr 2.0` — require minimum risk-reward ratio (plan-based)
+  - `--cooldown-sec 3600` — 1h cooldown to avoid rapid re-entry
+  - `--order-ttl-min 30` — cancel stale open orders older than 30 minutes
+  - Example:
+  ```
+  TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 \
+  python3 scripts/crypto_signals_trader.py \
+    --tf 4h --symbols BTC/USD,ETH/USD \
+    --entry-tolerance-bps 10 --entry-mid-zone --min-rr 2.0 \
+    --cooldown-sec 3600 --order-ttl-min 30 --debug
+  ```
+
 - Behavior:
   - Builds digest via `scripts/crypto_signals_digest.py` internals and extracts per-TF plans.
   - Maps plan entries/invalidation/targets to bracket orders sized by risk fraction.
@@ -99,10 +114,69 @@ python3 scripts/crypto_signals_trader.py --tf 1h --max-coins 6 --debug
   - Cooldown/state: persists `state/crypto_trader_state.json` to avoid rapid re-entry (configurable via `TB_TRADER_COOLDOWN_SEC`).
   - Live price trigger: requires current price to cross entry in the direction of trade.
 
-- Continuous scheduling (every N seconds):
+- Continuous scheduling (loop, every N seconds):
 ```
 TB_TRADER_OFFLINE=0 TB_NO_TRADE=1 \
 python3 scripts/crypto_signals_trader.py --tf 1h --loop --interval-sec 60 --debug
+```
+
+  - With quality/safety flags and 5-minute cadence:
+  ```
+  TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 \
+  python3 scripts/crypto_signals_trader.py \
+    --tf 4h --symbols BTC/USD,ETH/USD \
+    --entry-tolerance-bps 10 --entry-mid-zone --min-rr 2.0 \
+    --cooldown-sec 3600 --order-ttl-min 30 \
+    --loop --interval-sec 300 --debug
+  ```
+
+### 24/7 background via launchd (macOS)
+
+Run the trader every 5 minutes in the background (no explicit `--loop`), letting the script enforce a 1h cooldown:
+
+1) Create `~/Library/LaunchAgents/com.tracer.crypto-trader.plist`:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.tracer.crypto-trader</string>
+  <key>WorkingDirectory</key><string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet</string>
+  <key>ProgramArguments</key><array>
+    <string>/usr/bin/env</string><string>python3</string><string>scripts/crypto_signals_trader.py</string>
+    <string>--tf</string><string>4h</string>
+    <string>--symbols</string><string>BTC/USD,ETH/USD</string>
+    <string>--entry-tolerance-bps</string><string>10</string>
+    <string>--entry-mid-zone</string>
+    <string>--min-rr</string><string>2.0</string>
+    <string>--cooldown-sec</string><string>3600</string>
+    <string>--order-ttl-min</string><string>30</string>
+    <string>--debug</string>
+  </array>
+  <key>EnvironmentVariables</key><dict>
+    <key>TB_TRADER_OFFLINE</key><string>0</string>
+    <key>TB_NO_TRADE</key><string>0</string>
+    <key>TB_TRADER_NOTIFY</key><string>1</string>
+    <key>TB_ENABLE_DISCORD</key><string>1</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>StartInterval</key><integer>300</integer>
+  <key>StandardOutPath</key><string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/trader_loop.log</string>
+  <key>StandardErrorPath</key><string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/trader_loop.err</string>
+</dict></plist>
+```
+
+2) Load and start:
+```
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.tracer.crypto-trader.plist 2>/dev/null || true
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.tracer.crypto-trader.plist
+launchctl enable gui/$(id -u)/com.tracer.crypto-trader
+launchctl kickstart -k gui/$(id -u)/com.tracer.crypto-trader
+```
+
+3) Monitor:
+```
+tail -n 120 /Users/mouryadamarasing/Documents/Project-Tracer-Bullet/trader_loop.log
+tail -n 50  /Users/mouryadamarasing/Documents/Project-Tracer-Bullet/state/trade_journal.csv
 ```
 
 - Place-and-cancel test order (paper):
@@ -153,6 +227,16 @@ PY
 ```
 
 Note: Alpaca requires a minimum order notional (~$10). Use a deep limit to avoid accidental fills.
+
+- Live trade notifications to Discord (optional):
+  - Configure `.env`:
+```
+TB_TRADER_NOTIFY=1
+DISCORD_TRADER_WEBHOOK_URL=https://discord.com/api/webhooks/<id>/<token>  # live-trades channel webhook
+TB_ENABLE_DISCORD=1
+```
+  - The trader will post intent previews (offline/no-trade) and submissions with concise embeds.
+  - Safety: Honors `TB_ENABLE_DISCORD` and requires `TB_TRADER_NOTIFY=1` explicitly.
 
 ## Evaluation and accuracy
 - Update hit-rate trend + write daily summary and failures (local safe):
