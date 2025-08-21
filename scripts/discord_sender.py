@@ -2,7 +2,6 @@ import os
 import requests
 
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
-ENABLE_DISCORD = os.getenv("TB_ENABLE_DISCORD", "0") == "1"
 
 # Discord limits (approx)
 MAX_EMBEDS = 10
@@ -44,7 +43,9 @@ def send_discord_digest_to(webhook_url: str, embeds):
 
     Returns True on complete success, False otherwise.
     """
-    if not ENABLE_DISCORD or not webhook_url:
+    # Evaluate enable flag at send time (not import time) so late-loaded .env is honored
+    enable_discord = os.getenv("TB_ENABLE_DISCORD", "0") == "1"
+    if not enable_discord or not webhook_url:
         print("[Discord] Disabled or missing webhook URL.")
         return False
     chunks = _chunk_embeds(embeds)

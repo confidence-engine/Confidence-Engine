@@ -1,3 +1,9 @@
+## 2025-08-22 — Discord sender gate timing fix
+
+- Fix: `scripts/discord_sender.py` now reads `TB_ENABLE_DISCORD` at send time (inside `send_discord_digest_to()`) instead of at import time.
+- Why: Some scripts (e.g., `scripts/crypto_signals_trader.py`) load `.env` in `main()` after imports. Previously, the module-level gate captured `TB_ENABLE_DISCORD=0` before `.env` was loaded, causing false "Disabled or missing webhook" even when `.env` had it set.
+- Effect: Trader Discord notifications honor `.env` reliably. Set `TB_ENABLE_DISCORD=1`, `TB_TRADER_NOTIFY=1`, and `DISCORD_TRADER_WEBHOOK_URL=...` to receive would_submit/submit embeds.
+
 ## 2025-08-21 — LaunchAgent reliability fix (bash -lc + env)
 
 - Updated `launchd/com.tracer.crypto-trader.plist` to invoke the runner via a login shell and explicit env:
