@@ -32,6 +32,22 @@
 - Updated `launchd/com.tracer.crypto-trader.plist` to call `/bin/bash <script>` directly (removed `-lc`).
 - Rationale: login-shell (`-l`/`-c`) under `launchd` can return `EX_CONFIG` due to shell init files. Direct invocation is more deterministic.
 
+## 2025-08-21 — Normalize Alpaca base URL
+
+- Updated `config.py` to normalize `ALPACA_BASE_URL` at load:
+  - Strip trailing `/` and `/v2` so the SDK’s own path appends don’t produce `/v2/v2/...`.
+- Also, `scripts/crypto_signals_trader.py` already normalizes when building its REST client.
+- Expected effect: account calls hit `.../v2/account` (single `/v2`) avoiding 404.
+
+## 2025-08-21 — LaunchAgent reliability tweaks
+
+- Updated `launchd/com.tracer.crypto-trader.plist` `ProgramArguments` to invoke the runner via `/bin/bash` (no login shell), improving interpreter resolution under `launchd`.
+- Updated `scripts/trader_run_and_commit.sh` to sleep 12s before exiting to satisfy `launchd` minimum runtime heuristics and avoid EX_CONFIG flapping on very short-lived jobs.
+- Verified manual runs of the runner:
+  - Logged `[runner] done status=0`.
+  - No occurrences of `v2/v2` in fresh logs.
+- LaunchAgent status still shows `last exit code = 78: EX_CONFIG` despite successful manual runs; future step: adjust plist KeepAlive/SuccessfulExit or inspect `log show --predicate 'process == "launchd"'` for precise reason.
+
 ## 2025-08-21 — trader longs-only mode
 
 - Added `--longs-only` flag (env `TB_TRADER_LONGS_ONLY=1`) to `scripts/crypto_signals_trader.py`.
