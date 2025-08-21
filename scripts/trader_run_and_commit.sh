@@ -87,5 +87,8 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   fi
 fi
 
+# Give launchd a chance to observe a minimum runtime before exiting cleanly
+# (mitigates EX_CONFIG flapping on very short-lived jobs)
+sleep 12
 # Always exit 0 for launchd; non-zero statuses are recorded above
 exit 0

@@ -86,6 +86,17 @@ class Settings:
     pplx_api_keys: list[str] = None
 
     def __post_init__(self):
+        # Normalize Alpaca base URL to avoid duplicated version path ("/v2/v2/")
+        try:
+            u = (self.alpaca_base_url or "").strip()
+            if u:
+                u = u.rstrip("/")
+                if u.endswith("/v2"):
+                    u = u[:-3]  # drop trailing '/v2'
+            self.alpaca_base_url = u or "https://paper-api.alpaca.markets"
+        except Exception:
+            # Fallback to default if anything odd happens
+            self.alpaca_base_url = "https://paper-api.alpaca.markets"
         # Priority 1: numbered keys PPLX_API_KEY_1, _2, ...
         numbered = _collect_numbered_keys("PPLX_API_KEY_")
         if numbered:
