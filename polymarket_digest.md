@@ -1,3 +1,22 @@
 # Polymarket — Standalone Digest
 
-_No qualifying markets found._
+- **What price will Ethereum hit in August? ↑ 4800**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **What price will Ethereum hit in August? ↑ 5000**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **What price will Ethereum hit in August? ↑ 5400**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **What price will Ethereum hit in August? ↓ 3200**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **Bitcoin above 112k on August 22?**
+  - stance: `Engage`; timing: `Now`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution."
+- **Bitcoin above 114k on August 22?**
+  - stance: `Engage`; timing: `Now`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution."
+- **Bitcoin above 116k on August 22?**
+  - stance: `Engage`; timing: `Now`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution."
+- **Bitcoin above 118k on August 22?**
+  - stance: `Engage`; timing: `Now`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution."
+- **Bitcoin above 120k on August 22?**
+  - stance: `Engage`; timing: `Now`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution."
+- **Bitcoin above 122k on August 22?**
+  - stance: `Engage`; timing: `Now`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution."
