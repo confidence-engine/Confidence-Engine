@@ -1,3 +1,57 @@
+## 2025-08-21 — LaunchAgent reliability fix (bash -lc + env)
+
+- Updated `launchd/com.tracer.crypto-trader.plist` to invoke the runner via a login shell and explicit env:
+  - `ProgramArguments = ["/bin/bash", "-lc", "/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/trader_run_and_commit.sh"]`
+  - `EnvironmentVariables`: set `HOME` and `PATH` for launchd.
+- Motivation: under launchd the job exited with `EX_CONFIG (78)` before logging; manual runs were fine. Forcing `bash -lc` and explicit env removes ambiguity (PATH, shell init) so the script behaves like manual runs.
+- No change to trading logic. Logs remain at `trader_loop.log`/`trader_loop.err`.
+
+## 2025-08-21 — trader runner safe defaults + env snapshot
+
+- Changed `scripts/trader_run_and_commit.sh` to be safe-by-default for notifications:
+  - `TB_TRADER_NOTIFY` and `TB_ENABLE_DISCORD` now default to `0` unless explicitly enabled in `.env`.
+- Added a brief env snapshot to `trader_loop.log` before each run for observability, e.g.:
+  - `[runner] ts=... env: TF=4h symbols=... longs_only=... allow_shorts=...`
+  - `[runner] gates: offline=... no_trade=... notify=... discord=...`
+- No behavior changes to trading logic; this only hardens safety and debuggability.
+
+## 2025-08-21 — Normalize Alpaca base URL in trader
+
+- Updated `scripts/crypto_signals_trader.py` to sanitize `ALPACA_BASE_URL` by stripping trailing `/v2` and `/` in `_get_alpaca()`.
+- Prevents duplicated path `.../v2/v2/account` if env mistakenly includes `/v2`.
+- No changes to order logic; robustness only. Restart LaunchAgent to pick up the change.
+
+## 2025-08-21 — launchd: robust .env sourcing in trader runner
+
+- Updated `scripts/trader_run_and_commit.sh` to temporarily disable `nounset` (`set +u`) while sourcing `.env`, then restore it.
+- Prevents early termination under `launchd` with `EX_CONFIG` when `.env` references unset vars.
+- Added a `[runner] .env: ...` marker in `trader_loop.log` to confirm whether `.env` was loaded.
+
+## 2025-08-21 — launchd plist: invoke runner without login shell
+
+- Updated `launchd/com.tracer.crypto-trader.plist` to call `/bin/bash <script>` directly (removed `-lc`).
+- Rationale: login-shell (`-l`/`-c`) under `launchd` can return `EX_CONFIG` due to shell init files. Direct invocation is more deterministic.
+
+## 2025-08-21 — trader longs-only mode
+
+- Added `--longs-only` flag (env `TB_TRADER_LONGS_ONLY=1`) to `scripts/crypto_signals_trader.py`.
+- Behavior:
+  - Offline preview: SELL candidates are suppressed to reduce noise; only BUYs are previewed.
+  - Online mode: SELLs are allowed only when base position > 0; otherwise silently dropped (no journal/discord) to avoid spam.
+- Updated `.env.example` with `TB_TRADER_LONGS_ONLY` and docs language.
+
+## 2025-08-20 — trader launch: load .env, BTC-only, SELL gate
+
+- Updated `scripts/trader_run_and_commit.sh` to load `.env` and honor `TB_TRADER_SYMBOLS` (default `BTC/USD`).
+- Ensures SELL without inventory is skipped (no submits for ETH when no ETH held), with debug journaling.
+- Restarted launchd job `com.tracer.crypto-trader` to pick up env and script changes.
+- Verification (safe):
+  ```bash
+  TB_TRADER_OFFLINE=0 TB_NO_TRADE=1 TB_NO_DISCORD=1 TB_NO_TELEGRAM=1 \
+  python3 scripts/crypto_signals_trader.py --tf 4h --symbols ETH/USD --debug
+  ```
+  Expect: `[gate] SELL ETH/USD blocked: skipped:no_position_for_sell`.
+
 ## [trader: crypto shorts gate + submit error journaling]
 - Hardening: `scripts/crypto_signals_trader.py`
   - Broker capability gate for SELL on spot crypto: if no base position and shorts unsupported, skip with `note=skipped:shorts_not_supported` (or `skipped:no_position_for_sell` when `--allow-shorts` is off). Avoids pointless broker rejections.

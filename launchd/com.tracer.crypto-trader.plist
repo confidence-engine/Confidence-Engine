@@ -5,14 +5,19 @@
   <key>Label</key><string>com.tracer.crypto-trader</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/usr/bin/env</string>
-    <string>bash</string>
-    <string>-lc</string>
-    <string>"/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/trader_run_and_commit.sh"</string>
+    <string>/bin/bash</string>
+    <string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/trader_run_and_commit.sh</string>
   </array>
   <key>WorkingDirectory</key><string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet</string>
   <key>StandardOutPath</key><string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/trader_loop.log</string>
   <key>StandardErrorPath</key><string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/trader_loop.err</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/mouryadamarasing</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+  </dict>
   <key>StartInterval</key><integer>300</integer>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><false/>

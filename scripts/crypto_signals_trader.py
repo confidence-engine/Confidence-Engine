@@ -83,6 +83,15 @@ def _get_alpaca() -> Optional[REST]:
     key = os.getenv("ALPACA_API_KEY_ID", "").strip()
     sec = os.getenv("ALPACA_API_SECRET_KEY", "").strip()
     url = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets").strip()
+    # Normalize base URL to avoid SDK path duplication like '/v2/v2/account'
+    # Accept inputs like '.../v2' or '.../v2/' and strip the version segment.
+    try:
+        u = url.rstrip("/")
+        if u.endswith("/v2"):
+            u = u[:-3]  # remove '/v2'
+        url = u
+    except Exception:
+        pass
     if not key or not sec:
         return None
     try:
@@ -474,6 +483,7 @@ def main() -> int:
     ap.add_argument("--show-current-price", action="store_true", help="When --debug, also print live current price for each candidate")
     ap.add_argument("--min-rr", type=float, default=float(os.getenv("TB_TRADER_MIN_RR", "0.0")), help="Minimum risk-reward ratio required to trade (0 disables)")
     ap.add_argument("--allow-shorts", action="store_true", default=(os.getenv("TB_TRADER_ALLOW_SHORTS", "0") == "1"), help="Allow short sells (default off). When off, SELL requires existing base position > 0")
+    ap.add_argument("--longs-only", action="store_true", default=(os.getenv("TB_TRADER_LONGS_ONLY", "0") == "1"), help="Only trade spot longs (BUY). In online mode, allow SELL only when base position > 0; otherwise drop silently. In offline preview, SELLs are suppressed.")
     ap.add_argument("--debug", action="store_true", help="Verbose logging")
     args = ap.parse_args()
 
@@ -500,6 +510,9 @@ def main() -> int:
         if args.debug:
             print(f"[trader] candidates[{args.tf}]={len(candidates)}")
             for c in candidates:
+                # Longs-only: suppress SELL candidate debug lines
+                if args.longs_only and c.get('side') == 'sell':
+                    continue
                 line = f"  - {c['symbol']} {c['side']} entry={c['entry']:.4f} tp={c['tp']:.4f} sl={c['stop']:.4f}"
                 if args.show_current_price:
                     px = _current_price(c['symbol'])
@@ -516,6 +529,9 @@ def main() -> int:
                 print("[trader] offline=1: no API calls; preview-only.")
             # In offline mode, emit preview intents to journal/discord for observability
             for c in candidates:
+                # Longs-only: suppress SELL previews to reduce noise
+                if args.longs_only and c.get("side") == "sell":
+                    continue
                 payload = {
                     "ts": _now_utc().isoformat(),
                     "event": "would_submit",
@@ -612,32 +628,37 @@ def main() -> int:
                 pos_qty = _position_qty(api, sym)
                 if pos_qty <= 0:
                     if not args.allow_shorts or not _broker_supports_crypto_shorts():
-                        # Skip instead of attempting submit that will be rejected by broker
+                        # In longs-only mode, drop silently to avoid spam; otherwise journal a skip
                         reason = "skipped:no_position_for_sell" if not args.allow_shorts else "skipped:shorts_not_supported"
-                        if args.debug:
-                            print(f"[gate] SELL {sym} blocked: {reason}")
-                        payload = {
-                            "ts": _now_utc().isoformat(),
-                            "event": "skipped",
-                            "artifact": Path(uni).name,
-                            "symbol": sym,
-                            "tf": args.tf,
-                            "side": c["side"],
-                            "bias": None,
-                            "entry": c["entry"],
-                            "stop": c["stop"],
-                            "tp": c["tp"],
-                            "price": px,
-                            "qty": "",
-                            "risk_frac": args.risk_frac,
-                            "cooldown_sec": args.cooldown_sec,
-                            "order_id": "",
-                            "status": "skipped",
-                            "note": reason,
-                        }
-                        _journal_append(payload)
-                        _notify_discord("skipped", payload, debug=args.debug)
-                        continue
+                        if args.longs_only:
+                            if args.debug:
+                                print(f"[gate] SELL {sym} suppressed (longs-only, no position)")
+                            continue
+                        else:
+                            if args.debug:
+                                print(f"[gate] SELL {sym} blocked: {reason}")
+                            payload = {
+                                "ts": _now_utc().isoformat(),
+                                "event": "skipped",
+                                "artifact": Path(uni).name,
+                                "symbol": sym,
+                                "tf": args.tf,
+                                "side": c["side"],
+                                "bias": None,
+                                "entry": c["entry"],
+                                "stop": c["stop"],
+                                "tp": c["tp"],
+                                "price": px,
+                                "qty": "",
+                                "risk_frac": args.risk_frac,
+                                "cooldown_sec": args.cooldown_sec,
+                                "order_id": "",
+                                "status": "skipped",
+                                "note": reason,
+                            }
+                            _journal_append(payload)
+                            _notify_discord("skipped", payload, debug=args.debug)
+                            continue
 
             qty = _calc_qty(equity, c["entry"], c["stop"], args.risk_frac)
             # Enforce minimum notional for Alpaca paper trading
@@ -658,30 +679,35 @@ def main() -> int:
                 if args.debug:
                     print(f"[gate] SELL {sym} pos_qty={pos_qty2:.6f} planned_qty={qty:.6f}")
                 if pos_qty2 <= 0:
-                    if args.debug:
-                        print(f"[gate] SELL {sym} blocked at submit: no_position_for_sell")
-                    payload = {
-                        "ts": _now_utc().isoformat(),
-                        "event": "skipped",
-                        "artifact": Path(uni).name,
-                        "symbol": sym,
-                        "tf": args.tf,
-                        "side": c["side"],
-                        "bias": None,
-                        "entry": c["entry"],
-                        "stop": c["stop"],
-                        "tp": c["tp"],
-                        "price": px,
-                        "qty": "",
-                        "risk_frac": args.risk_frac,
-                        "cooldown_sec": args.cooldown_sec,
-                        "order_id": "",
-                        "status": "skipped",
-                        "note": "skipped:no_position_for_sell",
-                    }
-                    _journal_append(payload)
-                    _notify_discord("skipped", payload, debug=args.debug)
-                    continue
+                    if args.longs_only:
+                        if args.debug:
+                            print(f"[gate] SELL {sym} suppressed at submit (longs-only, no position)")
+                        continue
+                    else:
+                        if args.debug:
+                            print(f"[gate] SELL {sym} blocked at submit: no_position_for_sell")
+                        payload = {
+                            "ts": _now_utc().isoformat(),
+                            "event": "skipped",
+                            "artifact": Path(uni).name,
+                            "symbol": sym,
+                            "tf": args.tf,
+                            "side": c["side"],
+                            "bias": None,
+                            "entry": c["entry"],
+                            "stop": c["stop"],
+                            "tp": c["tp"],
+                            "price": px,
+                            "qty": "",
+                            "risk_frac": args.risk_frac,
+                            "cooldown_sec": args.cooldown_sec,
+                            "order_id": "",
+                            "status": "skipped",
+                            "note": "skipped:no_position_for_sell",
+                        }
+                        _journal_append(payload)
+                        _notify_discord("skipped", payload, debug=args.debug)
+                        continue
                 if qty > pos_qty2:
                     note_extra = f" qty_capped_to_position({pos_qty2:.6f})"
                     qty = pos_qty2
