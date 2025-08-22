@@ -1,22 +1,22 @@
 # Polymarket — Standalone Digest
 
-- **What price will Ethereum hit in August? ↑ 4800**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
-- **What price will Ethereum hit in August? ↑ 5000**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
-- **What price will Ethereum hit in August? ↑ 5400**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
-- **What price will Ethereum hit in August? ↓ 3200**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **Bitcoin above 110k on August 22?**
+  - Engage | Now | market cheap
+  - Action: Buy YES
+  - Outcome: Lean YES
+  - Why: Market pricing looks favorable versus our view. Timing is actionable; keep risk small and be clear on exits.
 - **Bitcoin above 112k on August 22?**
-  - stance: `Engage`; timing: `Now`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution."
-- **Bitcoin above 114k on August 22?**
-  - stance: `Engage`; timing: `Now`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution."
-- **Bitcoin above 116k on August 22?**
-  - stance: `Engage`; timing: `Now`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution."
-- **Bitcoin above 118k on August 22?**
-  - stance: `Engage`; timing: `Now`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution."
-- **Bitcoin above 120k on August 22?**
-  - stance: `Engage`; timing: `Now`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution."
-- **Bitcoin above 122k on August 22?**
-  - stance: `Engage`; timing: `Now`; edge: `market cheap`; rationale: "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution."
+  - Engage | Now | market cheap
+  - Action: Buy YES
+  - Outcome: Lean YES
+  - Why: Market pricing looks favorable versus our view. Timing is actionable; keep risk small and be clear on exits.
+- **Ethereum above 4000 on August 22?**
+  - Engage | Now | market cheap
+  - Action: Buy YES
+  - Outcome: Lean YES
+  - Why: Market pricing looks favorable versus our view. Timing is actionable; keep risk small and be clear on exits.
+- **Ethereum above 4200 on August 22?**
+  - Engage | Now | market cheap
+  - Action: Buy YES
+  - Outcome: Lean YES
+  - Why: Market pricing looks favorable versus our view. Timing is actionable; keep risk small and be clear on exits.
