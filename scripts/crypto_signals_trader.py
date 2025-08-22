@@ -473,6 +473,7 @@ def main() -> int:
     ap.add_argument("--tf", default=os.getenv("TB_TRADER_TF", "1h"), help="Timescale to trade (1h/4h/1D/1W)")
     ap.add_argument("--risk-frac", type=float, default=float(os.getenv("TB_TRADER_RISK_FRAC", "0.005")), help="Fraction of equity to risk per trade (default 0.5%)")
     ap.add_argument("--min-notional", type=float, default=float(os.getenv("TB_TRADER_MIN_NOTIONAL", "10")), help="Minimum order notional in quote currency (default $10)")
+    ap.add_argument("--max-notional", type=float, default=float(os.getenv("TB_TRADER_MAX_NOTIONAL", "0")), help="Hard cap on order notional in quote currency (0 disables)")
     ap.add_argument("--symbols", default=os.getenv("TB_TRADER_SYMBOLS", "").strip(), help="Comma-separated symbols to include (e.g., BTC/USD,ETH/USD)")
     ap.add_argument("--loop", action="store_true", help="Run continuously with interval sleeps")
     ap.add_argument("--interval-sec", type=int, default=int(os.getenv("TB_TRADER_INTERVAL_SEC", "60")), help="Loop interval seconds (default 60)")
@@ -667,6 +668,12 @@ def main() -> int:
                 notional = qty * c["entry"]
                 if notional < min_notional:
                     qty = min_notional / c["entry"]
+            # Enforce hard maximum notional cap if provided
+            max_notional = max(0.0, float(getattr(args, "max_notional", 0.0)))
+            if max_notional > 0 and c["entry"] > 0:
+                notional2 = qty * c["entry"]
+                if notional2 > max_notional:
+                    qty = max_notional / c["entry"]
             if qty <= 0:
                 if args.debug:
                     print(f"[trade] skip {sym} invalid qty (entry={c['entry']:.4f}, stop={c['stop']:.4f})")
