@@ -76,26 +76,34 @@ def _render_md(polymarket: List[Dict[str, Any]]) -> str:
         stance = pm.get('stance') or 'Stand Aside'
         readiness = pm.get('readiness') or 'Later'
         edge = pm.get('edge_label') or 'in-line'
-        lines.append(f'- **{title}**')
-        parts = [f'stance: `{stance}`', f'timing: `{readiness}`', f'edge: `{edge}`']
-        rat = pm.get('rationale_chat')
-        if rat:
-            parts.append(f'rationale: "{rat}"')
-        if os.getenv('TB_POLYMARKET_SHOW_OUTCOME', '1') == '1' and os.getenv('TB_POLYMARKET_NUMBERS_IN_CHAT', '0') == '1':
-            out_label = pm.get('outcome_label') or pm.get('implied_side') or '-'
-            if os.getenv('TB_POLYMARKET_SHOW_PROB', '0') == '1':
-                try:
-                    pct = pm.get('implied_pct')
-                    if isinstance(pct, int):
-                        out_label = f"{out_label} ({pct}%)"
-                    else:
-                        imp = pm.get('implied_prob')
-                        if isinstance(imp,(int,float)):
-                            out_label = f"{out_label} ({float(imp)*100:.0f}%)"
-                except Exception:
-                    pass
-            parts.append(f'outcome: `{out_label}`')
-        lines.append('  - ' + '; '.join(parts))
+        # Title line (plain, no bullets/bold)
+        lines.append(f"{title}")
+        # Header line with stance/timing/edge
+        lines.append(f"{stance} | {readiness} | {edge}")
+        # Action (prefer implied side if present)
+        implied = str(pm.get('implied_side') or '').strip().upper()
+        if implied == 'YES':
+            action = 'Buy YES'
+        elif implied == 'NO':
+            action = 'Buy NO'
+        else:
+            action = 'Take the bet' if str(stance).lower() == 'engage' else 'Stand Aside'
+        lines.append(f"Action: {action}")
+        # (Why removed as per request)
+        # Outcome: always include; probability remains env-gated
+        out_label = pm.get('outcome_label') or pm.get('implied_side') or '-'
+        if os.getenv('TB_POLYMARKET_NUMBERS_IN_CHAT', '0') == '1' and os.getenv('TB_POLYMARKET_SHOW_PROB', '0') == '1':
+            try:
+                pct = pm.get('implied_pct')
+                if isinstance(pct, int):
+                    out_label = f"{out_label} ({pct}%)"
+                else:
+                    imp = pm.get('implied_prob')
+                    if isinstance(imp, (int, float)):
+                        out_label = f"{out_label} ({float(imp)*100:.0f}%)"
+            except Exception:
+                pass
+        lines.append(f"Outcome: {out_label}")
     return "\n".join(lines)
 
 
