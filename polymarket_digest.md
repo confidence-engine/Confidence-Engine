@@ -1,22 +1,17 @@
 # Polymarket — Standalone Digest
 
-- **Bitcoin Price - August 23, 4PM ET >114k**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
-- **Bitcoin Price - August 23, 4PM ET 117–119k**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
-- **Bitcoin Price - August 23, 4PM ET 115–117k**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
-- **Ethereum price on August 25? >4500**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
-- **Ethereum price on August 25? 4400–4500**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
-- **Ethereum price on August 25? 4300–4400**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
-- **Ethereum price on August 25? 4200–4300**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
-- **Bitcoin price on August 25? 117–119k**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
-- **Bitcoin price on August 25? 115–117k**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
-- **Bitcoin price on August 25? >119k**
-  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+Bitcoin above $118,000 on August 25, 2025?
+Engage | Now | market cheap
+Action: Buy NO
+Bitcoin above $116,000 on August 25, 2025?
+Engage | Now | market cheap
+Action: Buy YES
+Bitcoin above $114,000 on August 25, 2025?
+Engage | Now | market cheap
+Action: Buy YES
+Bitcoin above $112,000 on August 25, 2025?
+Engage | Now | market cheap
+Action: Buy YES
+Bitcoin above $110,000 on August 25, 2025?
+Stand Aside | Now | in-line
+Action: Buy YES
