@@ -58,6 +58,7 @@ Roadmap snapshot: milestone-based (no calendar dates).
 ### V3.3 — Evidence Lines + Polymarket (read‑only) [DONE]
 - Scope: number‑free evidence lines in chat; artifacts keep numbers; PPLX-only Polymarket discovery; internal_prob side-by-side.
 - DoD: digest shows alts + evidence; Polymarket section present when quality met.
+ - Chat label note: per‑timeframe explanation line is labeled "Outcome" in chat (previously shown as "Why"). Telegram and Discord formatters are updated in lockstep to maintain parity.
 
 ### V3.4 — Evaluation Pipeline (Polymarket + System) [IN PROGRESS]
 - Scope: `scripts/eval_metrics.py`, `eval_runner.py`, `eval_ingest.py`, `eval_weekly.py`; outputs in `eval_runs/<ts>/`.

@@ -447,7 +447,7 @@ python scripts/asset_hit_rate.py --runs_dir universe_runs --bars_dir bars --runs
 
 - Evidence line: per‑asset `evidence_line` persisted for explainability (number‑free in chat; numeric context kept in artifacts).
 - Thesis snapshot: top‑level `thesis` preserves `action`, `risk_band`, and `readiness` used for headers.
-- Per‑timeframe plan snapshot: `plan[tf]` with `entries`/`invalidation`/`targets`, plus `source` (`analysis|fallback`) and `explain` (plain English "Why").
+- Per‑timeframe plan snapshot: `plan[tf]` with `entries`/`invalidation`/`targets`, plus `source` (`analysis|fallback`) and `explain` (plain English "Outcome").
 - Timescale scores: `timescale_scores` now use `price_change_pct` (renamed from `price_move_pct`) and include `alignment_flag`.
 - Polymarket array: top‑level `polymarket[]` when discovery is enabled; artifacts keep probabilities even when chat hides numbers.
 

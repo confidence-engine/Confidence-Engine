@@ -1,3 +1,9 @@
+## 2025-08-23 — Docs: Roadmap updated (Outcome label, formatter parity)
+
+- Update: Clarified in both `roadmap.md` and `Roadmap_CLEAN.md` that the per‑timeframe explanation line in chat is labeled "Outcome" (formerly "Why").
+- Parity: Note explicitly states Telegram and Discord digest formatters are kept in lockstep for this labeling.
+- Scope: Documentation only; no code changes. Existing payload key remains `plan[tf]["explain"]`.
+
 ## 2025-08-22 — Discord sender gate timing fix
 
 - Fix: `scripts/discord_sender.py` now reads `TB_ENABLE_DISCORD` at send time (inside `send_discord_digest_to()`) instead of at import time.
@@ -115,7 +121,7 @@
 - Docs: Added run instructions to `docs/commands.md` under "Crypto signals digest (Discord)".
 
 ## [crypto-digest-parity-minus-polymarket + autosend]
-- Parity: `scripts/crypto_signals_digest.py` now mirrors the full tracer-bullet digest format, including detailed per-timeframe plans (entries, invalidation, targets, "Why"), but excludes Polymarket content by default.
+- Parity: `scripts/crypto_signals_digest.py` now mirrors the full tracer-bullet digest format, including detailed per-timeframe plans (entries, invalidation, targets, "Outcome"), but excludes Polymarket content by default.
 - Suppression: controlled via env toggles consumed by the script (`TB_POLYMARKET_SECTION=0`, `TB_POLYMARKET_SHOW_EMPTY=0`). Universe digest remains unchanged and includes Polymarket.
 - Provenance: header shows source artifact filename and git short SHA to match universe digest.
 - Autosend: seamless Discord posting via `.env` without flags:
@@ -279,7 +285,7 @@
 - Safety: Number-free; no schema changes.
 
 ## [v3.1.23-why-explanations-richer] - 2025-08-15
-- Feature: Made per-timeframe "Why" explanations specific and varied.
+- Feature: Made per-timeframe "Outcome" explanations specific and varied.
   - File: `scripts/tracer_bullet_universe.py`
     - Added `_compose_why()` to build richer, TF-aware reasoning (bias + TF descriptor, structure/pattern hints, strength bucket, timing, action).
     - Appends weekly anchor cues when present ("into supply" / "from demand").
@@ -289,32 +295,6 @@
     - Reused `volume_label()` for natural participation text.
 - Parity: Telegram and Discord formatters already read `plan[tf]["explain"]`, so both renderers benefit without code changes.
 - Safety: Number-free phrasing preserved; no external dependencies added.
-
-> Prefer the concise history? See [Dev_logs_CLEAN.md](Dev_logs_CLEAN.md).
-
-## [docs + nightly auto-commit broaden]
-- Docs refresh:
-  - `README.md`: added "Hit‑rate self‑checks & nightly automation" section documenting tunables (`TB_HITRATE_SIDEWAYS_EPS`, `TB_HITRATE_W_*`, `TB_HITRATE_REG_THRESH`), CLI usage, and nightly scope.
-  - `roadmap.md`: updated date and Status/Now→Near→Next to reflect nightly hit‑rate self‑checks and broadened non‑.py auto‑commit policy.
-  - `docs/kids_explainer.md`: inserted kid‑friendly "How does Tracer Bullet check itself?" section and renumbered following sections.
-- Nightly workflow:
-  - `.github/workflows/safe_qa_nightly.yml`: broadened commit step to `git add -A` then `git restore --staged "**/*.py"` so all non‑.py artifacts (e.g., `runs/*.json`, `universe_runs/metrics.csv`, `eval_runs/*`, `bars/*`) are auto‑committed and pushed; `.py` files remain excluded.
-- Notes:
-  - Aligns with repo policy: auto‑commit artifacts and docs; never auto‑commit `.py`.
-  - Addresses reports of `runs/99.json` and `universe_runs/metrics.csv` not being pushed by ensuring staging includes them.
-
-## [hit-rate plot + commands cheat-sheet]
-- New: `scripts/plot_hit_rate_trend.py` plots `eval_runs/hit_rate_trend.csv` → `eval_runs/hit_rate_trend.png` (CI-friendly: soft‑fail if CSV missing).
-- Workflow: `.github/workflows/safe_qa_nightly.yml` now includes a "Plot hit-rate trend" step after trend append.
-- Docs: Added `docs/commands.md` with concise, safe commands for universe runs, tests, hit‑rate checks, compare, and plotting.
-- Deps: Added `matplotlib` to `requirements.txt` for plotting; `pytest` added for consistent local/CI testing.
-- Policy: No `.py` files are auto‑committed; nightly commit continues to stage all then unstage `*.py` before push.
-
-## [roadmap refresh]
-- Updated `roadmap.md` and `Roadmap_CLEAN.md`:
-  - Set V3.4 Evaluation Pipeline to IN PROGRESS (runner/metrics shipped; accumulating obs).
-  - Now→Near→Next (v4.3): added PNG plotting step and explicit staged‑file log acceptance (no `*.py`).
-  - Removed any "Last updated" date per milestone-only policy; preserved structure.
 
 ## [v3.1.22-remove-grades-from-digests]
 - Change (parity): Removed all grade computation and rendering from both Telegram and Discord digest formatters to normalize outputs and avoid discrepancies.
@@ -349,34 +329,6 @@
   - Flags: `--file`, `--per-tf`, `--aggregate`, `--symbols`
 - Tests: Added `tests/test_digest_formatters.py` covering provenance mapping, per‑TF grades, and header harmonization.
 
-## [v3.1.17-digest-letter-grades]
-- Feature (parity): Added consistent setup letter grades (A+..D) to both Telegram and Discord digests.
-  - Computation centralized in `scripts/evidence_lines.py` via `compute_setup_grade()` and `compute_polymarket_grade()`.
-  - Asset headers now append ` [Grade: X]` next to Risk/Timing/Stance.
-  - Polymarket items show ` [Grade: X]` inline with `stance | readiness | edge`.
-  - Strict `[A+ Setup]` tag remains and is shown in addition to the letter grade when the heuristic passes.
-- Logic:
-  - Asset grade combines estimated confidence (signal_quality + alignment + risk), confirmation checks (price_vs_narrative, volume_support, timescale_alignment), and alignment.
-  - If the asset scores an A and the A+ heuristic passes, the grade upgrades to A+.
-  - Polymarket grade is lightweight: readiness, edge_label (rich/cheap), and optional internal_prob.
-- Files:
-  - `scripts/evidence_lines.py` (+helpers)
-  - `scripts/tg_digest_formatter.py` (render header + Polymarket with grades)
-  - `scripts/discord_formatter.py` (render title + Polymarket with grades)
-- Safety: No numeric exposure in chat beyond optional `internal_prob` when `TB_POLYMARKET_SHOW_CONFIDENCE=1`.
-- Verification: Safe local render with `TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 TB_HUMAN_DIGEST=1` shows grades appearing consistently in both outputs.
-
-- Feature (parity): Telegram and Discord digests tag high-quality setups as `[A+ Setup]` in asset headers and `(A+)` in Quick Summary coins.
-  - Files: `scripts/discord_formatter.py`, `scripts/tg_digest_formatter.py` (shared `_is_aplus_setup()` heuristic)
-- Language (parity): Simplified phrases to kid-friendly English in Executive Take, Weekly Plan, and Engine Thesis for both renderers.
-  - Files: `scripts/discord_formatter.py`, `scripts/tg_digest_formatter.py` (helper `_simple_english()`)
-- Fix: Added missing typing imports in `scripts/tg_digest_formatter.py` (`from typing import Dict, List, Optional`).
-- Tests: Full suite green — 103 passed.
-
-- Heuristic (parity): Broadened A+ setup detection to also accept `timescale_scores.alignment_flag` and to infer `signal_quality` from `confirmation_checks` when explicit value is missing.
-  - Logic: Treats strong when both price_vs_narrative and volume_support pass (and either timescale_alignment passes or overall aligned); elevated when at least one of price/volume passes.
-  - Files: `scripts/discord_formatter.py` and `scripts/tg_digest_formatter.py` updated identically.
-
 ## [v3.1.18-digest-grade-tuning-and-ui]
 - Change (polymarket): Removed letter-grade badges from Polymarket items in both Telegram and Discord digests (kept stance | readiness | edge and optional internal confidence when enabled).
   - Files: `scripts/tg_digest_formatter.py`, `scripts/discord_formatter.py`
@@ -394,14 +346,14 @@
 ## [v3.1.16-digest-aplus-plain-english]
 
 ## [v3.1.13-discord-why-and-no-playbook]
-- Feature: Discord digest now includes per-timeframe number-free “Why” explanations derived from agent analysis, matching Telegram.
-  - File: `scripts/discord_formatter.py` (adds `Why:` under each TF field using `plan[tf]['explain']`)
+- Feature: Discord digest now includes per-timeframe number-free “Outcome” explanations derived from agent analysis, matching Telegram.
+  - File: `scripts/discord_formatter.py` (adds `Outcome:` under each TF field using `plan[tf]['explain']`)
 - Change: Removed the Playbook section from Telegram human digest per user request.
   - File: `scripts/tg_digest_formatter.py` (Playbook block removed)
 - Hardening: Plan builder accepts both analysis schema and legacy keys.
   - File: `scripts/tracer_bullet_universe.py` `build_tf_plan_from_levels()` supports `entries/invalidation/targets` and `entry_trigger/entry_zone/invalid_price`.
 - Policy: Avoid committing/pushing `.py` files going forward; use safe local runs and only commit docs/artifacts when approved.
-- Verification: Ran safe digest build with TG/Discord disabled; Telegram shows no Playbook; Discord (dry) will render TF “Why”.
+- Verification: Ran safe digest build with TG/Discord disabled; Telegram shows no Playbook; Discord (dry) will render TF “Outcome”.
 
 ## [v3.1.14-remove-1M-timeframe]
 - Change: Removed 1M (monthly) timeframe from all assets in both planning and renderers. TFs now: `1h, 4h, 1D, 1W`.
@@ -420,7 +372,7 @@
 - Feature: Added accurate per-timeframe explanations for entries/invalidations/targets sourced from the agent analysis.
   - `scripts/tracer_bullet_universe.py`: `synthesize_analysis_levels()` now attaches a number-free `explain` string per TF using bias/action, readiness, and TF strength; fallback plans also carry a clear heuristic `explain`.
   - `build_tf_plan_from_levels()` passes `explain` through into the plan snapshot.
-  - `scripts/tg_digest_formatter.py`: renders a per-TF "Why:" line from `plan[tf]['explain']` under each timeframe block.
+  - `scripts/tg_digest_formatter.py`: renders a per-TF "Outcome:" line from `plan[tf]['explain']` under each timeframe block.
   - Enhancement: When available, explanations now include structure hints (trend continuation, range context) and weekly anchor proximity (near supply/demand) in a number-free way.
 - Result: Digest now shows specific, analysis-grounded rationale for each TF instead of generic statements.
 - Safety: Chat remains number-free in explanations; artifacts persist plan snapshots unchanged.

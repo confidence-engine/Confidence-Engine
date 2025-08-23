@@ -362,7 +362,7 @@ Milestone V2 — Crowd Immunity [DONE]
 ✓ Telegram one-liners for diversity/cascade/contrarian when applicable
 ✓ Tests for diversity, cascade, contrarian; schema presence
 
-Milestone V3 — Bias Immunity + Sizing [PLANNED]
+Milestone V3 — Bias Immunity + Sizing [DONE]
 - Multi-timescale scoring:
   - Compute short/mid/long horizon metrics (sentiment, divergence, volume_z)
   - Combine with transparent weights; require alignment for high confidence
@@ -464,6 +464,7 @@ Why this matters: Enables consistent multi-asset scanning and reporting without 
 - Added number-free, conversational digest formatter producing a consistent crypto-first report (BTC/ETH prioritized), including levels-to-watch (descriptive), entries/exits, and risk-based sizing bands.  
 - Integrated into single-run flow: produced after artifacts are written, sent to Telegram, and printed to console; analyzer logic remains unchanged.  
 - Optional prompt/style reference file; optional toggle to enable/disable digest output; safe defaults preserved.  
+ - Chat label note: the per‑timeframe explanation line is labeled "Outcome" (previously shown as "Why"). Artifacts keep the text under `plan[tf]["explain"]`.
 
 Why this matters: Delivers a human-ready narrative output without exposing raw metrics, boosting usability for decision-making while keeping the quantitative engine intact.
 
@@ -646,7 +647,7 @@ v3.2 — Reliability Hardening (agent, non-24/7) [PLANNED]
   - Transient failures recover; digest emits helpful fallbacks; logs actionable.
 - Why: Strength before expanding breadth/outputs.
 
-v3.3 — Full Crypto Alt Coverage + Evidence Lines + Polymarket (read-only) [PLANNED]
+v3.3 — Full Crypto Alt Coverage + Evidence Lines + Polymarket (read-only) [DONE]
 - Crypto breadth:
   - Include all available liquid crypto alts in the digest using the same number-free template.
   - One-liners per alt: bias/readiness/action; qualitative levels; brief rationale.
@@ -662,7 +663,7 @@ v3.3 — Full Crypto Alt Coverage + Evidence Lines + Polymarket (read-only) [PLA
   - Digest shows all alts; Polymarket section appears when enabled/quality met; artifacts carry eval fields.
 - Why: Comprehensive crypto coverage + external odds comparison without execution or numeric leak.
 
-v3.4 — Evaluation Pipeline (Polymarket + system reliability) [PLANNED]
+v3.4 — Evaluation Pipeline (Polymarket + system reliability) [IN PROGRESS]
 - What:
   - Weekly evaluator: Brier score, log-loss, calibration curves, win-rate by edge label/cohorts; lead/lag analysis.
   - Event-ordered records; capture resolved outcomes; CSV/JSON summaries per week.
@@ -759,7 +760,7 @@ Polymarket is read-only and limited to BTC/ETH in v3.3; evaluation in v3.4. Stoc
 Status summary
 - Done: v1, v2, v3, v3.1, v3.1.x (digest shipped; reliability hardening in progress)
 - Current focus: finish v3.1.x (auto-commit/push + retries/backoff/self-checks)
-- Next: v3.3 (all-liquid crypto alts + evidence lines + Polymarket BTC/ETH read-only), v3.4 (evaluation), then v4 (explainability+), v5 (24/7), v6 (paper), v7 (live)
+- Next: v4 (explainability+), v5 (24/7), v6 (paper), v7 (live) — with v3.4 (evaluation) continuing in progress
 
 Milestones in detail
 
@@ -816,7 +817,7 @@ v3.1.x — Human Digest + Reliability Hardening [IN PROGRESS]
   - 3-day burn-in: zero crashes; <1% runs degraded with helpful digest notes
   - If enabled, commit/push logs consistent; repo reflects cadence
 
-v3.3 — Full Crypto Alts (phased) + Evidence Lines + Polymarket BTC/ETH (read-only) [PLANNED]
+v3.3 — Full Crypto Alts (phased) + Evidence Lines + Polymarket BTC/ETH (read-only) [DONE]
 - Crypto breadth (phased):
   - Include all liquid alts in artifacts; digest surfaces top-K by rank/quality (config-gated rollout to avoid noise)
 - Evidence lines:
@@ -829,7 +830,7 @@ v3.3 — Full Crypto Alts (phased) + Evidence Lines + Polymarket BTC/ETH (read-o
   - Toggles: TB_ENABLE_POLYMARKET=1; TB_POLYMARKET_MAX_ITEMS=2; TB_POLYMARKET_MIN_QUALITY
 - DoD: Digest shows top-K alts with evidence lines; Polymarket BTC/ETH appears when filters pass; artifacts carry eval fields
 
-v3.4 — Evaluation Pipeline (Polymarket + System) [PLANNED]
+v3.4 — Evaluation Pipeline (Polymarket + System) [IN PROGRESS]
 - Scope:
   - Weekly evaluator (manual or non-24/7 schedule):
     - Brier score, log-loss, calibration curves for Polymarket BTC/ETH predictions (TB internal p vs resolved outcomes)

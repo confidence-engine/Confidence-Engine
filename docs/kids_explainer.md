@@ -59,7 +59,7 @@
 - A file for each big run with:
   - Evidence line: the one‑sentence reason.
   - Thesis: what we think (action), how risky it feels (risk band), and how ready we are (readiness).
-  - Plan by timeframe: for 1h/4h/1D/1W it keeps entries, invalidation (what proves us wrong), and targets, plus a short "Why" explanation.
+  - Plan by timeframe: for 1h/4h/1D/1W it keeps entries, invalidation (what proves us wrong), and targets, plus a short "Outcome" explanation.
   - Optional Polymarket notes: what prediction markets say (numbers stay in files, not in chat).
 
 These files live in the `universe_runs/` folder next to your project.
