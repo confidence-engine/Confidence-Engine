@@ -88,6 +88,110 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.5787120305000001
+            }
+          ],
+          "invalidation": {
+            "price": 0.570601252,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.5816614045
+            },
+            {
+              "label": "TP2",
+              "price": 0.5875601525
+            }
+          ],
+          "explain": "Bias up on 1h (intraday); using trigger entries aligned with momentum (neutral structure). Strength elevated, timing later, action watch. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.5808237500000001
+            }
+          ],
+          "invalidation": {
+            "price": 0.56352875,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.586877
+            },
+            {
+              "label": "TP2",
+              "price": 0.59811875
+            }
+          ],
+          "explain": "Bias up on 4h (swing); using trigger entries aligned with momentum (neutral structure). Strength elevated, timing later, action watch. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.583418
+            }
+          ],
+          "invalidation": {
+            "price": 0.559205,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.5937950000000001
+            },
+            {
+              "label": "TP2",
+              "price": 0.61109
+            }
+          ],
+          "explain": "Bias up on 1D (daily); using trigger entries aligned with momentum (neutral structure). Strength elevated, timing later, action watch. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.5884076075000001
+            }
+          ],
+          "invalidation": {
+            "price": 0.5487155825,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.60825362
+            },
+            {
+              "label": "TP2",
+              "price": 0.6400072400000001
+            }
+          ],
+          "explain": "Bias up on 1W (weekly); using trigger entries aligned with momentum (neutral structure). Strength elevated, timing later, action watch. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -173,6 +277,122 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                26.4231892,
+                26.515581100000002
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 26.546378400000002,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 26.0844189
+            },
+            {
+              "label": "TP2",
+              "price": 25.838040499999998
+            }
+          ],
+          "explain": "Bias down on 1h (intraday); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, above-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                26.5243916,
+                26.673986
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 26.860979000000004,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 25.851216800000003
+            },
+            {
+              "label": "TP2",
+              "price": 25.365035000000002
+            }
+          ],
+          "explain": "Bias down on 4h (swing); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, above-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                26.673986,
+                26.860979000000004
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 27.047972,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 25.552028
+            },
+            {
+              "label": "TP2",
+              "price": 24.804056
+            }
+          ],
+          "explain": "Bias down on 1D (daily); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, above-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                26.96013,
+                27.290195
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 27.4552275,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 24.97974
+            },
+            {
+              "label": "TP2",
+              "price": 23.65948
+            }
+          ],
+          "explain": "Bias down on 1W (weekly); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, above-average participation, confirmation OK.",
+          "source": "analysis"
         }
       }
     },
@@ -260,6 +480,122 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.23598906443999998,
+                0.23678336277
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.23704812888,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.23307663723
+            },
+            {
+              "label": "TP2",
+              "price": 0.23095850835
+            }
+          ],
+          "explain": "Bias down on 1h (intraday); using fade entries into structure (neutral structure). Strength balanced, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.23684984796000003,
+                0.2381297466
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.2397296199,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.23109030408
+            },
+            {
+              "label": "TP2",
+              "price": 0.2269306335
+            }
+          ],
+          "explain": "Bias down on 4h (swing); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.2381297466,
+                0.2397296199
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.2413294932,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.22853050679999998
+            },
+            {
+              "label": "TP2",
+              "price": 0.2221310136
+            }
+          ],
+          "explain": "Bias down on 1D (daily); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.24059181300000002,
+                0.24342271949999997
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.24483817275000003,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.223606374
+            },
+            {
+              "label": "TP2",
+              "price": 0.212282748
+            }
+          ],
+          "explain": "Bias down on 1W (weekly); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -345,6 +681,122 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "High",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                11.29336864,
+                11.33114512
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 11.343737280000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 11.15485488
+            },
+            {
+              "label": "TP2",
+              "price": 11.0541176
+            }
+          ],
+          "explain": "Bias down on 1h (intraday); using fade entries into structure (neutral structure). Strength balanced, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                11.334203215999999,
+                11.39500536
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 11.471008040000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 11.060593568
+            },
+            {
+              "label": "TP2",
+              "price": 10.8629866
+            }
+          ],
+          "explain": "Bias down on 4h (swing); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                11.39500536,
+                11.471008040000001
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 11.54701072,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 10.938989280000001
+            },
+            {
+              "label": "TP2",
+              "price": 10.63497856
+            }
+          ],
+          "explain": "Bias down on 1D (daily); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                11.512157420000001,
+                11.646736129999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 11.714025485,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 10.70468516
+            },
+            {
+              "label": "TP2",
+              "price": 10.16637032
+            }
+          ],
+          "explain": "Bias down on 1W (weekly); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
         }
       }
     },
@@ -432,6 +884,122 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.367112586,
+                0.36832202550000004
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.368725172,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.3626779745
+            },
+            {
+              "label": "TP2",
+              "price": 0.3594528025
+            }
+          ],
+          "explain": "Bias down on 1h (intraday); using fade entries into structure (neutral structure). Strength balanced, timing now, action sell. Signals: mixed alignment, above-average participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.36841449699999995,
+                0.370357495
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.37278624250000003,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.359671006
+            },
+            {
+              "label": "TP2",
+              "price": 0.3533562625
+            }
+          ],
+          "explain": "Bias down on 4h (swing); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.370357495,
+                0.37278624250000003
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.37521499,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.35578500999999996
+            },
+            {
+              "label": "TP2",
+              "price": 0.34607002
+            }
+          ],
+          "explain": "Bias down on 1D (daily); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                0.37411118,
+                0.37841676999999996
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 0.38056956500000005,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.34827764
+            },
+            {
+              "label": "TP2",
+              "price": 0.33105528
+            }
+          ],
+          "explain": "Bias down on 1W (weekly); using fade entries into structure (neutral structure). Strength elevated, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -517,6 +1085,110 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Medium",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 24.94009892
+            }
+          ],
+          "invalidation": {
+            "price": 24.646402879999997,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 25.04689748
+            },
+            {
+              "label": "TP2",
+              "price": 25.2604946
+            }
+          ],
+          "explain": "Bias up on 1h (intraday); using trigger entries aligned with momentum (neutral structure). Strength balanced, timing near, action watch. Signals: mixed alignment, above-average participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 25.0202227
+            }
+          ],
+          "invalidation": {
+            "price": 24.3793319,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 25.24453448
+            },
+            {
+              "label": "TP2",
+              "price": 25.6611135
+            }
+          ],
+          "explain": "Bias up on 4h (swing); using trigger entries aligned with momentum (neutral structure). Strength elevated, timing near, action watch. Signals: mixed alignment, above-average participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 25.11635632
+            }
+          ],
+          "invalidation": {
+            "price": 24.2191092,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 25.500890799999997
+            },
+            {
+              "label": "TP2",
+              "price": 26.1417816
+            }
+          ],
+          "explain": "Bias up on 1D (daily); using trigger entries aligned with momentum (neutral structure). Strength elevated, timing near, action watch. Signals: mixed alignment, above-average participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 25.2873434
+            }
+          ],
+          "invalidation": {
+            "price": 23.8628654,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 25.9995824
+            },
+            {
+              "label": "TP2",
+              "price": 27.1391648
+            }
+          ],
+          "explain": "Bias up on 1W (weekly); using trigger entries aligned with momentum (neutral structure). Strength balanced, timing near, action watch. Signals: mixed alignment, above-average participation, confirmation weak.",
+          "source": "analysis"
         }
       }
     },
@@ -604,6 +1276,110 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4785.1204435
+            }
+          ],
+          "invalidation": {
+            "price": 4736.0954839999995,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4802.947701499999
+            },
+            {
+              "label": "TP2",
+              "price": 4838.602217500001
+            }
+          ],
+          "explain": "Bias up on 1h (intraday); using trigger entries aligned with momentum (neutral structure). Strength balanced, timing later, action watch. Signals: mixed alignment, above-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4797.89919
+            }
+          ],
+          "invalidation": {
+            "price": 4693.30243,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4834.508056000001
+            },
+            {
+              "label": "TP2",
+              "price": 4902.49595
+            }
+          ],
+          "explain": "Bias up on 4h (swing); using trigger entries aligned with momentum (neutral structure). Strength balanced, timing later, action watch. Signals: mixed alignment, above-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4813.588704000001
+            }
+          ],
+          "invalidation": {
+            "price": 4667.15324,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4876.346759999999
+            },
+            {
+              "label": "TP2",
+              "price": 4980.943520000001
+            }
+          ],
+          "explain": "Bias up on 1D (daily); using trigger entries aligned with momentum (neutral structure). Strength balanced, timing later, action watch. Signals: mixed alignment, above-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4842.467335
+            }
+          ],
+          "invalidation": {
+            "price": 4606.742885,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4960.32956
+            },
+            {
+              "label": "TP2",
+              "price": 5148.90912
+            }
+          ],
+          "explain": "Bias up on 1W (weekly); using trigger entries aligned with momentum (neutral structure). Strength balanced, timing later, action watch. Signals: mixed alignment, typical participation, confirmation OK.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -689,6 +1465,122 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.0271876488,
+                3.0343033854
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.0366752976000004,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.0010966146
+            },
+            {
+              "label": "TP2",
+              "price": 2.9821213170000003
+            }
+          ],
+          "explain": "Bias down on 1h (intraday); using fade entries into structure (neutral structure). Strength muted, timing now, action sell. Signals: mixed alignment, above-average participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.0338688366,
+                3.044648061
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.0581220915,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 2.9853623268000002
+            },
+            {
+              "label": "TP2",
+              "price": 2.9503298475
+            }
+          ],
+          "explain": "Bias down on 4h (swing); using fade entries into structure (neutral structure). Strength balanced, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.044648061,
+                3.0581220915
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.071596122,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 2.9638038780000002
+            },
+            {
+              "label": "TP2",
+              "price": 2.909907756
+            }
+          ],
+          "explain": "Bias down on 1D (daily); using fade entries into structure (neutral structure). Strength balanced, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                3.067310988,
+                3.0921164819999998
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 3.104519229,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 2.918478024
+            },
+            {
+              "label": "TP2",
+              "price": 2.8192560479999997
+            }
+          ],
+          "explain": "Bias down on 1W (weekly); using fade entries into structure (neutral structure). Strength muted, timing now, action sell. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
         }
       }
     },
@@ -776,6 +1668,110 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Buy",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.9139736606000002
+            }
+          ],
+          "invalidation": {
+            "price": 0.9063702384000001,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.9167385414000001
+            },
+            {
+              "label": "TP2",
+              "price": 0.9222683030000002
+            }
+          ],
+          "explain": "Bias up on 1h (intraday); using trigger entries aligned with momentum (neutral structure). Strength muted, timing now, action buy. Signals: mixed alignment, above-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.9157938130000001
+            }
+          ],
+          "invalidation": {
+            "price": 0.9002185610000001,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.9212451512000001
+            },
+            {
+              "label": "TP2",
+              "price": 0.931369065
+            }
+          ],
+          "explain": "Bias up on 4h (swing); using trigger entries aligned with momentum (neutral structure). Strength balanced, timing now, action buy. Signals: mixed alignment, above-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.9181301008
+            }
+          ],
+          "invalidation": {
+            "price": 0.8963247480000001,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.927475252
+            },
+            {
+              "label": "TP2",
+              "price": 0.943050504
+            }
+          ],
+          "explain": "Bias up on 1D (daily); using trigger entries aligned with momentum (neutral structure). Strength balanced, timing now, action buy. Signals: mixed alignment, above-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.9227060149999999
+            }
+          ],
+          "invalidation": {
+            "price": 0.8866859650000001,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.9407160400000001
+            },
+            {
+              "label": "TP2",
+              "price": 0.96953208
+            }
+          ],
+          "explain": "Bias up on 1W (weekly); using trigger entries aligned with momentum (neutral structure). Strength muted, timing now, action buy. Signals: mixed alignment, typical participation, confirmation OK.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -861,6 +1857,122 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                4.112381999999999,
+                4.121668499999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.124764,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.0783315
+            },
+            {
+              "label": "TP2",
+              "price": 4.0535675
+            }
+          ],
+          "explain": "Bias down on 1h (intraday); using fade entries into structure (neutral structure). Strength muted, timing now, action sell. Signals: mixed alignment, below-average participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                4.1209346,
+                4.134891
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.1523365,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.0581308
+            },
+            {
+              "label": "TP2",
+              "price": 4.0127725
+            }
+          ],
+          "explain": "Bias down on 4h (swing); using fade entries into structure (neutral structure). Strength balanced, timing now, action sell. Signals: mixed alignment, below-average participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                4.134891,
+                4.1523365
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.169782,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.030218
+            },
+            {
+              "label": "TP2",
+              "price": 3.9604359999999996
+            }
+          ],
+          "explain": "Bias down on 1D (daily); using fade entries into structure (neutral structure). Strength balanced, timing now, action sell. Signals: mixed alignment, below-average participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                4.164534,
+                4.196800999999999
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 4.212934499999999,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 3.970932
+            },
+            {
+              "label": "TP2",
+              "price": 3.8418639999999997
+            }
+          ],
+          "explain": "Bias down on 1W (weekly); using fade entries into structure (neutral structure). Strength muted, timing now, action sell. Signals: mixed alignment, below-average participation, confirmation weak.",
+          "source": "analysis"
         }
       }
     },
@@ -948,6 +2060,110 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.7775363731
+            }
+          ],
+          "invalidation": {
+            "price": 0.7715363384,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.7797182039
+            },
+            {
+              "label": "TP2",
+              "price": 0.7840818655
+            }
+          ],
+          "explain": "Bias up on 1h (intraday); using trigger entries aligned with momentum (neutral structure). Strength muted, timing later, action watch. Signals: mixed alignment, below-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.7789221305
+            }
+          ],
+          "invalidation": {
+            "price": 0.7668336085,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.7831531131999999
+            },
+            {
+              "label": "TP2",
+              "price": 0.7910106524999999
+            }
+          ],
+          "explain": "Bias up on 4h (swing); using trigger entries aligned with momentum (neutral structure). Strength muted, timing later, action watch. Signals: mixed alignment, below-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.7807354088
+            }
+          ],
+          "invalidation": {
+            "price": 0.763811478,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.787988522
+            },
+            {
+              "label": "TP2",
+              "price": 0.8000770440000001
+            }
+          ],
+          "explain": "Bias up on 1D (daily); using trigger entries aligned with momentum (neutral structure). Strength muted, timing later, action watch. Signals: mixed alignment, below-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.7843728280000001
+            }
+          ],
+          "invalidation": {
+            "price": 0.756130068,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.798494208
+            },
+            {
+              "label": "TP2",
+              "price": 0.821088416
+            }
+          ],
+          "explain": "Bias up on 1W (weekly); using trigger entries aligned with momentum (neutral structure). Strength muted, timing later, action watch. Signals: mixed alignment, below-average participation, confirmation OK.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -1033,6 +2249,110 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 197.94933439999997
+            }
+          ],
+          "invalidation": {
+            "price": 196.55844159999998,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 198.4551136
+            },
+            {
+              "label": "TP2",
+              "price": 199.46667200000002
+            }
+          ],
+          "explain": "Bias up on 1h (intraday); using trigger entries aligned with momentum (neutral structure). Strength muted, timing later, action watch. Signals: mixed alignment, below-average participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 198.25359219999999
+            }
+          ],
+          "invalidation": {
+            "price": 195.51922340000002,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 199.21062128
+            },
+            {
+              "label": "TP2",
+              "price": 200.987961
+            }
+          ],
+          "explain": "Bias up on 4h (swing); using trigger entries aligned with momentum (neutral structure). Strength muted, timing later, action watch. Signals: mixed alignment, below-average participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 198.66374752
+            }
+          ],
+          "invalidation": {
+            "price": 194.8356312,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 200.30436880000002
+            },
+            {
+              "label": "TP2",
+              "price": 203.0387376
+            }
+          ],
+          "explain": "Bias up on 1D (daily); using trigger entries aligned with momentum (neutral structure). Strength muted, timing later, action watch. Signals: mixed alignment, below-average participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 199.51705234999997
+            }
+          ],
+          "invalidation": {
+            "price": 193.02687785,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 202.7621396
+            },
+            {
+              "label": "TP2",
+              "price": 207.95427919999997
+            }
+          ],
+          "explain": "Bias up on 1W (weekly); using trigger entries aligned with momentum (neutral structure). Strength muted, timing later, action watch. Signals: mixed alignment, below-average participation, confirmation weak.",
+          "source": "analysis"
         }
       }
     },
@@ -1120,6 +2440,110 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Buy",
+        "risk_band": "Medium",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.24935922050000003
+            }
+          ],
+          "invalidation": {
+            "price": 0.247675412,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.24997151450000002
+            },
+            {
+              "label": "TP2",
+              "price": 0.2511961025
+            }
+          ],
+          "explain": "Bias up on 1h (intraday); using trigger entries aligned with momentum (neutral structure). Strength muted, timing near, action buy. Signals: mixed alignment, typical participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.249718881
+            }
+          ],
+          "invalidation": {
+            "price": 0.246443357,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.2508653144
+            },
+            {
+              "label": "TP2",
+              "price": 0.25299440500000003
+            }
+          ],
+          "explain": "Bias up on 4h (swing); using trigger entries aligned with momentum (neutral structure). Strength muted, timing near, action buy. Signals: mixed alignment, typical participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.2502102096
+            }
+          ],
+          "invalidation": {
+            "price": 0.24562447600000004,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.25217552400000004
+            },
+            {
+              "label": "TP2",
+              "price": 0.25545104799999996
+            }
+          ],
+          "explain": "Bias up on 1D (daily); using trigger entries aligned with momentum (neutral structure). Strength muted, timing near, action buy. Signals: mixed alignment, typical participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 0.2512483715
+            }
+          ],
+          "invalidation": {
+            "price": 0.24342046650000002,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 0.25516232400000005
+            },
+            {
+              "label": "TP2",
+              "price": 0.261424648
+            }
+          ],
+          "explain": "Bias up on 1W (weekly); using trigger entries aligned with momentum (neutral structure). Strength muted, timing near, action buy. Signals: mixed alignment, typical participation, confirmation OK.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -1205,6 +2629,110 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Buy",
+        "risk_band": "Medium",
+        "readiness": "Near"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 116741.767618
+            }
+          ],
+          "invalidation": {
+            "price": 115972.65635199999,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 117021.44444199999
+            },
+            {
+              "label": "TP2",
+              "price": 117580.79808999998
+            }
+          ],
+          "explain": "Bias up on 1h (intraday); using trigger entries aligned with momentum (neutral structure). Strength muted, timing near, action buy. Signals: mixed alignment, above-average participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 116903.16445185
+            }
+          ],
+          "invalidation": {
+            "price": 115418.54664444999,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 117422.78068443999
+            },
+            {
+              "label": "TP2",
+              "price": 118387.78225924999
+            }
+          ],
+          "explain": "Bias up on 4h (swing); using trigger entries aligned with momentum (neutral structure). Strength muted, timing near, action buy. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 117125.85712295999
+            }
+          ],
+          "invalidation": {
+            "price": 115047.3921926,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 118016.62780739999
+            },
+            {
+              "label": "TP2",
+              "price": 119501.24561479999
+            }
+          ],
+          "explain": "Bias up on 1D (daily); using trigger entries aligned with momentum (neutral structure). Strength muted, timing near, action buy. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 117601.7738518
+            }
+          ],
+          "invalidation": {
+            "price": 114035.8943458,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 119384.7136048
+            },
+            {
+              "label": "TP2",
+              "price": 122237.41720960001
+            }
+          ],
+          "explain": "Bias up on 1W (weekly); using trigger entries aligned with momentum (neutral structure). Strength muted, timing near, action buy. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
         }
       }
     },
@@ -1292,6 +2820,110 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Buy",
+        "risk_band": "Medium",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.75898168
+            }
+          ],
+          "invalidation": {
+            "price": 4.72971552,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.76962392
+            },
+            {
+              "label": "TP2",
+              "price": 4.7909084
+            }
+          ],
+          "explain": "Bias up on 1h (intraday); using trigger entries aligned with momentum (neutral structure). Strength muted, timing now, action buy. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.764849165
+            }
+          ],
+          "invalidation": {
+            "price": 4.709452505000001,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.784237996000001
+            },
+            {
+              "label": "TP2",
+              "price": 4.820245825000001
+            }
+          ],
+          "explain": "Bias up on 4h (swing); using trigger entries aligned with momentum (neutral structure). Strength muted, timing now, action buy. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.773158664
+            }
+          ],
+          "invalidation": {
+            "price": 4.69560334,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.806396660000001
+            },
+            {
+              "label": "TP2",
+              "price": 4.86179332
+            }
+          ],
+          "explain": "Bias up on 1D (daily); using trigger entries aligned with momentum (neutral structure). Strength muted, timing now, action buy. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 4.791478520000001
+            }
+          ],
+          "invalidation": {
+            "price": 4.65655012,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 4.858942720000001
+            },
+            {
+              "label": "TP2",
+              "price": 4.96688544
+            }
+          ],
+          "explain": "Bias up on 1W (weekly); using trigger entries aligned with momentum (neutral structure). Strength muted, timing now, action buy. Signals: mixed alignment, typical participation, confirmation weak.",
+          "source": "analysis"
+        }
       }
     },
     {
@@ -1377,6 +3009,110 @@
           "min_R": 0.25,
           "max_R": 1.0,
           "used_vol_norm": null
+        }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Watch",
+        "risk_band": "Low",
+        "readiness": "Later"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 885.31100405
+            }
+          ],
+          "invalidation": {
+            "price": 879.9539892,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 887.25900945
+            },
+            {
+              "label": "TP2",
+              "price": 891.15502025
+            }
+          ],
+          "explain": "Bias up on 1h (intraday); using trigger entries aligned with momentum (neutral structure). Strength muted, timing later, action watch. Signals: mixed alignment, weak participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 886.3733917500001
+            }
+          ],
+          "invalidation": {
+            "price": 876.27982475,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 889.9061402000001
+            },
+            {
+              "label": "TP2",
+              "price": 896.46695875
+            }
+          ],
+          "explain": "Bias up on 4h (swing); using trigger entries aligned with momentum (neutral structure). Strength muted, timing later, action watch. Signals: mixed alignment, below-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 887.8874268
+            }
+          ],
+          "invalidation": {
+            "price": 873.756433,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 893.943567
+            },
+            {
+              "label": "TP2",
+              "price": 904.037134
+            }
+          ],
+          "explain": "Bias up on 1D (daily); using trigger entries aligned with momentum (neutral structure). Strength muted, timing later, action watch. Signals: mixed alignment, below-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "trigger",
+              "zone_or_trigger": 891.2478245
+            }
+          ],
+          "invalidation": {
+            "price": 866.5884095,
+            "condition": "close below"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 903.5775319999999
+            },
+            {
+              "label": "TP2",
+              "price": 923.305064
+            }
+          ],
+          "explain": "Bias up on 1W (weekly); using trigger entries aligned with momentum (neutral structure). Strength muted, timing later, action watch. Signals: mixed alignment, below-average participation, confirmation OK.",
+          "source": "analysis"
         }
       }
     },
@@ -1464,7 +3200,195 @@
           "max_R": 1.0,
           "used_vol_norm": null
         }
+      },
+      "evidence_line": null,
+      "thesis": {
+        "action": "Sell",
+        "risk_band": "High",
+        "readiness": "Now"
+      },
+      "plan": {
+        "1h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                121.80544336,
+                122.00452588
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 122.07088672,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 121.07547412000001
+            },
+            {
+              "label": "TP2",
+              "price": 120.5445874
+            }
+          ],
+          "explain": "Bias down on 1h (intraday); using fade entries into structure (neutral structure). Strength muted, timing now, action sell. Signals: mixed alignment, weak participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "4h": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                121.95056212000001,
+                122.2242702
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 122.56640530000001,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 120.71887576
+            },
+            {
+              "label": "TP2",
+              "price": 119.82932450000001
+            }
+          ],
+          "explain": "Bias down on 4h (swing); using fade entries into structure (neutral structure). Strength muted, timing now, action sell. Signals: mixed alignment, below-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1D": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                122.2242702,
+                122.56640530000001
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 122.9085404,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 120.1714596
+            },
+            {
+              "label": "TP2",
+              "price": 118.8029192
+            }
+          ],
+          "explain": "Bias down on 1D (daily); using fade entries into structure (neutral structure). Strength muted, timing now, action sell. Signals: mixed alignment, below-average participation, confirmation OK.",
+          "source": "analysis"
+        },
+        "1W": {
+          "entries": [
+            {
+              "type": "fade",
+              "zone_or_trigger": [
+                122.8793708,
+                123.5490562
+              ]
+            }
+          ],
+          "invalidation": {
+            "price": 123.8838989,
+            "condition": "close above"
+          },
+          "targets": [
+            {
+              "label": "TP1",
+              "price": 118.86125840000001
+            },
+            {
+              "label": "TP2",
+              "price": 116.1825168
+            }
+          ],
+          "explain": "Bias down on 1W (weekly); using fade entries into structure (neutral structure). Strength muted, timing now, action sell. Signals: mixed alignment, below-average participation, confirmation OK.",
+          "source": "analysis"
+        }
       }
+    }
+  ],
+  "polymarket": [
+    {
+      "market_name": "Bitcoin above $118k on August 25?",
+      "stance": "Engage",
+      "readiness": "Now",
+      "edge_label": "market cheap",
+      "rationale": "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution.",
+      "implied_prob": 0.33,
+      "implied_pct": 33.0,
+      "tb_internal_prob": 0.5693333333333334,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-25T00:00:00+00:00",
+      "market_id": null,
+      "quality_score": null
+    },
+    {
+      "market_name": "Bitcoin above $116k on August 25?",
+      "stance": "Engage",
+      "readiness": "Now",
+      "edge_label": "market cheap",
+      "rationale": "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution.",
+      "implied_prob": 0.66,
+      "implied_pct": 66.0,
+      "tb_internal_prob": 0.8993333333333333,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-25T00:00:00+00:00",
+      "market_id": null,
+      "quality_score": null
+    },
+    {
+      "market_name": "Bitcoin above $114k on August 25?",
+      "stance": "Engage",
+      "readiness": "Now",
+      "edge_label": "market cheap",
+      "rationale": "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution.",
+      "implied_prob": 0.88,
+      "implied_pct": 88.0,
+      "tb_internal_prob": 1.0,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-25T00:00:00+00:00",
+      "market_id": null,
+      "quality_score": null
+    },
+    {
+      "market_name": "Bitcoin above $112k on August 25?",
+      "stance": "Engage",
+      "readiness": "Now",
+      "edge_label": "market cheap",
+      "rationale": "Market pricing looks favorable versus our view. Timing is actionable; manage risk and execution.",
+      "implied_prob": 0.95,
+      "implied_pct": 95.0,
+      "tb_internal_prob": 1.0,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-25T00:00:00+00:00",
+      "market_id": null,
+      "quality_score": null
+    },
+    {
+      "market_name": "Bitcoin above $110k on August 25?",
+      "stance": "Stand Aside",
+      "readiness": "Now",
+      "edge_label": "in-line",
+      "rationale": "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution.",
+      "implied_prob": 0.99,
+      "implied_pct": 99.0,
+      "tb_internal_prob": 1.0,
+      "liquidity_usd": null,
+      "event_end_date": "2025-08-25T00:00:00+00:00",
+      "market_id": null,
+      "quality_score": null
     }
   ]
 }
