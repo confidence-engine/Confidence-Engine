@@ -245,9 +245,26 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
                 readiness = pm.get("readiness") or "Later"
                 edge = pm.get("edge_label") or "in-line"
                 val_lines = [f"{stance} | {readiness} | {edge}"]
-                rat = pm.get("rationale_chat")
-                if rat:
-                    val_lines.append(rat)
+                # Action (prefer implied side)
+                implied = str(pm.get("implied_side") or "").strip().upper()
+                if implied == "YES":
+                    action = "Buy YES"
+                elif implied == "NO":
+                    action = "Buy NO"
+                else:
+                    action = "Take the bet" if str(stance).lower() == "engage" else "Stand Aside"
+                val_lines.append(f"Action: {action}")
+                # Why
+                rat = (pm.get("rationale_chat") or "").strip()
+                if not rat:
+                    el = str(edge).lower()
+                    if "rich" in el:
+                        rat = "Crowd price looks too high versus our view."
+                    elif "cheap" in el:
+                        rat = "Crowd price looks low versus our view."
+                    else:
+                        rat = "Price looks fair; low edge."
+                val_lines.append("Why: " + rat)
                 # Optional internal confidence (agent view)
                 if os.getenv("TB_POLYMARKET_SHOW_CONFIDENCE", "0") == "1":
                     ip = pm.get("internal_prob")
@@ -303,9 +320,26 @@ def digest_to_discord_embeds(digest_data: Dict[str, Any]) -> List[Dict[str, Any]
                 readiness = pm.get("readiness") or "Later"
                 edge = pm.get("edge_label") or "in-line"
                 val_lines = [f"{stance} | {readiness} | {edge}"]
-                rat = pm.get("rationale_chat")
-                if rat:
-                    val_lines.append(rat)
+                # Action (prefer implied side)
+                implied = str(pm.get("implied_side") or "").strip().upper()
+                if implied == "YES":
+                    action = "Buy YES"
+                elif implied == "NO":
+                    action = "Buy NO"
+                else:
+                    action = "Take the bet" if str(stance).lower() == "engage" else "Stand Aside"
+                val_lines.append(f"Action: {action}")
+                # Why
+                rat = (pm.get("rationale_chat") or "").strip()
+                if not rat:
+                    el = str(edge).lower()
+                    if "rich" in el:
+                        rat = "Crowd price looks too high versus our view."
+                    elif "cheap" in el:
+                        rat = "Crowd price looks low versus our view."
+                    else:
+                        rat = "Price looks fair; low edge."
+                val_lines.append("Why: " + rat)
                 if os.getenv("TB_POLYMARKET_SHOW_CONFIDENCE", "0") == "1":
                     ip = pm.get("internal_prob")
                     try:

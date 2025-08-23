@@ -1,22 +1,22 @@
 # Polymarket — Standalone Digest
 
-- **Bitcoin above 110k on August 22?**
-  - Engage | Now | market cheap
-  - Action: Buy YES
-  - Outcome: Lean YES
-  - Why: Market pricing looks favorable versus our view. Timing is actionable; keep risk small and be clear on exits.
-- **Bitcoin above 112k on August 22?**
-  - Engage | Now | market cheap
-  - Action: Buy YES
-  - Outcome: Lean YES
-  - Why: Market pricing looks favorable versus our view. Timing is actionable; keep risk small and be clear on exits.
-- **Ethereum above 4000 on August 22?**
-  - Engage | Now | market cheap
-  - Action: Buy YES
-  - Outcome: Lean YES
-  - Why: Market pricing looks favorable versus our view. Timing is actionable; keep risk small and be clear on exits.
-- **Ethereum above 4200 on August 22?**
-  - Engage | Now | market cheap
-  - Action: Buy YES
-  - Outcome: Lean YES
-  - Why: Market pricing looks favorable versus our view. Timing is actionable; keep risk small and be clear on exits.
+- **Bitcoin Price - August 23, 4PM ET >114k**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **Bitcoin Price - August 23, 4PM ET 117–119k**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **Bitcoin Price - August 23, 4PM ET 115–117k**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **Ethereum price on August 25? >4500**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **Ethereum price on August 25? 4400–4500**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **Ethereum price on August 25? 4300–4400**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **Ethereum price on August 25? 4200–4300**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **Bitcoin price on August 25? 117–119k**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **Bitcoin price on August 25? 115–117k**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
+- **Bitcoin price on August 25? >119k**
+  - stance: `Stand Aside`; timing: `Now`; edge: `in-line`; rationale: "Market pricing is broadly inline with our view. Timing is actionable; manage risk and execution."
