@@ -1,4 +1,4 @@
-# Tracer Bullet — Important Commands
+# Confidence Engine — Important Commands
 
 Safe profile flags (recommended during local testing):
 - TB_NO_TELEGRAM=1 TB_NO_DISCORD=1  # prevent external sends

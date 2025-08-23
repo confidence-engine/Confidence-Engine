@@ -1942,13 +1942,35 @@ python3 -u scripts/tracer_bullet_universe.py --no-telegram
 
 ***
 
+## Dev log — Branding rename to Confidence Engine (docs‑only)
+**Date:** 2025-08-23
+
+**Change:**
+- Rebranded agent name in documentation from “Tracer Bullet” to “Confidence Engine” where referring to the product/agent name. Kept code/script identifiers unchanged (e.g., `tracer_bullet.py`, `scripts/tracer_bullet_universe.py`).
+
+**Files updated:**
+- `README.md` — title and intro name
+- `README_CLEAN.md` — title
+- `Roadmap_CLEAN.md` — title, status summary V1 label, intro phrase
+- `docs/commands.md` — title
+- `docs/kids_explainer.md` — title and narrative references
+- `whitepaper.md` — title and conclusion references
+- `about.md` — branding references while preserving “tracer‑bullet” as a methodology term
+
+**Notes:**
+- No `.py` files changed. Additional secondary docs (e.g., `roadmap.md`, `slaydragon.md`) to be cleaned up in a follow‑up pass.
+
+**Status:** ✅ Updated locally; pending docs‑only commit after approval.
+
+***
+
 ## Dev log — v3.3 / Step 8 (Perplexity API key rotation and .env.example updates)
 **Date:** 2025-08-13
 
 **Change:**
 - `providers/polymarket_pplx.py` now rotates across `PPLX_API_KEY_1..N` in numeric order, then falls back to `PPLX_API_KEY`. Each key gets `TB_POLYMARKET_PPLX_RETRIES` attempts, including one fallback prompt retry.
 
-**Config:**
+{{ ... }}
 - `.env.example` documents:
   - `PPLX_API_KEY_1..PPLX_API_KEY_4` (extendable)
   - optional fallback `PPLX_API_KEY`

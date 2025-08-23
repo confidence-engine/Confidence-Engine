@@ -1,11 +1,11 @@
-# Tracer Bullet for Kids — The Friendly Market Detective
+# Confidence Engine for Kids — The Friendly Market Detective
 
 > A simple, fun guide to how our agent watches crypto coins and tells helpful stories about them.
 
 ---
 
-## 1) Meet Tracer Bullet
-- Tracer Bullet is like a weather helper for coins.
+## 1) Meet Confidence Engine
+- Confidence Engine is like a weather helper for coins.
 - It reads the news (clouds) and checks prices (thermometer).
 - When the story says “sunny!” but the thermometer says “cold,” it thinks, “Hmm, something interesting might happen.”
 
@@ -21,7 +21,7 @@
 
 ---
 
-## 3) How does Tracer Bullet check itself?
+## 3) How does Confidence Engine check itself?
 - It looks back later and asks: “Was I right?”
 - It checks 1 hour, 4 hours, and 1 day later.
 - It keeps score in a notebook (hit‑rate) so we can see if it’s learning.
@@ -69,7 +69,7 @@ These files live in the `universe_runs/` folder next to your project.
 ## 8) A tiny example story
 - The news says: “Builders are launching something big on Ethereum this week.”
 - The price is still flat today.
-- Tracer Bullet says: “News is sunny but the thermometer is cool. ETH might warm up soon.”
+- Confidence Engine says: “News is sunny but the thermometer is cool. ETH might warm up soon.”
 - It writes a short plan and saves it. If chat is on, it sends a friendly message.
 
 ---
@@ -118,4 +118,4 @@ python3 scripts/consistency_check.py --config config/universe.yaml --top 10
 ---
 
 ## 13) Last thought
-Think of Tracer Bullet like a kind, honest friend who reads a lot, watches calmly, and writes down clear, simple reasons. It helps you learn and make better choices over time.
+Think of Confidence Engine like a kind, honest friend who reads a lot, watches calmly, and writes down clear, simple reasons. It helps you learn and make better choices over time.

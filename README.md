@@ -1,24 +1,24 @@
-Project Tracer Bullet
+Project Confidence Engine
 Here is a draft for the README introduction that puts the Tracer Bullet philosophy and mission front and center, clearly distinguishing it from generic sentiment bots. This will ensure anyone reading knows the core vision and agile process powering your divergence engine:
 
 ***
 
-# Tracer Bullet — The Agile Divergence Engine for Crypto Alpha
+# Confidence Engine — The Agile Divergence Engine for Crypto Alpha
 > Looking for the concise version? See [README_CLEAN.md](README_CLEAN.md).
 
 ## Our Mission: Exploit Emotional-Math Gaps with Perfect Discipline
 
 Financial markets are driven by human emotion as much as by fundamentals. Crowd fear, greed, and narrative bias often cause prices to diverge significantly from their true, statistical values — creating opportunities for disciplined, rational traders.
 
-**Tracer Bullet is not just another sentiment bot. It is a purpose-built divergence engine, designed to detect the market’s “lie” between story and price, and deliver actionable alpha signals in real time.**
+**Confidence Engine is not just another sentiment bot. It is a purpose-built divergence engine, designed to detect the market’s “lie” between story and price, and deliver actionable alpha signals in real time.**
 
 We ask the key question nonstop:
 
 > *"The news narrative is strongly positive (or negative), but why hasn’t the price moved yet? Is the market underreacting or overreacting?"*
 
-By measuring and quantifying these divergences rigorously, filtering for relevance and confidence, and adapting thresholds dynamically, Tracer Bullet provides **real-time, explainable**, and **action-ready** trading signals — all delivered with evidence and playbook guidance directly to your Telegram DM.
+By measuring and quantifying these divergences rigorously, filtering for relevance and confidence, and adapting thresholds dynamically, Confidence Engine provides **real-time, explainable**, and **action-ready** trading signals — all delivered with evidence and playbook guidance directly to your Telegram DM.
 
-## Why Tracer Bullet Is Different
+## Why Confidence Engine Is Different
 
 - **Philosophy-first:** We shipped a fast, end‑to‑end prototype (V1) to validate our core edge early, avoiding premature complexity.
 - **Elegant simplicity:** We leverage two clean, high-quality signal pillars — Alpaca price data and Perplexity synthesized narrative — before adding noisy social feeds.

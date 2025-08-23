@@ -1,6 +1,6 @@
-Tracer Bullet: A Market Intelligence Engine for Story–Price Divergence
+Confidence Engine: A Market Intelligence Engine for Story–Price Divergence
 Abstract
-Tracer Bullet is a disciplined market intelligence system that detects and scores divergences between narrative (news/sentiment) and market behavior (price/volume). It emphasizes explainability, robustness, and operational reliability. The system introduces “Crowd Immunity” (diversity, cascade/hype detection, contrarian viewport), multi-timescale scoring, negative-confirmation weighting, and confidence-to-sizing mapping. Roadmap milestones extend to multi-asset scanning (crypto + equities), outcome-driven learning, and risk-aware execution.
+Confidence Engine is a disciplined market intelligence system that detects and scores divergences between narrative (news/sentiment) and market behavior (price/volume). It emphasizes explainability, robustness, and operational reliability. The system introduces “Crowd Immunity” (diversity, cascade/hype detection, contrarian viewport), multi-timescale scoring, negative-confirmation weighting, and confidence-to-sizing mapping. Roadmap milestones extend to multi-asset scanning (crypto + equities), outcome-driven learning, and risk-aware execution.
 
 1. Introduction
 Motivation: Markets move on both facts (price/volume) and narratives (news, social, institutional commentary). Most systems overfit one dimension and are vulnerable to hype and noise.
@@ -177,7 +177,7 @@ Model risk (future phases):
 Drift detection, ablation testing, rollbacks.
 
 10. Conclusion
-Tracer Bullet operationalizes a rational approach to market misperceptions by quantifying story–price divergence, filtering hype, and explaining every step. The current system is production-hardened and transparent; the roadmap scales it to a multi-asset, learning-driven alpha factory with risk-aware execution.
+Confidence Engine operationalizes a rational approach to market misperceptions by quantifying story–price divergence, filtering hype, and explaining every step. The current system is production-hardened and transparent; the roadmap scales it to a multi-asset, learning-driven alpha factory with risk-aware execution.
 
 Appendix A: Key Environment Variables
 Timescales: TB_TS_W_SHORT, TB_TS_W_MID, TB_TS_W_LONG

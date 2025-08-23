@@ -1,4 +1,4 @@
-# Tracer Bullet — Agile Divergence Engine
+# Confidence Engine — Agile Divergence Engine
 
 A pragmatic research/trading agent that exploits the gap between narrative (news) and tape (price) with discipline, explainability, and continuous evaluation.
 

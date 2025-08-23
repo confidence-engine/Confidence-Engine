@@ -1,13 +1,13 @@
-# Tracer Bullet — Roadmap (Clean, Detailed)
+# Confidence Engine — Roadmap (Clean, Detailed)
 
-A milestone-driven plan from V1 tracer bullet to V7 live capital, with crisp DoD (definition of done), acceptance criteria, risks, and operating cadence.
+A milestone-driven plan from V1 Confidence Engine to V7 live capital, with crisp DoD (definition of done), acceptance criteria, risks, and operating cadence.
 
 Roadmap snapshot: milestone-based (no calendar dates).
 
 ---
 
 ## 0) Status Summary
-- V1 — Tracer Bullet: DONE
+- V1 — Confidence Engine: DONE
 - V2 — Crowd Immunity: DONE
 - V3 — Bias Immunity + Sizing: DONE
 - V3.1 — Multi-Asset Foundations: DONE
@@ -39,7 +39,7 @@ Roadmap snapshot: milestone-based (no calendar dates).
 
 ## 2) Milestones & DoD
 
-### V1 — Tracer Bullet (single-asset loop) [DONE]
+### V1 — Confidence Engine (single-asset loop) [DONE]
 - Scope: BTCUSD; Alpaca bars; narrative ingest; FinBERT+LLM polarity; divergence; Telegram preview; SQLite logging.
 - DoD: end-to-end decision preview; safe parser rejections; traceable messages.
 
