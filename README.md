@@ -25,6 +25,7 @@ By measuring and quantifying these divergences rigorously, filtering for relevan
 - **Hybrid intelligence:** Combining quantitative “oracle” data and qualitative “psychologist” narrative to find true market inefficiencies.
 - **Divergence over sentiment:** Unlike traditional news sentiment bots, we trade the **gap** between narrative and price, where predictable emotional mistakes happen.
 - **Adaptive and auditable:** Confidence shaping, source weighting, catalyst tagging, and full payload provenance ensure discipline and continuous improvement.
+- **Generalizes beyond crypto:** While BTC/ETH are emphasized today, the approach extends to equities, ETFs, FX, rates, and other markets; Polymarket is optional, not required.
 
 ## How We Work
 
@@ -34,6 +35,13 @@ By measuring and quantifying these divergences rigorously, filtering for relevan
 - Generate concise alpha-first summaries and next steps.
 - Deliver signals and evidence automatically via Telegram DMs.
 - Persist rich data for audit, backtesting, and iterative tuning.
+
+***
+
+## Important disclaimers
+
+- Not financial advice. Research/learning tool; use at your own risk.
+- Experimental/testing phase: outputs can vary and may not be perfectly consistent while guardrails are tuned.
 
 ***
 

@@ -1,3 +1,11 @@
+## 2025-08-23 — Docs: Public‑readiness pass (disclaimers, tech stack, conduct/security)
+
+- README.md: added "Important disclaimers" near the top and noted cross‑market generalization beyond crypto.
+- README_CLEAN.md: added "Important disclaimers" and a concise "Tech stack used to build" aligned with `requirements.txt`.
+- docs/launch_post.md: added comprehensive article (retail pitfalls, wisdom‑of‑crowds framing, AI/NLP stack, divergence math, usage, cross‑market applicability, end disclaimer).
+- CODE_OF_CONDUCT.md and SECURITY.md: created with standard community and responsible disclosure guidance.
+- Scope: documentation only; no `.py` changes. Safe profile preserved (no sends, no trading).
+
 ## 2025-08-23 — Docs: Roadmap updated (Outcome label, formatter parity)
 
 - Update: Clarified in both `roadmap.md` and `Roadmap_CLEAN.md` that the per‑timeframe explanation line in chat is labeled "Outcome" (formerly "Why").

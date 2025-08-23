@@ -33,6 +33,30 @@ python3 scripts/eval_runner.py
 
 ---
 
+## Important disclaimers
+
+- This is a research/learning project. Not financial advice. Markets are volatile; use at your own risk.
+- Experimental/testing phase: results may vary and won’t be perfectly consistent while guardrails are tuned.
+
+---
+
+## Tech stack used to build
+
+- Perplexity API for LLM-based narrative synthesis (source‑tagged evidence lines)
+- Transformers + Torch for FinBERT and classifier/embedding primitives
+- spaCy + sentence-transformers for relevance and semantic de‑duplication
+- pandas + numpy for multi‑timescale features and divergence math
+- Alpaca Trade API for market data and optional execution plumbing
+- requests + httpx for robust HTTP integrations
+- python‑dotenv + PyYAML + pydantic for clean config and schema validation
+- python‑telegram‑bot (and Discord equivalent) for number‑free digests
+- APScheduler for safe, staggered scheduling (opt‑in)
+- matplotlib for quick visuals; pytest for sanity tests
+
+Note: While examples focus on crypto (BTC/ETH), the framework generalizes to equities/ETFs/FX/rates.
+
+---
+
 ## 3) Key features
 - Multi‑asset universe scanning with crypto timeframes (1h/4h/1D/1W/1M).
 - Evidence lines (concise, number‑free in chat), artifacts retain full metrics.
