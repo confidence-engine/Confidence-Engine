@@ -1,3 +1,28 @@
+## 2025-08-28 — Polymarket formatter gates + PPLX window opt-in + interval guard fix
+
+- Polymarket (Telegram) outcome line is now gated to respect number-free chat by default:
+  - `scripts/tg_digest_formatter.py`: show `Outcome:` only when both `TB_POLYMARKET_NUMBERS_IN_CHAT=1` and `TB_POLYMARKET_SHOW_OUTCOME=1`.
+  - Probability still requires `TB_POLYMARKET_SHOW_PROB=1`.
+  - Rationale (`Why:`) remains included and number-free.
+- Polymarket bridge windowing made opt-in to avoid test env interference:
+  - `scripts/polymarket_bridge.py`: apply max window and today-only fallback only when `TB_POLYMARKET_ENFORCE_WINDOW=1`.
+  - Prevents empty mappings under mocked PPLX provider when broader windows aren't desired.
+- Underrated scanner interval guard hardened:
+  - `scripts/underrated_scanner.py`: compare timezone-aware UTC datetimes to reliably skip runs within `TB_UNDERRATED_RUN_INTERVAL_DAYS`.
+- Tests: full suite green — 113 passed.
+
+## 2025-08-28 — Underrated Scanner: CoinGecko-only enrichment + 10M cap, formatter parity, tests
+
+- Change: Simplified `scripts/underrated_scanner.py` to use only CoinGecko + Perplexity for discovery/enrichment.
+  - Removed GitHub and Twitter metrics and any related fields/logic.
+  - Updated scoring to fundamentals + liquidity + small-cap preference.
+  - Narrative timeline now based on CoinGecko liquidity score.
+  - Alert renderers kept in parity: Discord and Telegram now show Market cap, Liquidity score, Estimated timeline.
+- Threshold: Default `TB_UNDERRATED_MARKETCAP_THRESHOLD` lowered to `10,000,000` (from `100,000,000`).
+- Env: `.env.example` updated; removed unused `GITHUB_TOKEN`/`TWITTER_BEARER_TOKEN` from this feature’s section.
+- Tests: `tests/test_underrated_scanner.py` updated to remove GitHub/Twitter dependencies and validate liquidity-based behavior.
+- Outputs/persistence unchanged: JSON + Markdown reports per run and de-dupe store retained.
+
 ## 2025-08-23 — Docs: Public‑readiness pass (disclaimers, tech stack, conduct/security)
 
 - README.md: added "Important disclaimers" near the top and noted cross‑market generalization beyond crypto.
