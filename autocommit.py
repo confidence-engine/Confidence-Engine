@@ -24,8 +24,8 @@ def has_changes() -> bool:
 
 def _is_allowed_path(p: str) -> bool:
     """Allowlist for auto-commit. Only docs/artifacts, never code.
-    Allowed prefixes: universe_runs/, eval_runs/, bars/, docs/
-    Allowed files: README.md, README_CLEAN.md, architecture.md, Dev_logs.md
+    Allowed prefixes: universe_runs/, eval_runs/, underrated_runs/, bars/, docs/
+    Allowed files: README.md, README_CLEAN.md, architecture.md, Dev_logs.md, data/underrated_store.json
     Block extensions: .py, .sh, .ipynb, .js, .ts, .go, .rs
     """
     import os
@@ -39,12 +39,15 @@ def _is_allowed_path(p: str) -> bool:
     if p_norm.lower().endswith(blocked_ext):
         return False
     # Allow by exact files
-    allow_files = {"README.md", "README_CLEAN.md", "architecture.md", "Dev_logs.md"}
+    allow_files = {"README.md", "README_CLEAN.md", "architecture.md", "Dev_logs.md", "underrated_store.json"}
     base = os.path.basename(p_norm)
     if base in allow_files:
         return True
+    # Special-case path for underrated store
+    if p_norm == "data/underrated_store.json":
+        return True
     # Allow by directory prefixes
-    allowed_dirs = ("universe_runs/", "eval_runs/", "bars/", "docs/")
+    allowed_dirs = ("universe_runs/", "eval_runs/", "underrated_runs/", "bars/", "docs/")
     return any(p_norm.startswith(pref) for pref in allowed_dirs)
 
 def stage_paths(paths):

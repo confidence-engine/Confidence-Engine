@@ -220,30 +220,35 @@ def render_digest(
                 else:
                     action = "Take the bet" if str(stance).lower() == "engage" else "Stand Aside"
                 lines.append(f"  Action: {action}")
-                # Outcome: always include; probability remains env-gated
-                out_label = pm.get("outcome_label") or pm.get("implied_side") or "-"
-                if os.getenv("TB_POLYMARKET_NUMBERS_IN_CHAT", "0") == "1" and os.getenv("TB_POLYMARKET_SHOW_PROB", "0") == "1":
-                    pct = pm.get("implied_pct")
-                    try:
-                        if isinstance(pct, int):
-                            out_label = f"{out_label} ({pct}%)"
-                        else:
-                            if isinstance(pm.get("implied_prob"),(int,float)):
-                                out_label = f"{out_label} ({float(pm['implied_prob'])*100:.0f}%)"
-                    except Exception:
-                        pass
-                    # If internal prob differs materially, show it as model view
-                    try:
-                        ip = pm.get("internal_prob")
-                        imp = pm.get("implied_prob")
-                        if isinstance(ip,(int,float)) and isinstance(imp,(int,float)):
-                            ipct = round(float(ip)*100)
-                            mpct = round(float(imp)*100)
-                            if abs(ipct - mpct) >= 3:
-                                out_label += f" | Model: {ipct}%"
-                    except Exception:
-                        pass
-                lines.append(f"  Outcome: {out_label}")
+                # Why (number-free rationale for chat)
+                rat = (pm.get("rationale_chat") or "").strip()
+                if rat:
+                    lines.append("  Why: " + rat)
+                # Outcome: only include when numbers are allowed in chat and outcome display is enabled
+                if os.getenv("TB_POLYMARKET_NUMBERS_IN_CHAT", "0") == "1" and os.getenv("TB_POLYMARKET_SHOW_OUTCOME", "1") == "1":
+                    out_label = pm.get("outcome_label") or pm.get("implied_side") or "-"
+                    if os.getenv("TB_POLYMARKET_SHOW_PROB", "0") == "1":
+                        pct = pm.get("implied_pct")
+                        try:
+                            if isinstance(pct, int):
+                                out_label = f"{out_label} ({pct}%)"
+                            else:
+                                if isinstance(pm.get("implied_prob"),(int,float)):
+                                    out_label = f"{out_label} ({float(pm['implied_prob'])*100:.0f}%)"
+                        except Exception:
+                            pass
+                        # If internal prob differs materially, show it as model view
+                        try:
+                            ip = pm.get("internal_prob")
+                            imp = pm.get("implied_prob")
+                            if isinstance(ip,(int,float)) and isinstance(imp,(int,float)):
+                                ipct = round(float(ip)*100)
+                                mpct = round(float(imp)*100)
+                                if abs(ipct - mpct) >= 3:
+                                    out_label += f" | Model: {ipct}%"
+                        except Exception:
+                            pass
+                    lines.append(f"  Outcome: {out_label}")
                 # Optional internal confidence (agent view)
                 if os.getenv("TB_POLYMARKET_SHOW_CONFIDENCE", "0") == "1":
                     ip = pm.get("internal_prob")
@@ -309,29 +314,30 @@ def render_digest(
                             lines.append(f"  Confidence: {round(float(ip)*100)}% (internal)")
                     except Exception:
                         pass
-                # Outcome: always include; probability remains env-gated
-                out_label = pm.get("outcome_label") or pm.get("implied_side") or "-"
-                if os.getenv("TB_POLYMARKET_NUMBERS_IN_CHAT", "0") == "1" and os.getenv("TB_POLYMARKET_SHOW_PROB", "0") == "1":
-                    pct = pm.get("implied_pct")
-                    try:
-                        if isinstance(pct, int):
-                            out_label = f"{out_label} ({pct}%)"
-                        else:
-                            if isinstance(pm.get("implied_prob"),(int,float)):
-                                out_label = f"{out_label} ({float(pm['implied_prob'])*100:.0f}%)"
-                    except Exception:
-                        pass
-                    try:
-                        ip = pm.get("internal_prob")
-                        imp = pm.get("implied_prob")
-                        if isinstance(ip,(int,float)) and isinstance(imp,(int,float)):
-                            ipct = round(float(ip)*100)
-                            mpct = round(float(imp)*100)
-                            if abs(ipct - mpct) >= 3:
-                                out_label += f" | Model: {ipct}%"
-                    except Exception:
-                        pass
-                lines.append(f"  Outcome: {out_label}")
+                # Outcome (full): only include when numbers allowed and outcome display enabled
+                if os.getenv("TB_POLYMARKET_NUMBERS_IN_CHAT", "0") == "1" and os.getenv("TB_POLYMARKET_SHOW_OUTCOME", "1") == "1":
+                    out_label = pm.get("outcome_label") or pm.get("implied_side") or "-"
+                    if os.getenv("TB_POLYMARKET_SHOW_PROB", "0") == "1":
+                        pct = pm.get("implied_pct")
+                        try:
+                            if isinstance(pct, int):
+                                out_label = f"{out_label} ({pct}%)"
+                            else:
+                                if isinstance(pm.get("implied_prob"),(int,float)):
+                                    out_label = f"{out_label} ({float(pm['implied_prob'])*100:.0f}%)"
+                        except Exception:
+                            pass
+                        try:
+                            ip = pm.get("internal_prob")
+                            imp = pm.get("implied_prob")
+                            if isinstance(ip,(int,float)) and isinstance(imp,(int,float)):
+                                ipct = round(float(ip)*100)
+                                mpct = round(float(imp)*100)
+                                if abs(ipct - mpct) >= 3:
+                                    out_label += f" | Model: {ipct}%"
+                        except Exception:
+                            pass
+                    lines.append(f"  Outcome: {out_label}")
             lines.append("")
     except Exception:
         pass

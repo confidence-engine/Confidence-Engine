@@ -331,6 +331,7 @@ def discover_and_map(
     except Exception:
         window_days = None
     window_weeks: Optional[float] = (window_days / 7.0) if window_days is not None else None
+    enforce_window: bool = (os.getenv("TB_POLYMARKET_ENFORCE_WINDOW", "0") == "1")
 
     def _map_one(m: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         # Derive title/symbol locally to avoid outer-scope reliance
@@ -366,8 +367,8 @@ def discover_and_map(
                 # Active only (end in future)
                 if weeks is not None and weeks <= 0.0:
                     return None
-                # Optional window cap (e.g., 30 days default) — only enforce when enddates are required
-                if require_enddate:
+                # Optional window cap (e.g., 30 days) — enforce only when explicitly enabled
+                if require_enddate and enforce_window:
                     if window_weeks is not None and weeks is not None and weeks > window_weeks:
                         return None
                     # Also respect min/max weeks knobs if provided by caller
@@ -468,7 +469,7 @@ def discover_and_map(
             out.append(mapped)
     # Fallback: if empty and a window > today is set, try today-only (<=1 day)
     # Skip this fallback when end-dates are not required (windowing not applicable)
-    if not out and (os.getenv("TB_POLYMARKET_REQUIRE_ENDDATE", "1") == "1") and (window_weeks is None or window_weeks > (1.0/7.0)):
+    if enforce_window and not out and (os.getenv("TB_POLYMARKET_REQUIRE_ENDDATE", "1") == "1") and (window_weeks is None or window_weeks > (1.0/7.0)):
         if os.getenv("TB_POLYMARKET_DEBUG", "0") == "1":
             print("[Polymarket] window produced 0 items; falling back to today-only window")
         saved_window_weeks = window_weeks
