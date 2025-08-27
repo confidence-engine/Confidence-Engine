@@ -509,6 +509,64 @@ Paritised features (Telegram + Discord):
 
 ***
 
+## Underrated Scanner (utility‑only, latest only)
+
+- Purpose: discover freshly underrated utility crypto projects and alert with evidence.
+- Provider: Perplexity API (key rotation); enrichment: CoinGecko market cap + liquidity.
+- Filters: exclude memecoins/presales ("meme", "pepe", "inu", "presale", etc.), hype keywords ("viral", "pump"), large‑cap staples (BTC/ETH/XRP/BNB/ADA/DOGE/SOL/etc.), and generic "ecosystem" entries.
+- Recency: prompts request `recent_date` and `recent_evidence`; optional hard gate requires items within the last N hours.
+- Smart re‑include: previously alerted items are considered again only if they have a new `recent_date` within your window.
+- Formatter parity: Telegram and Discord underrated alerts render the same fields and ordering.
+
+Environment variables (.env):
+```
+# Discovery window and selection
+TB_UNDERRATED_PPLX_HOURS=72
+TB_UNDERRATED_TOP_N=20
+
+# Dedup/re‑include controls
+TB_UNDERRATED_FORCE_ALERTS=0           # one‑off bulk include of top‑N
+TB_UNDERRATED_REINCLUDE_RECENT=1       # allow if recent again
+TB_UNDERRATED_REQUIRE_RECENT=0         # hard gate on recent_date
+
+# Enrichment threshold and outputs
+TB_UNDERRATED_MARKETCAP_THRESHOLD=10000000
+TB_UNDERRATED_STORE=data/underrated_store.json
+TB_UNDERRATED_OUTDIR=underrated_runs
+
+# Sends and git ops (artifacts/docs only; never .py)
+TB_UNDERRATED_ALERT_DISCORD=1
+TB_UNDERRATED_ALERT_TELEGRAM=1
+TB_UNDERRATED_GIT_AUTOCOMMIT=1
+TB_UNDERRATED_GIT_PUSH=1
+```
+
+Run examples:
+- Safe preview (no sends, no git side effects):
+```
+TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 \
+TB_UNDERRATED_GIT_AUTOCOMMIT=0 TB_UNDERRATED_GIT_PUSH=0 \
+python3 scripts/underrated_scanner.py
+```
+
+- Strict freshness with sends (e.g., last 72h) and smart re‑include:
+```
+TB_UNDERRATED_RUN_INTERVAL_DAYS=0 \
+TB_UNDERRATED_PPLX_HOURS=72 TB_UNDERRATED_TOP_N=20 \
+TB_UNDERRATED_REQUIRE_RECENT=1 TB_UNDERRATED_REINCLUDE_RECENT=1 \
+TB_ENABLE_DISCORD=1 TB_UNDERRATED_ALERT_DISCORD=1 \
+TB_NO_TELEGRAM=0 TB_UNDERRATED_ALERT_TELEGRAM=1 \
+TB_UNDERRATED_GIT_AUTOCOMMIT=1 TB_UNDERRATED_GIT_PUSH=1 \
+TB_PPLX_TIMEOUT=45 TB_PPLX_BACKOFF=0.2 \
+python3 scripts/underrated_scanner.py
+```
+
+Notes:
+- Auto‑commit only stages `underrated_runs/` and `data/underrated_store.json` (plus Dev_logs.md when updated). Scripts are never committed.
+- Configure dedicated Discord webhook via `DISCORD_UNDERRATED_WEBHOOK_URL` or fall back to existing digest hooks.
+
+***
+
 ## Reliability & safety (v4.3)
 
 - Circuit breakers and degraded‑run markers (in progress)

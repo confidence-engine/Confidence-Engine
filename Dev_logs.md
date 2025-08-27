@@ -1,3 +1,19 @@
+## 2025-08-28 — Underrated scanner: utility‑only, fresh‑only, formatter parity
+
+- Filters tightened to utility projects only:
+  - Exclude memecoins/presales ("meme", "pepe", "inu", "presale", "viral", "pump"), large‑cap staples (BTC/ETH/XRP/BNB/ADA/DOGE/SOL/etc.), and generic "ecosystem" entries.
+- Dynamic recency bias in Perplexity prompts:
+  - Prompts request `recent_date` and `recent_evidence`; bias toward items within `TB_UNDERRATED_PPLX_HOURS`.
+  - Optional hard gate `TB_UNDERRATED_REQUIRE_RECENT=1` keeps only those with valid `recent_date` in window.
+- Smart de‑duplication:
+  - `TB_UNDERRATED_REINCLUDE_RECENT=1` re‑includes previously alerted projects only if new and within the recency window.
+  - `TB_UNDERRATED_FORCE_ALERTS=0|1` one‑off bypass to include top‑N regardless of prior alerts.
+- Formatter parity:
+  - Telegram and Discord underrated alerts show the same fields and ordering.
+- New/updated env in `.env.example`:
+  - `TB_UNDERRATED_PPLX_HOURS`, `TB_UNDERRATED_TOP_N`, `TB_UNDERRATED_FORCE_ALERTS`, `TB_UNDERRATED_REINCLUDE_RECENT`, `TB_UNDERRATED_REQUIRE_RECENT`, `TB_PPLX_BACKOFF`.
+- Git policy unchanged: auto‑commit/push only artifacts/docs (e.g., `underrated_runs/`, `data/underrated_store.json`, `Dev_logs.md`); never commit `.py` scripts.
+
 ## 2025-08-28 — Underrated scanner: broader discovery + robust PPLX + env knobs
 
 - Discovery breadth increased:

@@ -1,4 +1,6 @@
 import os
+import sys
+from pathlib import Path
 import json
 import time
 import datetime as dt
@@ -6,6 +8,13 @@ from dataclasses import dataclass, asdict
 from typing import List, Dict, Any, Optional, Tuple
 
 import httpx
+
+# Ensure repo root is on sys.path when running this script directly
+_THIS_DIR = Path(__file__).resolve().parent
+_ROOT = _THIS_DIR.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
 from autocommit import auto_commit_and_push
 
 from config import settings
@@ -41,20 +50,28 @@ DISCORD_WEBHOOK = os.getenv("DISCORD_UNDERRATED_WEBHOOK_URL") or os.getenv("DISC
 
 COINGECKO_API = os.getenv("TB_COINGECKO_API", "https://api.coingecko.com/api/v3")
 
-PPLX_PROMPTS = [
-    (
-        "Return 30 underrated crypto projects or ecosystems that include protocols, infrastructure, developer tooling, dApps, DAOs, or research. "
-        "Include those without tokens as well. Respond ONLY as a JSON array of objects with keys: name, desc, links (array of URLs), and optional ticker."
-    ),
-    (
-        "List 30 promising blockchain infrastructure or developer tooling efforts that are under-followed. "
-        "Respond ONLY as a JSON array of {name, desc, links, ticker}."
-    ),
-    (
-        "Identify 30 overlooked crypto applications or DAOs with strong fundamentals but low market attention. "
-        "Respond ONLY as a JSON array of {name, desc, links, ticker}."
-    ),
-]
+def build_pplx_prompts(hours: int) -> List[str]:
+    window = f"within the last {hours} hours"
+    common_tail = (
+        "Respond ONLY as a JSON array of objects with keys: "
+        "name, desc, links (array of URLs), optional ticker, and optional recent_date (ISO8601) and recent_evidence (URL). "
+        "Exclude meme coins, hype presales, and household large-cap assets (e.g., BTC, ETH, XRP)."
+    )
+    return [
+        (
+            f"Return 30 underrated utility crypto projects {window} that include protocols, infrastructure, developer tooling, dApps, DAOs, or research. "
+            "Include those without tokens as well. Prefer items with fresh announcements, funding, releases, or traction "
+            "signals in that window. " + common_tail
+        ),
+        (
+            f"List 30 promising blockchain infrastructure or developer tooling efforts that are under-followed {window}. "
+            "Prefer newly announced/funded/released work. " + common_tail
+        ),
+        (
+            f"Identify 30 overlooked utility crypto applications or DAOs with strong fundamentals but low market attention {window}. "
+            "Prefer recent traction signals. " + common_tail
+        ),
+    ]
 
 def _get_pplx_hours() -> int:
     try:
@@ -87,6 +104,8 @@ class Project:
     timeline_months: Optional[str] = None
     why_matters: Optional[str] = None
     potential_impact: Optional[str] = None
+    recent_date: Optional[str] = None
+    recent_evidence: Optional[str] = None
 
     def to_dict(self):
         d = asdict(self)
@@ -124,7 +143,9 @@ def fetch_candidates() -> List[Project]:
     if os.getenv("TB_UNDERRATED_VERBOSE", "0") in ("1","true","on","yes"):
         print(f"[underrated] Using {len(keys)} PPLX keys for rotation")
     hours = _get_pplx_hours()
-    for prompt in PPLX_PROMPTS:
+    require_recent = os.getenv("TB_UNDERRATED_REQUIRE_RECENT", "0") in ("1","true","on","yes")
+    prompts = build_pplx_prompts(hours)
+    for prompt in prompts:
         titles, items, err = fetch_pplx_headlines_with_rotation(keys, prompt=prompt, hours=hours)
         if err:
             print(f"[underrated] PPLX warn: {err}")
@@ -133,13 +154,44 @@ def fetch_candidates() -> List[Project]:
             if not name:
                 # try to parse from title fallback
                 continue
+            nm = name.lower()
+            # De-emphasize overly-generic ecosystems to avoid stale repeats
+            if "ecosystem" in nm:
+                continue
+            # Exclude obvious large-cap household names and chains
+            banned = {"bitcoin","btc","ethereum","eth","ripple","xrp","solana","sol","binance","bnb","cardano","ada","dogecoin","doge","tron","trx","polkadot","dot","litecoin","ltc","avalanche","avax"}
+            if nm in banned or any(tok == nm for tok in banned):
+                continue
             ticker = (it.get("ticker") or "").strip().upper()
             desc = (it.get("desc") or it.get("description") or "").strip()
+            ds = desc.lower()
+            # Exclude memecoins/presale hype by keywords in name/desc
+            meme_kw = ["meme","pepe","shiba","inu","floki","bonk","wojak","wif","milady"]
+            hype_kw = ["presale","pre-sale","viral","pump"]
+            if any(k in nm for k in meme_kw) or any(k in ds for k in meme_kw):
+                continue
+            if any(k in ds for k in hype_kw) or any(k in nm for k in hype_kw):
+                continue
             links_raw = it.get("links") or []
             links = [str(x).strip() for x in (links_raw if isinstance(links_raw, list) else [links_raw]) if str(x).strip()]
+            rdate = (it.get("recent_date") or "").strip() or None
+            revid = (it.get("recent_evidence") or "").strip() or None
+            # Optional hard recency gate
+            if require_recent:
+                if not rdate:
+                    continue
+                try:
+                    rd = dt.datetime.fromisoformat(rdate.replace("Z","+00:00"))
+                    cutoff = dt.datetime.utcnow() - dt.timedelta(hours=hours)
+                    if rd.tzinfo is None:
+                        rd = rd.replace(tzinfo=dt.timezone.utc)
+                    if rd < cutoff.replace(tzinfo=dt.timezone.utc):
+                        continue
+                except Exception:
+                    continue
             key = f"{name}|{ticker}"
             if key not in projects:
-                projects[key] = Project(name=name, ticker=ticker, desc=desc, links=links)
+                projects[key] = Project(name=name, ticker=ticker, desc=desc, links=links, recent_date=rdate, recent_evidence=revid)
             else:
                 # merge simple fields
                 p = projects[key]
@@ -147,6 +199,10 @@ def fetch_candidates() -> List[Project]:
                     p.desc = desc
                 if links:
                     p.links = list({*(p.links or []), *links})
+                if rdate and not p.recent_date:
+                    p.recent_date = rdate
+                if revid and not p.recent_evidence:
+                    p.recent_evidence = revid
     return list(projects.values())
 
 # -----------------------------
@@ -371,11 +427,27 @@ def main():
         enriched = enrich_projects(candidates)
         ranked = filter_and_rank(enriched)
 
-        # De-dupe by store (optional bypass)
+        # De-dupe by store (optional bypass or recent re-include)
         top_n = _get_top_n()
         force = os.getenv("TB_UNDERRATED_FORCE_ALERTS", "0") in ("1", "true", "on", "yes")
+        reinclude_recent = os.getenv("TB_UNDERRATED_REINCLUDE_RECENT", "0") in ("1", "true", "on", "yes")
+        # cutoff for "recent" according to configured window
+        cutoff = dt.datetime.utcnow() - dt.timedelta(hours=_get_pplx_hours())
         for p in ranked[:top_n]:  # send top N
+            include = False
             if force or not _already_alerted(store, p):
+                include = True
+            elif reinclude_recent and p.recent_date:
+                try:
+                    rd = dt.datetime.fromisoformat(p.recent_date.replace("Z", "+00:00"))
+                    if rd.tzinfo is None:
+                        rd = rd.replace(tzinfo=dt.timezone.utc)
+                    # compare in UTC
+                    if rd >= cutoff.replace(tzinfo=dt.timezone.utc):
+                        include = True
+                except Exception:
+                    pass
+            if include:
                 fresh.append(p)
                 p_updates = generate_narratives(p)
                 p.why_matters = p_updates["why_matters"]
