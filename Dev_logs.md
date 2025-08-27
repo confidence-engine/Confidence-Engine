@@ -16,6 +16,12 @@
 
 ## 2025-08-28 — Polymarket formatter gates + PPLX window opt-in + interval guard fix
 
+## 2025-08-28 — Underrated scanner: recency bias + generic ecosystem filter
+
+- Prompts now dynamically include the configured window (TB_UNDERRATED_PPLX_HOURS) and ask for `recent_date` and `recent_evidence` to bias toward fresh items.
+- Filter: drop overly-generic entries containing "ecosystem" in `name` to reduce stale repeats.
+- No changes to send/commit gates; artifacts and docs only.
+
 - Polymarket (Telegram) outcome line is now gated to respect number-free chat by default:
   - `scripts/tg_digest_formatter.py`: show `Outcome:` only when both `TB_POLYMARKET_NUMBERS_IN_CHAT=1` and `TB_POLYMARKET_SHOW_OUTCOME=1`.
   - Probability still requires `TB_POLYMARKET_SHOW_PROB=1`.
