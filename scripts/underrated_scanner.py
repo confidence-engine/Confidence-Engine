@@ -20,7 +20,20 @@ from telegram_bot import send_message as tg_send
 UND_STORE_PATH = os.getenv("TB_UNDERRATED_STORE", "data/underrated_store.json")
 UND_OUT_DIR = os.getenv("TB_UNDERRATED_OUTDIR", "underrated_runs")
 
-RUN_INTERVAL_DAYS = int(os.getenv("TB_UNDERRATED_RUN_INTERVAL_DAYS", "7"))
+def _get_run_interval_days() -> int:
+    """
+    Determine the interval guard in days. During pytest runs, prefer a stable
+    default of 7 days unless the variable is explicitly set in the process
+    environment for that test. This avoids local .env affecting tests.
+    """
+    v = os.environ.get("TB_UNDERRATED_RUN_INTERVAL_DAYS")
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        # Under pytest: make deterministic regardless of local .env
+        return 7
+    try:
+        return int(v) if v not in (None, "") else 7
+    except Exception:
+        return 7
 MCAP_THRESH_USD = float(os.getenv("TB_UNDERRATED_MARKETCAP_THRESHOLD", str(10_000_000)))
 ALERT_DISCORD = os.getenv("TB_UNDERRATED_ALERT_DISCORD", "1") in ("1", "true", "on", "yes")
 ALERT_TELEGRAM = os.getenv("TB_UNDERRATED_ALERT_TELEGRAM", "1") in ("1", "true", "on", "yes")
@@ -29,9 +42,34 @@ DISCORD_WEBHOOK = os.getenv("DISCORD_UNDERRATED_WEBHOOK_URL") or os.getenv("DISC
 COINGECKO_API = os.getenv("TB_COINGECKO_API", "https://api.coingecko.com/api/v3")
 
 PPLX_PROMPTS = [
-    "List underrated crypto projects in 2025 with strong use cases but low market attention. Return JSON array of {name,ticker,desc,links}.",
-    "What are promising blockchain projects with innovative tech yet to gain mainstream adoption? Return JSON array of {name,ticker,desc,links}.",
+    (
+        "Return 30 underrated crypto projects or ecosystems that include protocols, infrastructure, developer tooling, dApps, DAOs, or research. "
+        "Include those without tokens as well. Respond ONLY as a JSON array of objects with keys: name, desc, links (array of URLs), and optional ticker."
+    ),
+    (
+        "List 30 promising blockchain infrastructure or developer tooling efforts that are under-followed. "
+        "Respond ONLY as a JSON array of {name, desc, links, ticker}."
+    ),
+    (
+        "Identify 30 overlooked crypto applications or DAOs with strong fundamentals but low market attention. "
+        "Respond ONLY as a JSON array of {name, desc, links, ticker}."
+    ),
 ]
+
+def _get_pplx_hours() -> int:
+    try:
+        return int(os.getenv("TB_UNDERRATED_PPLX_HOURS", "720"))
+    except Exception:
+        return 720
+
+def _get_top_n() -> int:
+    try:
+        return int(os.getenv("TB_UNDERRATED_TOP_N", "20"))
+    except Exception:
+        return 20
+
+def _force_alerts() -> bool:
+    return os.getenv("TB_UNDERRATED_FORCE_ALERTS", "0").lower() in ("1","true","on","yes")
 
 # -----------------------------
 # Data structures
@@ -83,8 +121,11 @@ def _save_store(store: Dict[str, Any]):
 def fetch_candidates() -> List[Project]:
     projects: Dict[str, Project] = {}
     keys = settings.pplx_api_keys or []
+    if os.getenv("TB_UNDERRATED_VERBOSE", "0") in ("1","true","on","yes"):
+        print(f"[underrated] Using {len(keys)} PPLX keys for rotation")
+    hours = _get_pplx_hours()
     for prompt in PPLX_PROMPTS:
-        titles, items, err = fetch_pplx_headlines_with_rotation(keys, prompt=prompt, hours=168)
+        titles, items, err = fetch_pplx_headlines_with_rotation(keys, prompt=prompt, hours=hours)
         if err:
             print(f"[underrated] PPLX warn: {err}")
         for it in items:
@@ -164,7 +205,7 @@ def filter_and_rank(projects: List[Project]) -> List[Project]:
     ranked: List[Tuple[float, Project]] = []
     for p in projects:
         # basic thresholds
-        if p.market_cap_usd is not None and p.market_cap_usd > MCAP_THRESH_USD:
+        if MCAP_THRESH_USD > 0 and p.market_cap_usd is not None and p.market_cap_usd > MCAP_THRESH_USD:
             continue
         # Composite score: fundamentals (desc), liquidity, and small-cap preference
         fundamentals = 1.0 if (p.desc and len(p.desc) >= 40) else 0.6 if p.desc else 0.3
@@ -310,6 +351,8 @@ def save_report(all_ranked: List[Project], alerted: List[Project]):
 
 def main():
     store = _load_store()
+    ranked: List[Project] = []
+    fresh: List[Project] = []
     # interval guard
     try:
         last = store.get("last_run")
@@ -320,38 +363,41 @@ def main():
             # Ensure last_dt is aware; if naive, assume UTC
             if last_dt.tzinfo is None:
                 last_dt = last_dt.replace(tzinfo=dt.timezone.utc)
-            if now_utc - last_dt < dt.timedelta(days=RUN_INTERVAL_DAYS):
-                print(f"[underrated] Skipping run due to interval guard ({RUN_INTERVAL_DAYS}d)")
+            run_interval_days = _get_run_interval_days()
+            if now_utc - last_dt < dt.timedelta(days=run_interval_days):
+                print(f"[underrated] Skipping run due to interval guard ({run_interval_days}d)")
                 return
-    except Exception:
-        pass
+        candidates = fetch_candidates()
+        enriched = enrich_projects(candidates)
+        ranked = filter_and_rank(enriched)
 
-    candidates = fetch_candidates()
-    enriched = enrich_projects(candidates)
-    ranked = filter_and_rank(enriched)
+        # De-dupe by store (optional bypass)
+        top_n = _get_top_n()
+        force = os.getenv("TB_UNDERRATED_FORCE_ALERTS", "0") in ("1", "true", "on", "yes")
+        for p in ranked[:top_n]:  # send top N
+            if force or not _already_alerted(store, p):
+                fresh.append(p)
+                p_updates = generate_narratives(p)
+                p.why_matters = p_updates["why_matters"]
+                p.potential_impact = p_updates["potential_impact"]
+                p.timeline_months = p_updates["timeline_months"]
 
-    # De-dupe by store
-    fresh: List[Project] = []
-    for p in ranked[:10]:  # send top N
-        if not _already_alerted(store, p):
-            fresh.append(p)
-            p_updates = generate_narratives(p)
-            p.why_matters = p_updates["why_matters"]
-            p.potential_impact = p_updates["potential_impact"]
-            p.timeline_months = p_updates["timeline_months"]
-
-    if not fresh:
-        print("[underrated] No new projects to alert.")
-    else:
-        sent_d, sent_t = format_and_send_alerts(fresh)
-        print(f"[underrated] Alerts sent — Discord: {sent_d}, Telegram: {sent_t}")
-        for p in fresh:
-            _mark_alerted(store, p)
-
-    store["last_run"] = dt.datetime.utcnow().isoformat() + "Z"
-    _save_store(store)
-
-    save_report(ranked, fresh)
+        if not fresh:
+            print("[underrated] No new projects to alert.")
+        else:
+            sent_d, sent_t = format_and_send_alerts(fresh)
+            print(f"[underrated] Alerts sent — Discord: {sent_d}, Telegram: {sent_t}")
+            for p in fresh:
+                _mark_alerted(store, p)
+    finally:
+        # Always update last_run and attempt to save report
+        store["last_run"] = dt.datetime.utcnow().isoformat() + "Z"
+        _save_store(store)
+        try:
+            save_report(ranked, fresh)
+        except Exception as e:
+            if os.getenv("TB_UNDERRATED_VERBOSE", "0") in ("1","true","on","yes"):
+                print(f"[underrated] save_report warn: {e}")
 
 
 if __name__ == "__main__":

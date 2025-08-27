@@ -1,3 +1,19 @@
+## 2025-08-28 — Underrated scanner: broader discovery + robust PPLX + env knobs
+
+- Discovery breadth increased:
+  - Prompts now request 30 items and explicitly include protocols, infra, dev tooling, dApps, DAOs, research — including projects without tokens.
+  - Env `TB_UNDERRATED_PPLX_HOURS` widens the recency window (default 720h).
+  - Env `TB_UNDERRATED_TOP_N` controls selection fan-out (default 20).
+- Optional market-cap filter:
+  - If `TB_UNDERRATED_MARKETCAP_THRESHOLD <= 0`, cap filter is disabled.
+- Dedupe bypass:
+  - Env `TB_UNDERRATED_FORCE_ALERTS=1` includes top-N even if previously seen (one-off bulk discovery).
+- Per-key debug + hardened parsing:
+  - Verbose per-key success/warn without exposing keys.
+  - Strict system message instructs JSON-only; parser strips code fences and extracts the bracketed array if needed; accepts `name` or `title`.
+- Results: fetches now return ~30 items per prompt on successful keys; auto-commit/push still only for artifacts/docs.
+- Tests: full suite green — 113 passed.
+
 ## 2025-08-28 — Polymarket formatter gates + PPLX window opt-in + interval guard fix
 
 - Polymarket (Telegram) outcome line is now gated to respect number-free chat by default:
