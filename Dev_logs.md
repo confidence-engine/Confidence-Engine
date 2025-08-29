@@ -1,3 +1,49 @@
+## 2025-08-30 — Underrated scanner: evidence weighting tweak (primary non‑social counts double)
+
+- Change: In `scripts/underrated_scanner.py` `filter_and_rank()`, `evidence_score >= 1.0` now contributes two concrete signals (was one). `evidence_score >= 0.7` still contributes one.
+  - Purpose: Improve pass‑through while preserving the quality implied by primary non‑social sources.
+- Safe validation (no sends): Ran with `TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 TB_UNDERRATED_REQUIRE_NON_SOCIAL=1 TB_UNDERRATED_ACCEPT_FLOOR=0.52 TB_UNDERRATED_PPLX_HOURS=240` — pool still tight, but change is active.
+- Parity: No formatter changes; Telegram/Discord outputs unchanged.
+- Git policy: Code changes kept local; no `.py` committed. Docs only when approved.
+
+Suggested run profiles:
+
+```bash
+# Balanced production send
+TB_UNDERRATED_RUN_INTERVAL_DAYS=0 \
+TB_UNDERRATED_MARKETCAP_THRESHOLD=0 \
+TB_UNDERRATED_REQUIRE_EVIDENCE=1 \
+TB_UNDERRATED_REQUIRE_NON_SOCIAL=1 \
+TB_UNDERRATED_REQUIRE_CONSENSUS=0 \
+TB_UNDERRATED_ACCEPT_FLOOR=0.52 \
+TB_UNDERRATED_PPLX_HOURS=240 \
+TB_UNDERRATED_TOP_N=40 \
+TB_UNDERRATED_REINCLUDE_RECENT=1 \
+TB_UNDERRATED_EVIDENCE_CONTENT_ENRICH=1 \
+TB_UND_TOKENOMICS_TABLE_PARSE=1 \
+TB_UNDERRATED_ALERT_DISCORD=1 TB_UNDERRATED_ALERT_TELEGRAM=1 \
+TB_NO_DISCORD=0 TB_NO_TELEGRAM=0 \
+TB_UNDERRATED_GIT_AUTOCOMMIT=1 TB_UNDERRATED_GIT_PUSH=1 \
+python3 scripts/underrated_scanner.py
+
+# Strict preview (no sends)
+TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 \
+TB_UNDERRATED_ALERT_DISCORD=0 TB_UNDERRATED_ALERT_TELEGRAM=0 \
+TB_UNDERRATED_RUN_INTERVAL_DAYS=0 \
+TB_UNDERRATED_MARKETCAP_THRESHOLD=0 \
+TB_UNDERRATED_REQUIRE_EVIDENCE=1 \
+TB_UNDERRATED_REQUIRE_NON_SOCIAL=1 \
+TB_UNDERRATED_REQUIRE_CONSENSUS=0 \
+TB_UNDERRATED_ACCEPT_FLOOR=0.58 \
+TB_UNDERRATED_PPLX_HOURS=336 \
+TB_UNDERRATED_TOP_N=60 \
+TB_UNDERRATED_REINCLUDE_RECENT=1 \
+TB_UNDERRATED_EVIDENCE_CONTENT_ENRICH=1 \
+TB_UND_TOKENOMICS_TABLE_PARSE=1 \
+TB_UNDERRATED_VERBOSE=1 \
+python3 scripts/underrated_scanner.py
+```
+
 ## 2025-08-30 — Underrated scanner: signal‑hardening (evidence, consensus, floor, risks)
 
 - Evidence validation + allowlist:
