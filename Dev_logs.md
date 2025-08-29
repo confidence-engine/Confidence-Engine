@@ -1,3 +1,12 @@
+## 2025-08-30 — Underrated scanner: verbose drop-reason logs (evidence/non-social/recency)
+
+- Change: In `scripts/underrated_scanner.py` `fetch_candidates()`, added verbose diagnostics for drop reasons when gates fire:
+  - `DROP(evidence)` when `TB_UNDERRATED_REQUIRE_EVIDENCE=1` and `evidence_is_valid()` fails (prints url/ok/score).
+  - `DROP(non_social)` when `TB_UNDERRATED_REQUIRE_NON_SOCIAL=1` and no non-social link found (prints evidence and first link).
+  - `DROP(recent)` when `TB_UNDERRATED_REQUIRE_RECENT=1` and missing/bad/older than cutoff (prints date and cutoff).
+- Safe validation: ran with `TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 TB_UNDERRATED_VERBOSE=1 TB_UNDERRATED_REQUIRE_EVIDENCE=1 TB_UNDERRATED_REQUIRE_NON_SOCIAL=1` and observed precise drop logs. No sends or git side effects.
+- Policy: No `.py` files committed; this entry only documents behavior.
+
 ## 2025-08-30 — Underrated scanner: evidence weighting tweak (primary non‑social counts double)
 
 - Change: In `scripts/underrated_scanner.py` `filter_and_rank()`, `evidence_score >= 1.0` now contributes two concrete signals (was one). `evidence_score >= 0.7` still contributes one.
