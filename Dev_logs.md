@@ -1,3 +1,24 @@
+## 2025-08-30 — Underrated scanner: signal‑hardening (evidence, consensus, floor, risks)
+
+- Evidence validation + allowlist:
+  - New helper `evidence_is_valid(url, name)` checks status (HEAD→GET), redirects, and domain allowlist.
+  - Authority tiers inform `evidence_score` (primary>news>social); opt-in hard gate via `TB_UNDERRATED_REQUIRE_EVIDENCE=1`.
+- Multi‑prompt consensus:
+  - Track `appearances` across prompts; opt-in gate `TB_UNDERRATED_REQUIRE_CONSENSUS=1` keeps only items seen ≥2×.
+- Fundamentals risk flags and safety score:
+  - `analyze_fundamentals()` emits `risk_flags[]` and `tokenomics_safety ∈ [0,1]` (penalized by flags like near‑term unlocks/inflationary/ponzi‑like/unclear utility).
+- Composite score + acceptance floor:
+  - Score = 0.30 evidence + 0.20 fundamentals + 0.15 tokenomics_safety + 0.15 narrative_conf + 0.10 liquidity_norm + 0.10 small‑cap factor.
+  - New `TB_UNDERRATED_ACCEPT_FLOOR` gates inclusion (e.g., 0.68).
+- Formatter/report parity:
+  - Telegram and Discord now render `narrative_conf` and `risk_flags` when present; ordering preserved. Markdown report includes the same fields.
+- New env:
+  - `TB_UNDERRATED_REQUIRE_EVIDENCE`, `TB_UNDERRATED_REQUIRE_CONSENSUS`, `TB_UNDERRATED_ACCEPT_FLOOR`, `TB_UND_ALLOWLIST_EXTRA`.
+- Docs updated: `README.md` env block and notes.
+- Safety/policy unchanged: auto‑commit/push only artifacts and docs; never `.py`.
+
+Verification plan (safe): run with `TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 TB_UNDERRATED_GIT_AUTOCOMMIT=0 TB_UNDERRATED_GIT_PUSH=0` and enable the new gates to observe filtered outputs.
+
 ## 2025-08-28 — Underrated scanner: utility‑only, fresh‑only, formatter parity
 
 - Filters tightened to utility projects only:
