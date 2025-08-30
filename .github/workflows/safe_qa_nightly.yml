@@ -60,29 +60,12 @@ jobs:
         run: |
           python scripts/hit_rate_compare.py
 
-      - name: Commit and push artifacts (non-.py)
+      - name: Commit and push artifacts (all non-code repo-wide)
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          # Stage ALL changes, then unstage any Python files to respect no-.py policy
-          git add -A
-          # Unstage any .py changes if present (ignore errors on old git)
-          git restore --staged "**/*.py" || true
-          echo "== Git status (working tree) =="
-          git status --porcelain
-          echo "== Staged files (after unstage *.py) =="
-          git diff --cached --name-only | sed 's/^/ - /'
-          echo "== Verifying no .py staged =="
-          if git diff --cached --name-only | grep -E "\\.py$" >/dev/null; then
-            echo "WARNING: Detected staged .py files. Attempting to unstage again..."
-            # Try unstage again using file list
-            git diff --cached --name-only | grep -E "\\.py$" | xargs -r git restore --staged || true
-            echo "Post-fix staged files:"
-            git diff --cached --name-only | sed 's/^/ - /'
-          fi
-          if git diff --cached --quiet; then
-            echo "No non-.py artifact changes to commit"
-          else
-            git commit -m "Nightly QA: update non-script artifacts (eval_runs, universe_runs, runs, bars) [skip ci]"
-            git push
-          fi
+          python - << 'PY'
+          import autocommit as ac
+          res = ac.auto_commit_and_push(['.'], extra_message='Nightly QA artifacts [skip ci]', push_enabled=True)
+          print(res)
+          PY

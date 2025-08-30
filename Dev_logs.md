@@ -1,3 +1,15 @@
+## 2025-08-30 — Git auto-commit/push hardening (allowlist + CI + scripts)
+
+- Expanded allowlist in `autocommit.py`:
+  - Added directories: `runs/`
+  - Added files: `polymarket_digest.md`
+  - Still blocks code extensions: `.py`, `.sh`, `.ipynb`, `.js`, `.ts`, `.go`, `.rs`
+- Replaced direct git ops in `.github/workflows/safe_qa_nightly.yml` with `autocommit.auto_commit_and_push()` to stage only allowlisted artifacts.
+- Updated `scripts/scan_universe.py` to route artifact commits via `autocommit.auto_commit_and_push()` (uses `universe_runs/*.json`, `universe_runs/metrics.csv`, and optional `runs/*.json`).
+- Updated `scripts/polymarket_digest_send.py` to commit `polymarket_digest.md` via `autocommit` instead of raw git.
+- Gated trader log commit in `scripts/trader_run_and_commit.sh` behind `TB_TRADER_LOG_AUTOCOMMIT=1` (default OFF) and routed via `autocommit`.
+- Policy: No `.py` files committed; this log documents changes only.
+
 ## 2025-08-30 — Hybrid EMA+Sentiment trader: offline/online/notify/paper + docs
 
 - New script: `scripts/hybrid_crypto_trader.py` implements EMA(12/26) on 15m with 1h trend confirm and Perplexity sentiment gate. Paper trading via Alpaca with bracket orders.
