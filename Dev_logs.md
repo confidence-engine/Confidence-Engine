@@ -1,3 +1,12 @@
+## 2025-08-31 — Backtester M1–M4 completed (grid, walk-forward, ML, live gate)
+
+- Grid search (`backtester/grid_search.py`): runs param sweeps; writes `results.csv`, `top20.csv` under `eval_runs/backtests/grid_<ts>/`.
+- Walk-forward (`backtester/walk_forward.py`): rolling time splits; per-fold `equity.csv`, `summary.csv`, and `summary_all.csv` under `eval_runs/backtests/walk_<ts>/`.
+- Features + ML baseline (`backtester/features.py`, `backtester/ml_baseline.py`): builds tabular features; trains small PyTorch MLP; outputs `model.pt`, `features.csv`, `metrics.json` under `eval_runs/ml/ml_<ts>/`.
+- Live ML probability gate (`backtester/ml_gate.py` + `tracer_bullet.py`): optional env-gated BUY gating; records `ml_prob` in payload.
+- Tests added: `tests/test_grid_search.py`, `tests/test_walk_forward.py`, `tests/test_ml_baseline.py`. Entire suite green.
+- Env (optional): `TB_USE_ML_GATE=1`, `TB_ML_GATE_MODEL_PATH=eval_runs/ml/.../model.pt`, `TB_ML_GATE_MIN_PROB=0.5`.
+
 ## 2025-08-31 — Backtester M0 (loader+sim+strategy+CLI+tests)
 
 - New backtester package under `backtester/`:

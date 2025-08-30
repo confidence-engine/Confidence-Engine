@@ -7,6 +7,7 @@ from config import settings
 from alpaca import recent_bars, latest_headlines
 from coindesk_rss import fetch_coindesk_titles
 from pplx_fetcher import fetch_pplx_headlines_with_rotation
+from backtester.ml_gate import predict_prob
 
 # Pipeline utilities
 from dedupe_utils import dedupe_titles
@@ -136,6 +137,24 @@ def main():
     rc = "NO_RELEVANT_HEADLINES" if not used_heads else default_rc
     action = "BUY" if (used_heads and abs(div) > trig and conf > settings.confidence_cutoff and vz > -0.5 and div > 0) else "HOLD"
 
+    # Optional ML probability gate (env-gated)
+    ml_prob = None
+    try:
+        if os.getenv("TB_USE_ML_GATE", "0").lower() in ("1", "true", "yes", "on"):
+            model_path = os.getenv("TB_ML_GATE_MODEL_PATH", "").strip()
+            if model_path:
+                try:
+                    ml_prob = predict_prob(bars, model_path)
+                except Exception:
+                    ml_prob = None
+            min_prob = float(os.getenv("TB_ML_GATE_MIN_PROB", "0.5"))
+            # Permissive behavior: if model cannot produce a prob (None), do not block
+            if action == "BUY" and (ml_prob is not None and ml_prob < min_prob):
+                action = "HOLD"
+                rc = "ML_GATE_BLOCKED"
+    except Exception:
+        pass
+
     # 10) Labels
     nar_lbl = strength_label(dec_narr)
     px_lbl = strength_label(px)
@@ -238,6 +257,9 @@ def main():
         "timescale_scores": timescale_scores,
         "confirmation_checks": checks,
         "confirmation_penalty": float(round(total_penalty, 3)),
+
+        # ML gate telemetry (if enabled)
+        "ml_prob": (float(ml_prob) if ml_prob is not None else None),
 
         "summary": summary,
         "detail": detail,

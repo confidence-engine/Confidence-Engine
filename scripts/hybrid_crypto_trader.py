@@ -488,6 +488,9 @@ def notify(event: str, payload: Dict[str, Any]) -> None:
 
 def main() -> int:
     logger.info("Starting Hybrid EMA+Sentiment Trader (safe=%s, no_trade=%s)", OFFLINE, NO_TRADE)
+    # Assign a run_id early for consistent logging regardless of TB_AUDIT
+    _run_id = _nowstamp()
+    logger.info("[run] start run_id=%s symbol=%s", _run_id, SYMBOL)
     api = _rest() if not OFFLINE else None
     # Load and reconcile state
     state = load_state(SYMBOL)
@@ -552,10 +555,9 @@ def main() -> int:
     logger.info("Signals: cross_up=%s cross_down=%s trend_up=%s sentiment=%.3f price=%.2f", cross_up, cross_down, trend_up, sentiment, price)
 
     # Per-run audit snapshot (inputs + signals + pre-state)
-    run_id = None
+    run_id = _run_id
     run_dir = None
     if os.getenv("TB_AUDIT", "1") == "1":
-        run_id = _nowstamp()
         run_dir = RUNS_DIR / run_id
         inputs = {
             "symbol": SYMBOL,
@@ -736,7 +738,7 @@ def main() -> int:
                 "python3", "-c",
                 (
                     "import autocommit as ac; "
-                    "print(ac.auto_commit_and_push(['runs','eval_runs','universe_runs','trader_loop.log'], "
+                    "print(ac.auto_commit_and_push(['runs','eval_runs','universe_runs','trader_loop.log','trading_agent.log'], "
                     "extra_message='local artifacts', push_enabled="
                     + ("True" if push_enabled else "False") +
                     "))"
@@ -745,6 +747,11 @@ def main() -> int:
             logger.info("[autocommit] attempted with push=%s status=%s", push_enabled, code)
     except Exception as e:
         logger.warning("[autocommit] failed: %s", e)
+    # Final run-complete marker
+    try:
+        logger.info("[run] complete run_id=%s decision=%s", run_id, (decision or {}).get("action"))
+    except Exception:
+        pass
     return 0
 
 
