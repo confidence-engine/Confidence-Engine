@@ -109,16 +109,13 @@ def _render_md(polymarket: List[Dict[str, Any]]) -> str:
 
 def _git_autocommit_push(file_path: Path, debug: bool = False) -> None:
     try:
-        # Only operate if inside a git repo
         if not (ROOT / '.git').exists():
             return
-        # Stage file
-        subprocess.run(['git', 'add', str(file_path)], cwd=str(ROOT), check=False)
-        # Commit
+        import autocommit as ac
         msg = f"docs(polymarket): update digest {datetime.utcnow().isoformat(timespec='seconds')}Z"
-        subprocess.run(['git', 'commit', '-m', msg], cwd=str(ROOT), check=False)
-        # Push
-        subprocess.run(['git', 'push'], cwd=str(ROOT), check=False)
+        res = ac.auto_commit_and_push([str(file_path)], extra_message=msg, push_enabled=True)
+        if debug:
+            print(f"[autocommit] {res}")
     except Exception as e:
         if debug:
             print(f"[autocommit] skipped or failed: {e}")

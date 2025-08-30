@@ -23,10 +23,9 @@ def has_changes() -> bool:
     return out != ""
 
 def _is_allowed_path(p: str) -> bool:
-    """Allowlist for auto-commit. Only docs/artifacts, never code.
-    Allowed prefixes: universe_runs/, eval_runs/, underrated_runs/, bars/, docs/
-    Allowed files: README.md, README_CLEAN.md, architecture.md, Dev_logs.md, data/underrated_store.json
+    """Allow non-code files globally; block code extensions and sensitive secrets.
     Block extensions: .py, .sh, .ipynb, .js, .ts, .go, .rs
+    Block filenames: .env, .env.*, .env.local
     """
     import os
     p = p.strip()
@@ -38,23 +37,52 @@ def _is_allowed_path(p: str) -> bool:
     blocked_ext = (".py", ".sh", ".ipynb", ".js", ".ts", ".go", ".rs")
     if p_norm.lower().endswith(blocked_ext):
         return False
-    # Allow by exact files
-    allow_files = {"README.md", "README_CLEAN.md", "architecture.md", "Dev_logs.md", "underrated_store.json"}
+    # Block by sensitive filenames
     base = os.path.basename(p_norm)
-    if base in allow_files:
-        return True
-    # Special-case path for underrated store
-    if p_norm == "data/underrated_store.json":
-        return True
-    # Allow by directory prefixes
-    allowed_dirs = ("universe_runs/", "eval_runs/", "underrated_runs/", "bars/", "docs/")
-    return any(p_norm.startswith(pref) for pref in allowed_dirs)
+    if base == ".env" or base.startswith(".env.") or base == ".env.local":
+        return False
+    # Otherwise allow
+    return True
 
 def stage_paths(paths):
-    safe = [p for p in paths if _is_allowed_path(p)]
-    if not safe:
+    """Stage only allowed files. If a directory is provided, expand to modified/untracked files under it.
+    Supports repo-wide usage by passing paths like ['.'].
+    """
+    import os
+    files_to_add = []
+    for p in paths:
+        if not p:
+            continue
+        p = p.strip()
+        if not p:
+            continue
+        # Determine if path is file or directory
+        if os.path.isdir(p):
+            # Use git to list modified/untracked files respecting .gitignore
+            code, out, _ = _run(["git", "ls-files", "-mo", "--exclude-standard", p])
+            if code == 0 and out:
+                for line in out.splitlines():
+                    fp = line.strip()
+                    if _is_allowed_path(fp):
+                        files_to_add.append(fp)
+        else:
+            # Single file or glob-like path; rely on git add to expand, but filter explicit file first if exists
+            if os.path.exists(p):
+                if _is_allowed_path(p):
+                    files_to_add.append(p)
+            else:
+                # Try to expand via git ls-files for patterns
+                code, out, _ = _run(["bash", "-lc", f"git ls-files -mo --exclude-standard -- {p}"])
+                if code == 0 and out:
+                    for line in out.splitlines():
+                        fp = line.strip()
+                        if _is_allowed_path(fp):
+                            files_to_add.append(fp)
+    # Deduplicate
+    files_to_add = sorted(set(files_to_add))
+    if not files_to_add:
         return
-    _run(["git", "add"] + safe)
+    _run(["git", "add"] + files_to_add)
 
 def current_branch() -> str:
     code, out, _ = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])

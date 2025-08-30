@@ -74,16 +74,16 @@ set -e
   echo "[runner] done status=$STATUS"
 } >> "$LOG_OUT" 2>> "$LOG_ERR"
 
-# Auto-commit/push logs (only if there are changes)
-if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  git add trader_loop.log || true
-  if ! git diff --cached --quiet; then
+# Auto-commit/push logs by default (set TB_TRADER_LOG_AUTOCOMMIT=0 to disable)
+if [ "${TB_TRADER_LOG_AUTOCOMMIT:-1}" != "0" ]; then
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    # Use autocommit allowlist (note: trader_loop.log at repo root is typically not allowlisted)
     TS_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-    git commit -m "chore(trader): update trader_loop.log ${TS_UTC}" || true
-    # Push only if upstream is configured
-    if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
-      git push || true
-    fi
+    python3 - << 'PY'
+import autocommit as ac
+res = ac.auto_commit_and_push(['trader_loop.log'], extra_message='trader log update', push_enabled=True)
+print(res)
+PY
   fi
 fi
 

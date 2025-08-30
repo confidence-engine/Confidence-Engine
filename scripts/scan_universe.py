@@ -583,26 +583,15 @@ def run_universe_scan(
             print(f"[Universe] Mirror failed: {e}")
     if autoc:
         try:
-            # Safer add: try glob, fallback to explicit
-            cmd = 'git add universe_runs/*.json runs/*.json universe_runs/metrics.csv'
-            try:
-                subprocess.run(cmd, shell=True, check=True)
-            except Exception as e:
-                print(f"Universe Fallback add failed: {e}")
-                try:
-                    subprocess.run(["git", "add"] + files_to_add, check=True)
-                except Exception as e2:
-                    print(f"Universe Explicit add failed: {e2}")
-            # Commit message with ISO timestamp and optional Top-N
-            allow_empty = os.getenv("TB_UNIVERSE_GIT_ALLOW_EMPTY", "0") == "1"
+            # Build commit message
             append_topn = os.getenv("TB_UNIVERSE_COMMIT_APPEND_TOPN", "0") == "1"
             topn_k_env = os.getenv("TB_UNIVERSE_COMMIT_TOPN_K")
             topn_k = int(topn_k_env) if topn_k_env else top_k
             msg = f"universe: {ts_utc_iso} scanned {len(payloads)} symbols (Top {top_k})"
             if append_topn and payloads:
                 def _gap(p):
-                    ts = p.get("timescale_scores", {})
-                    return ts.get("combined_divergence", p.get("divergence", 0.0))
+                    tsx = p.get("timescale_scores", {})
+                    return tsx.get("combined_divergence", p.get("divergence", 0.0))
                 ranked = sorted(
                     payloads,
                     key=lambda p: (abs(_gap(p)), p.get("confidence", 0.0), p.get("symbol","")),
@@ -616,14 +605,14 @@ def run_universe_scan(
                     lines.append(f"{i}. {sym} gap {gap:+.2f} conf {conf:.2f}")
                 if lines:
                     msg += "\n\nTopN: " + " | ".join(lines)
-            commit_cmd = ["git", "commit", "-m", msg]
-            if allow_empty:
-                commit_cmd.insert(2, "--allow-empty")
-            subprocess.run(commit_cmd, check=True)
-            print("[Universe] Auto-commit done.")
-            if pushc:
-                subprocess.run(["git", "push"], check=True)
-                print("[Universe] Pushed.")
+
+            # Use autocommit allowlist to stage only safe artifacts
+            import autocommit as ac
+            paths = [universe_file, metrics_path]
+            if mirror_path:
+                paths.append(mirror_path)
+            res = ac.auto_commit_and_push(paths, extra_message=msg, push_enabled=pushc)
+            print(f"[Universe] {res}")
         except Exception as e:
             print(f"[Universe] Auto-commit failed: {e}")
     # Technical digest (original format)
