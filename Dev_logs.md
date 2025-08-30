@@ -112,6 +112,29 @@
 - Note: `pytest` is not currently installed in this environment; running the suite will require installation.
   - Suggested (do not auto-run): `python3 -m pip install pytest`
 
+### Backtests — sweep + aggregate utilities (safe, offline)
+
+- Added sweep runner: `scripts/backtest_sweep.py`
+  - Grid params: `stop_mode` (fixed_pct, atr_fixed, atr_trailing) × `atr_mult` (1.0, 1.5, 2.0) × `tp_pct` (0.01, 0.02, 0.03)
+  - Writes created run dirs and `sweep_manifest.json` under `eval_runs/backtests/`.
+  - Example run:
+    ```bash
+    TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 \
+    python3 scripts/backtest_sweep.py --bars_dir bars --out_root eval_runs/backtests \
+      --stop_modes fixed_pct,atr_fixed,atr_trailing --atr_mults 1.0,1.5,2.0 --tp_pcts 0.01,0.02,0.03
+    ```
+- Added aggregator: `scripts/backtest_aggregate.py`
+  - Reads each run folder's `params.json` and `summary.json`.
+  - Writes `aggregate.csv` and `aggregate.md` with top-by-Sharpe and cohort averages.
+  - Example run:
+    ```bash
+    TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 \
+    python3 scripts/backtest_aggregate.py --out_root eval_runs/backtests
+    ```
+- Snapshot from latest sweep:
+  - Total aggregated runs: see `eval_runs/backtests/aggregate.md` (e.g., 16 detected).
+  - Cohort avg Sharpe (example): fixed_pct ≈ -0.2976, atr_fixed ≈ -0.4712, atr_trailing ≈ -0.9190 on this dataset slice.
+
 ## 2025-08-31 — Backtester M0 (loader+sim+strategy+CLI+tests)
 
 - New backtester package under `backtester/`:
