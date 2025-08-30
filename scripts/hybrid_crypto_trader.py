@@ -54,6 +54,8 @@ NO_TRADE = os.getenv("TB_NO_TRADE", "1") in ("1", "true", "on", "yes")
 NOTIFY = os.getenv("TB_TRADER_NOTIFY", "0") == "1"
 ENABLE_DISCORD = os.getenv("TB_ENABLE_DISCORD", "0") == "1"
 NO_TELEGRAM = os.getenv("TB_NO_TELEGRAM", "1").lower() in ("1", "true", "on", "yes")
+HEARTBEAT = os.getenv("TB_TRADER_NOTIFY_HEARTBEAT", "0") == "1"
+HEARTBEAT_EVERY_N = int(os.getenv("TB_HEARTBEAT_EVERY_N", "12"))  # every N runs
 
 SYMBOL = os.getenv("SYMBOL", settings.symbol or "BTC/USD")
 TF_FAST = "15Min"
@@ -426,6 +428,28 @@ def close_position_if_any(api: REST, symbol: str) -> Optional[str]:
 # Notifications
 # ==========================
 
+# Import Telegram sender from project root module
+try:
+    from telegram_bot import send_message as send_telegram  # type: ignore
+except Exception as _e:
+    # Keep module import-safe; notify() will guard and log if used
+    send_telegram = None  # type: ignore
+
+def send_discord_embed(webhook_url: str, embeds: list[dict]) -> bool:
+    """Minimal Discord webhook sender. Returns True on HTTP 2xx, else False."""
+    try:
+        if not webhook_url:
+            return False
+        with httpx.Client(timeout=float(os.getenv("TB_DISCORD_TIMEOUT", "5"))) as client:
+            resp = client.post(webhook_url, json={"embeds": embeds})
+            if 200 <= resp.status_code < 300:
+                return True
+            logger.warning(f"[discord] status={resp.status_code} body={resp.text[:200]}")
+            return False
+    except Exception as e:
+        logger.warning(f"[discord] error: {e}")
+        return False
+
 def notify(event: str, payload: Dict[str, Any]) -> None:
     if not NOTIFY:
         return
@@ -444,13 +468,16 @@ def notify(event: str, payload: Dict[str, Any]) -> None:
         try:
             webhook = os.getenv("DISCORD_TRADER_WEBHOOK_URL", "") or os.getenv("DISCORD_WEBHOOK_URL", "")
             if webhook:
-                send_discord_digest_to(webhook, [embed])
+                send_discord_embed(webhook, [embed])
         except Exception as e:
             logger.warning(f"[notify] discord error: {e}")
     if not NO_TELEGRAM:
         try:
             msg = f"Hybrid Trader • {payload.get('symbol','')}. {event}. qty={payload.get('qty')} entry={payload.get('entry')} tp={payload.get('tp')} sl={payload.get('sl')} sentiment={payload.get('sentiment')}"
-            send_telegram(msg)
+            if send_telegram is not None:
+                send_telegram(msg)
+            else:
+                logger.info("[notify] telegram module not available; skipped")
         except Exception as e:
             logger.warning(f"[notify] telegram error: {e}")
 
@@ -661,6 +688,28 @@ def main() -> int:
     if not did_anything:
         logger.info("No action taken.")
         decision = {"action": "hold"}
+    # Heartbeat: per-run counter + optional liveness notification
+    try:
+        hb_runs = int(state.get("hb_runs", 0)) + 1
+        state["hb_runs"] = hb_runs
+        state["last_run_ts"] = now_ts
+        if HEARTBEAT and NOTIFY and HEARTBEAT_EVERY_N > 0 and (hb_runs % HEARTBEAT_EVERY_N == 0):
+            payload = {
+                "symbol": SYMBOL,
+                "price": round(price, 2),
+                "sentiment": round(sentiment, 3),
+                "qty": 0,
+                "entry": None,
+                "tp": None,
+                "sl": None,
+                "status": f"alive run={hb_runs}",
+            }
+            notify("heartbeat", payload)
+            state["last_heartbeat_ts"] = now_ts
+            logger.info("[heartbeat] sent run=%d every=%d", hb_runs, HEARTBEAT_EVERY_N)
+    except Exception as e:
+        logger.warning(f"[heartbeat] failed: {e}")
+
     # Persist state if we touched it
     try:
         save_state(SYMBOL, state)

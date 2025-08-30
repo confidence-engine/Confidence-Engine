@@ -1,3 +1,14 @@
+## 2025-08-31 — Hybrid trader: heartbeat notifications (env-gated)
+
+- Added per-run heartbeat counter and optional liveness notifications in `scripts/hybrid_crypto_trader.py`.
+- State fields: `hb_runs` (incremented every run), `last_run_ts`, and `last_heartbeat_ts` (when sent).
+- Env gates:
+  - `TB_TRADER_NOTIFY_HEARTBEAT=1` to enable heartbeat logic
+  - `TB_HEARTBEAT_EVERY_N` (default `12`) to control frequency
+  - Respects existing `TB_TRADER_NOTIFY`, `TB_ENABLE_DISCORD`, `TB_NO_TELEGRAM` gates
+- Behavior: heartbeat sends via `notify("heartbeat", …)` every N runs, even when no trades occur.
+- Safety: Offline/no-trade safe by default; notifications only fire when explicitly enabled.
+
 ## 2025-08-31 — Hybrid trader: per-run audit snapshots
 
 - Added audit trail under `runs/YYYY-MM-DD_HH-MM-SS/` gated by `TB_AUDIT=1` (default ON).
