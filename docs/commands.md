@@ -317,6 +317,38 @@ TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 TB_NO_T
 python3 scripts/hybrid_crypto_trader.py --debug
 ```
 
+- Continuous run (foreground; runs until Ctrl+C):
+```
+# Quiet (no notifications)
+set -a; source .env 2>/dev/null; set +a
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=0 TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 \
+while true; do
+  python3 scripts/hybrid_crypto_trader.py >> trader_loop.log 2>&1
+  sleep 15
+done
+```
+
+```
+# With notifications (Discord+Telegram)
+set -a; source .env 2>/dev/null; set +a
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_NO_TELEGRAM=0 TB_NO_DISCORD=0 \
+while true; do
+  python3 scripts/hybrid_crypto_trader.py >> trader_loop.log 2>&1
+  sleep 15
+done
+```
+
+- Background (keeps running after terminal closes):
+```
+nohup zsh -lc 'set -a; [ -f .env ] && source .env; set +a; \
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_NO_TELEGRAM=0 TB_NO_DISCORD=0 \
+while true; do python3 scripts/hybrid_crypto_trader.py >> trader_loop.log 2>&1; sleep 15; done' >/dev/null 2>&1 &
+```
+
+Notes:
+- `trader_loop.log` is auto-committed/pushed by default (non-code only policy).
+- Stop foreground with Ctrl+C; stop background with `kill <pid>`.
+
 - Forced tiny test buy hook (optional; end-to-end order submission test):
 ```
 # Gate defaults to 0; when set to 1, submits a ~ $10 notional test BUY with TP/SL bracket
