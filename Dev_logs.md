@@ -135,6 +135,32 @@
   - Total aggregated runs: see `eval_runs/backtests/aggregate.md` (e.g., 16 detected).
   - Cohort avg Sharpe (example): fixed_pct ≈ -0.2976, atr_fixed ≈ -0.4712, atr_trailing ≈ -0.9190 on this dataset slice.
 
+### Sweep extensions and alignment (safe, offline)
+
+- Extended sweep parameters in `scripts/backtest_sweep.py`:
+  - Added lists for `atr_periods` (e.g., 10,14,21), `time_caps` (0,8,16), and `risk_fracs` (0.01,0.02).
+  - Moderate grid executed (example): 3 stop modes × 3 atr_mult × 3 tp_pct × 3 atr_period × 3 time_caps × 2 risk_fracs = 486 runs.
+  - Aggregation updated; current aggregate shows 200+ runs summarized into `aggregate.csv` and `aggregate.md`.
+- Analyzer/backtest alignment:
+  - New `scripts/analyzer_alignment.py` cross-references latest replay `top_configs.csv` with backtest `aggregate.csv`.
+  - Writes `eval_runs/backtests/alignment.md` with side-by-side heads and notes.
+  - Purpose: confirm consistency between replay cohort strength and realized backtest performance.
+
+### Offline auto-tuner (propose-only)
+
+- Added `scripts/auto_tuner.py` to orchestrate:
+  - Run replay analyzer on latest replay outputs (`scripts/replay_analyze.py --top 20 --charts`).
+  - Run a moderate backtest sweep (`scripts/backtest_sweep.py`) with extended grids.
+  - Aggregate results (`scripts/backtest_aggregate.py`).
+  - Apply guardrails and propose a candidate config (no live changes).
+- Guardrails (initial): min trades ≥ 15, max drawdown ≤ 0.5%, sort by Sharpe then DD.
+- Artifacts: `eval_runs/auto_tuner/<ts>/proposal.json`, `proposal.md`, `context.json`.
+- Example run (safe):
+  ```bash
+  TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 \
+  python3 scripts/auto_tuner.py --bars_dir bars --out_root eval_runs/backtests
+  ```
+
 ## 2025-08-31 — Backtester M0 (loader+sim+strategy+CLI+tests)
 
 - New backtester package under `backtester/`:
