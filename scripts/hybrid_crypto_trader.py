@@ -12,6 +12,7 @@ import git
 import numpy as np
 import pandas as pd
 import httpx
+import torch
 
 # Ensure project root on sys.path for local imports when executed directly
 _THIS_DIR = Path(__file__).parent
@@ -56,6 +57,24 @@ ENABLE_DISCORD = os.getenv("TB_ENABLE_DISCORD", "0") == "1"
 NO_TELEGRAM = os.getenv("TB_NO_TELEGRAM", "1").lower() in ("1", "true", "on", "yes")
 HEARTBEAT = os.getenv("TB_TRADER_NOTIFY_HEARTBEAT", "0") == "1"
 HEARTBEAT_EVERY_N = int(os.getenv("TB_HEARTBEAT_EVERY_N", "12"))  # every N runs
+
+# Optional ML gate
+USE_ML_GATE = os.getenv("TB_USE_ML_GATE", "0") == "1"
+ML_MODEL_PATH = os.getenv("TB_ML_GATE_MODEL_PATH", "eval_runs/ml/latest/model.pt")
+ML_FEATURES_PATH = os.getenv("TB_ML_FEATURES_PATH", "eval_runs/ml/latest/features.csv")
+ML_MIN_PROB = float(os.getenv("TB_ML_GATE_MIN_PROB", "0.5"))
+
+# Signal debounce: require EMA12>EMA26 for last N bars (0 disables)
+SIGNAL_DEBOUNCE_N = int(os.getenv("TB_SIGNAL_DEBOUNCE_N", "1"))
+
+# Optional volatility and higher-timeframe regime filters
+USE_ATR_FILTER = os.getenv("TB_USE_ATR_FILTER", "0") == "1"
+ATR_LEN = int(os.getenv("TB_ATR_LEN", "14"))
+ATR_MIN_PCT = float(os.getenv("TB_ATR_MIN_PCT", "0.0"))
+ATR_MAX_PCT = float(os.getenv("TB_ATR_MAX_PCT", "1.0"))
+
+USE_HTF_REGIME = os.getenv("TB_USE_HTF_REGIME", "0") == "1"
+HTF_EMA_LEN = int(os.getenv("TB_HTF_EMA_LEN", "200"))  # 1h EMA200 as 4h regime proxy
 
 SYMBOL = os.getenv("SYMBOL", settings.symbol or "BTC/USD")
 TF_FAST = "15Min"
@@ -210,6 +229,18 @@ def one_hour_trend_up(bars_1h: pd.DataFrame) -> bool:
     ema50 = ema(bars_1h["close"], 50)
     return bool(bars_1h["close"].iloc[-1] > ema50.iloc[-1])
 
+def atr(df: pd.DataFrame, length: int = 14) -> pd.Series:
+    h = df["high"].astype(float)
+    l = df["low"].astype(float)
+    c = df["close"].astype(float)
+    prev_c = c.shift(1)
+    tr = pd.concat([
+        h - l,
+        (h - prev_c).abs(),
+        (l - prev_c).abs(),
+    ], axis=1).max(axis=1)
+    return tr.rolling(length).mean()
+
 
 # ==========================
 # Perplexity Sentiment
@@ -307,6 +338,53 @@ def sentiment_via_perplexity(headlines: list[str]) -> Tuple[float, Optional[str]
 # ==========================
 # Execution
 # ==========================
+
+class _MLP(torch.nn.Module):
+    def __init__(self, in_dim: int):
+        super().__init__()
+        self.net = torch.nn.Sequential(
+            torch.nn.Linear(in_dim, 16),
+            torch.nn.ReLU(),
+            torch.nn.Linear(16, 1),
+        )
+    def forward(self, x):
+        return self.net(x)
+
+def _load_ml_gate(model_path: str, features_path: str):
+    try:
+        import pandas as _pd
+        feats = _pd.read_csv(features_path)["feature"].tolist()
+        model = _MLP(len(feats))
+        state = torch.load(model_path, map_location="cpu")
+        model.load_state_dict(state)
+        model.eval()
+        return model, feats
+    except Exception as e:
+        logger.warning(f"[ml_gate] load failed: {e}")
+        return None, None
+
+def _build_live_feature_vector(bars_15: pd.DataFrame, feature_names: list[str]) -> Optional[torch.Tensor]:
+    try:
+        df = bars_15.copy()
+        df["ret_1"] = df["close"].pct_change()
+        e12 = ema(df["close"], 12)
+        e26 = ema(df["close"], 26)
+        df["ema12_slope"] = e12.pct_change()
+        df["ema26_slope"] = e26.pct_change()
+        df["vol"] = df["close"].pct_change().rolling(20).std().fillna(0.0)
+        df["vol_chg"] = df["volume"].pct_change().fillna(0.0)
+        cross_up = ((e12.shift(1) <= e26.shift(1)) & (e12 > e26)).astype(int)
+        df["cross_up"] = cross_up
+        # Align to the last fully-formed feature row (like training: features drop last row)
+        df = df.replace([float("inf"), float("-inf")], 0.0).fillna(0.0)
+        # Use the penultimate row to mimic training alignment
+        last_idx = -2 if len(df) >= 2 else -1
+        vec = [float(df.iloc[last_idx][name]) for name in feature_names]
+        x = torch.tensor([vec], dtype=torch.float32)
+        return x
+    except Exception as e:
+        logger.warning(f"[ml_gate] feature build failed: {e}")
+        return None
 
 def get_account_equity(api: REST) -> float:
     try:
@@ -453,16 +531,62 @@ def send_discord_embed(webhook_url: str, embeds: list[dict]) -> bool:
 def notify(event: str, payload: Dict[str, Any]) -> None:
     if not NOTIFY:
         return
-    # Discord embed parity with existing sender
-    embed = {
-        "title": f"Trader: {event} {payload.get('symbol','')}",
-        "description": "\n".join([
+    # Tailor fields for readability depending on event type; keep TG/Discord parity
+    et = event.lower()
+    sym = payload.get("symbol", "")
+    sent = payload.get("sentiment")
+    status = payload.get("status")
+    # Build message strings per event
+    if et in ("submit", "would_submit"):
+        qty = payload.get("qty")
+        entry = payload.get("entry")
+        tp = payload.get("tp")
+        sl = payload.get("sl")
+        price = payload.get("price")
+        desc_lines = [
             f"tf_fast={TF_FAST} tf_slow={TF_SLOW}",
-            f"entry={payload.get('entry')} tp={payload.get('tp')} sl={payload.get('sl')}",
-            f"qty={payload.get('qty')} price={payload.get('price')} sentiment={payload.get('sentiment')}",
-            f"status={payload.get('status')}",
-        ]),
-        "color": 0x2ecc71 if event.lower() in ("submit", "would_submit") else 0x95a5a6,
+            f"qty={qty} entry={entry} tp={tp} sl={sl}",
+            f"price={price} sentiment={sent}",
+            f"status={status}",
+        ]
+        tg_msg = (
+            f"Hybrid Trader • {sym}. {event}. "
+            f"qty={qty} entry={entry} tp={tp} sl={sl} sentiment={sent}"
+        )
+        color = 0x2ecc71
+    elif et in ("close", "would_close"):
+        qty = payload.get("qty")
+        entry = payload.get("entry")
+        exit_px = payload.get("price")
+        pnl_est = payload.get("pnl_est")
+        desc_lines = [
+            f"tf_fast={TF_FAST} tf_slow={TF_SLOW}",
+            f"qty={qty} entry={entry} exit={exit_px} pnl_est={pnl_est}",
+            f"sentiment={sent}",
+            f"status={status}",
+        ]
+        tg_msg = (
+            f"Hybrid Trader • {sym}. {event}. "
+            f"qty={qty} entry={entry} exit={exit_px} pnl={pnl_est} sentiment={sent}"
+        )
+        color = 0x95a5a6
+    else:  # heartbeat/others
+        price = payload.get("price")
+        desc_lines = [
+            f"tf_fast={TF_FAST} tf_slow={TF_SLOW}",
+            f"price={price} sentiment={sent}",
+            f"status={status}",
+        ]
+        tg_msg = (
+            f"Hybrid Trader • {sym}. {event}. "
+            f"price={price} sentiment={sent} status={status}"
+        )
+        color = 0x95a5a6
+
+    embed = {
+        "title": f"Trader: {event} {sym}",
+        "description": "\n".join(desc_lines),
+        "color": color,
     }
     if ENABLE_DISCORD:
         try:
@@ -473,7 +597,7 @@ def notify(event: str, payload: Dict[str, Any]) -> None:
             logger.warning(f"[notify] discord error: {e}")
     if not NO_TELEGRAM:
         try:
-            msg = f"Hybrid Trader • {payload.get('symbol','')}. {event}. qty={payload.get('qty')} entry={payload.get('entry')} tp={payload.get('tp')} sl={payload.get('sl')} sentiment={payload.get('sentiment')}"
+            msg = tg_msg
             if send_telegram is not None:
                 send_telegram(msg)
             else:
@@ -552,7 +676,34 @@ def main() -> int:
     if serr:
         logger.info(f"[sentiment] fallback notice: {serr}")
 
-    logger.info("Signals: cross_up=%s cross_down=%s trend_up=%s sentiment=%.3f price=%.2f", cross_up, cross_down, trend_up, sentiment, price)
+    # Optional signal debounce: require EMA12>EMA26 across last N bars
+    debounce_ok = True
+    if SIGNAL_DEBOUNCE_N > 0:
+        try:
+            cond = (ema12 > ema26).iloc[-SIGNAL_DEBOUNCE_N:]
+            debounce_ok = bool(cond.all())
+        except Exception:
+            debounce_ok = False
+    logger.info("Signals: cross_up=%s cross_down=%s trend_up=%s debounce_ok=%s sentiment=%.3f price=%.2f", cross_up, cross_down, trend_up, debounce_ok, sentiment, price)
+
+    # Optional ML probability gate
+    ml_prob: Optional[float] = None
+    if USE_ML_GATE:
+        model, feat_names = _load_ml_gate(ML_MODEL_PATH, ML_FEATURES_PATH)
+        if model is not None and feat_names is not None:
+            x = _build_live_feature_vector(bars_15, feat_names)
+            if x is not None:
+                with torch.no_grad():
+                    logit = model(x)
+                    prob_val = float(torch.sigmoid(logit).item())
+                    # Ensure finite numeric
+                    if not np.isfinite(prob_val):
+                        prob_val = 0.0
+                    ml_prob = max(0.0, min(1.0, prob_val))
+        # If gate is enabled but we failed to compute, be conservative
+        if ml_prob is None:
+            ml_prob = 0.0
+        logger.info("[ml_gate] prob=%.3f min=%.2f", ml_prob, ML_MIN_PROB)
 
     # Per-run audit snapshot (inputs + signals + pre-state)
     run_id = _run_id
@@ -571,6 +722,29 @@ def main() -> int:
             "cross_down": bool(cross_down),
             "trend_up": bool(trend_up),
         }
+        # Enrich audit with optional gates
+        if USE_ML_GATE:
+            inputs["ml_prob"] = float(ml_prob if ml_prob is not None else 0.0)
+        # ATR filter info
+        atr_pct_val = None
+        htf_ok_val = None
+        if USE_ATR_FILTER:
+            try:
+                atr_series = atr(bars_15, ATR_LEN)
+                atr_val = float(atr_series.iloc[-1])
+                atr_pct_val = float(atr_val / max(price, 1e-9))
+            except Exception:
+                atr_pct_val = None
+        if USE_HTF_REGIME:
+            try:
+                ema_htf = ema(bars_1h["close"], HTF_EMA_LEN)
+                htf_ok_val = bool(bars_1h["close"].iloc[-1] > ema_htf.iloc[-1])
+            except Exception:
+                htf_ok_val = None
+        if atr_pct_val is not None:
+            inputs["atr_pct"] = round(atr_pct_val, 6)
+        if htf_ok_val is not None:
+            inputs["htf_regime_ok"] = bool(htf_ok_val)
         write_json(run_dir / "inputs.json", inputs)
         logger.info(f"[progress] Wrote audit inputs -> {run_dir}/inputs.json")
 
@@ -600,8 +774,25 @@ def main() -> int:
             did_anything = True
         decision = {"action": "close"}
 
+    # Compute optional filter booleans
+    atr_ok = True
+    if USE_ATR_FILTER:
+        try:
+            atr_curr = float(atr(bars_15, ATR_LEN).iloc[-1])
+            atr_pct = float(atr_curr / max(price, 1e-9))
+            atr_ok = (atr_pct >= ATR_MIN_PCT) and (atr_pct <= ATR_MAX_PCT)
+        except Exception:
+            atr_ok = False
+    htf_ok = True
+    if USE_HTF_REGIME:
+        try:
+            ema_htf = ema(bars_1h["close"], HTF_EMA_LEN)
+            htf_ok = bool(bars_1h["close"].iloc[-1] > ema_htf.iloc[-1])
+        except Exception:
+            htf_ok = False
+
     decision = {"action": "hold", "reason": "no_signal"}
-    if cross_up and trend_up and sentiment >= SENTIMENT_THRESHOLD:
+    if cross_up and trend_up and debounce_ok and atr_ok and htf_ok and sentiment >= SENTIMENT_THRESHOLD and ((not USE_ML_GATE) or (ml_prob is not None and ml_prob >= ML_MIN_PROB)):
         # Long entry
         # Risk gate: daily loss cap
         loss_cap = -DAILY_LOSS_CAP_PCT * float(state.get("equity_ref", 100000.0))
@@ -647,19 +838,31 @@ def main() -> int:
             # Mark decision for audit
             decision = {"action": "buy", "qty": float(qty), "entry": float(entry), "tp": float(tp), "sl": float(sl)}
 
-    # Exit condition: bearish cross and we have a position
+    # Exit condition: bearish cross — notify only if currently in a position
     if cross_down:
-        if OFFLINE or NO_TRADE:
-            logger.info("[preview] Would CLOSE any open position due to bearish cross")
-            notify("would_close", {"symbol": SYMBOL, "price": round(price, 2), "sentiment": round(sentiment, 3), "status": "preview"})
-            # Preview: clear position and start cooldown
+        if not state.get("in_position"):
+            logger.info("[close] skipped: not in_position")
+        elif OFFLINE or NO_TRADE:
+            logger.info("[preview] Would CLOSE open position due to bearish cross")
             # Estimate PnL for preview close if we have last_entry/qty
+            last_entry = state.get("last_entry")
+            last_qty = state.get("last_qty")
             pnl = 0.0
             try:
-                if state.get("in_position") and (state.get("last_entry") is not None) and (state.get("last_qty") is not None):
-                    pnl = (float(price) - float(state.get("last_entry", 0.0))) * float(state.get("last_qty", 0.0))
+                if (last_entry is not None) and (last_qty is not None):
+                    pnl = (float(price) - float(last_entry)) * float(last_qty)
             except Exception:
                 pnl = 0.0
+            notify("would_close", {
+                "symbol": SYMBOL,
+                "price": round(price, 2),  # exit
+                "entry": round(float(last_entry), 2) if last_entry is not None else None,
+                "qty": float(last_qty) if last_qty is not None else None,
+                "pnl_est": round(float(pnl), 2),
+                "sentiment": round(sentiment, 3),
+                "status": "preview",
+            })
+            # Preview: clear position and start cooldown
             state.update({
                 "in_position": False,
                 "last_exit_ts": now_ts,
@@ -669,15 +872,26 @@ def main() -> int:
             did_anything = True
         else:
             oid = close_position_if_any(api, SYMBOL)
-            notify("close", {"symbol": SYMBOL, "price": round(price, 2), "sentiment": round(sentiment, 3), "status": "submitted", "order_id": oid})
-            logger.info("[close] submitted market close order: %s", oid)
             # Estimate realized PnL using current price vs last_entry for last_qty
+            last_entry = state.get("last_entry")
+            last_qty = state.get("last_qty")
             pnl = 0.0
             try:
-                if state.get("in_position") and (state.get("last_entry") is not None) and (state.get("last_qty") is not None):
-                    pnl = (float(price) - float(state.get("last_entry", 0.0))) * float(state.get("last_qty", 0.0))
+                if (last_entry is not None) and (last_qty is not None):
+                    pnl = (float(price) - float(last_entry)) * float(last_qty)
             except Exception:
                 pnl = 0.0
+            notify("close", {
+                "symbol": SYMBOL,
+                "price": round(price, 2),  # exit
+                "entry": round(float(last_entry), 2) if last_entry is not None else None,
+                "qty": float(last_qty) if last_qty is not None else None,
+                "pnl_est": round(float(pnl), 2),
+                "sentiment": round(sentiment, 3),
+                "status": "submitted",
+                "order_id": oid,
+            })
+            logger.info("[close] submitted market close order: %s", oid)
             state.update({
                 "in_position": False,
                 "last_exit_ts": now_ts,

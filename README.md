@@ -574,6 +574,16 @@ Notes:
 - Key rotation for Perplexity
 - Strict parsing, schema enforcement, fallbacks
 
+### Hybrid trader robustness gates (opt‑in)
+- ML probability gate — blocks BUYs when model probability is below threshold or inference fails (conservative default):
+  - Env: `TB_USE_ML_GATE`, `TB_ML_GATE_MODEL_PATH` (default `eval_runs/ml/latest/model.pt`), `TB_ML_FEATURES_PATH`, `TB_ML_GATE_MIN_PROB`.
+- ATR volatility filter (15m) — require ATR% within band to avoid dead or chaotic regimes:
+  - Env: `TB_USE_ATR_FILTER`, `TB_ATR_LEN`, `TB_ATR_MIN_PCT`, `TB_ATR_MAX_PCT`.
+- Higher‑timeframe regime alignment (1h EMA) — trade only in direction of the HTF trend:
+  - Env: `TB_USE_HTF_REGIME`, `TB_HTF_EMA_LEN` (e.g., 200).
+- Heartbeat notifications — optional liveness pings every N runs when notifications are enabled:
+  - Env: `TB_TRADER_NOTIFY_HEARTBEAT`, `TB_HEARTBEAT_EVERY_N`.
+
 ***
 
 ## Quick commands recap

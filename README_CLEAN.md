@@ -61,8 +61,14 @@ Note: While examples focus on crypto (BTC/ETH), the framework generalizes to equ
 - Multi‑asset universe scanning with crypto timeframes (1h/4h/1D/1W/1M).
 - Evidence lines (concise, number‑free in chat), artifacts retain full metrics.
 - Polymarket discovery via Perplexity Pro API; side‑by‑side internal vs market probability.
-- Git auto‑commit/push for artifacts (universe/evaluation), gated via env flags.
+- Git auto-commit/push for artifacts (universe/evaluation), gated via env flags.
 - Weekly evaluation wrapper and ingestion for resolved markets.
+
+Robust hybrid trader (opt-in gates):
+- ML probability gate with PyTorch model (`eval_runs/ml/latest/model.pt`) and features parity.
+- ATR volatility filter on 15m bars with min/max ATR% band.
+- Higher-timeframe regime alignment via 1h EMA (configurable length).
+- Optional heartbeat notifications every N runs.
 
 ---
 

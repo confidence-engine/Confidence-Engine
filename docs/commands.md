@@ -291,11 +291,36 @@ TB_MAX_RISK_FRAC=0.005
 TB_TP_PCT=0.01
 TB_SL_PCT=0.005
 TB_SENTIMENT_CUTOFF=0.55
+
+# Optional robustness gates (opt-in via env):
+TB_USE_ML_GATE=0
+TB_ML_GATE_MODEL_PATH=eval_runs/ml/latest/model.pt
+TB_ML_FEATURES_PATH=eval_runs/ml/latest/features.csv
+TB_ML_GATE_MIN_PROB=0.50
+
+TB_USE_ATR_FILTER=0
+TB_ATR_LEN=14
+TB_ATR_MIN_PCT=0.002
+TB_ATR_MAX_PCT=0.10
+
+TB_USE_HTF_REGIME=0
+TB_HTF_EMA_LEN=200
+
+TB_TRADER_NOTIFY_HEARTBEAT=0
+TB_HEARTBEAT_EVERY_N=12
 ```
 
 - Strict offline preview (no API calls, no orders, no sends):
 ```
-TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 TB_TRADER_NOTIFY=0 TB_ENABLE_DISCORD=0 TB_NO_TELEGRAM=1 \
+TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 TB_TRADER_NOTIFY=0 TB_ENABLE_DISCORD=0 TB_NO_TELEGRAM=1  python3 scripts/hybrid_crypto_trader.py --debug
+```
+
+- Enable robustness gates in a run (example):
+```
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=1 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 TB_NO_TELEGRAM=0 \
+TB_USE_ML_GATE=1 TB_ML_GATE_MIN_PROB=0.60 \
+TB_USE_ATR_FILTER=1 TB_ATR_LEN=14 TB_ATR_MIN_PCT=0.002 TB_ATR_MAX_PCT=0.05 \
+TB_USE_HTF_REGIME=1 TB_HTF_EMA_LEN=200 \
 python3 scripts/hybrid_crypto_trader.py --debug
 ```
 
@@ -305,39 +330,6 @@ TB_TRADER_OFFLINE=0 TB_NO_TRADE=1 TB_TRADER_NOTIFY=0 TB_ENABLE_DISCORD=0 TB_NO_T
 python3 scripts/hybrid_crypto_trader.py --debug
 ```
 
-- Signal broadcast only (no orders; Discord/Telegram parity messages):
-```
-TB_TRADER_OFFLINE=0 TB_NO_TRADE=1 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 TB_NO_TELEGRAM=0 \
-python3 scripts/hybrid_crypto_trader.py --debug
-```
-
-- Live paper trading (orders enabled, notifications on):
-```
-TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 TB_NO_TELEGRAM=0 \
-python3 scripts/hybrid_crypto_trader.py --debug
-```
-
-- Continuous run (foreground; runs until Ctrl+C):
-```
-# Quiet (no notifications)
-set -a; source .env 2>/dev/null; set +a
-TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=0 TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 \
-while true; do
-  python3 scripts/hybrid_crypto_trader.py >> trader_loop.log 2>&1
-  sleep 15
-done
-```
-
-```
-# With notifications (Discord+Telegram)
-set -a; source .env 2>/dev/null; set +a
-TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_NO_TELEGRAM=0 TB_NO_DISCORD=0 \
-while true; do
-  python3 scripts/hybrid_crypto_trader.py >> trader_loop.log 2>&1
-  sleep 15
-done
-```
-
 - Background (keeps running after terminal closes):
 ```
 nohup zsh -lc 'set -a; [ -f .env ] && source .env; set +a; \
@@ -345,9 +337,23 @@ TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_NO_TELEGRAM=0 TB_NO_DISC
 while true; do python3 scripts/hybrid_crypto_trader.py >> trader_loop.log 2>&1; sleep 15; done' >/dev/null 2>&1 &
 ```
 
+- Background with heartbeat enabled every N runs (env-gated):
+```
+nohup zsh -lc 'set -a; [ -f .env ] && source .env; set +a; \
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_TRADER_NOTIFY_HEARTBEAT=1 TB_HEARTBEAT_EVERY_N=12 \
+TB_NO_TELEGRAM=0 TB_NO_DISCORD=0 \
+while true; do python3 scripts/hybrid_crypto_trader.py >> trader_loop.log 2>&1; sleep 15; done' >/dev/null 2>&1 &
+```
+
 Notes:
 - `trader_loop.log` is auto-committed/pushed by default (non-code only policy).
 - Stop foreground with Ctrl+C; stop background with `kill <pid>`.
+
+- Gate behavior notes:
+  - ML gate blocks BUYs when `ml_prob < TB_ML_GATE_MIN_PROB` or inference fails (conservative default).
+  - ATR filter blocks entries when ATR% is outside `[TB_ATR_MIN_PCT, TB_ATR_MAX_PCT]`.
+  - HTF regime requires alignment with 1h EMA trend (length `TB_HTF_EMA_LEN`).
+  - Heartbeats send a lightweight liveness message every `TB_HEARTBEAT_EVERY_N` runs when notifications are enabled.
 
 - Forced tiny test buy hook (optional; end-to-end order submission test):
 ```
