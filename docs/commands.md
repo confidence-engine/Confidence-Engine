@@ -262,9 +262,73 @@ python3 scripts/plot_hit_rate_trend.py --csv eval_runs/hit_rate_trend.csv --out 
 
 - Where to look:
   - Trend CSV: `eval_runs/hit_rate_trend.csv`
-  - Summary: `eval_runs/hit_rate_summary.md`
-  - Failures: `eval_runs/hit_rate_failures.csv`
-  - Plot: `eval_runs/hit_rate_trend.png`
+- Summary: `eval_runs/hit_rate_summary.md`
+- Failures: `eval_runs/hit_rate_failures.csv`
+- Plot: `eval_runs/hit_rate_trend.png`
+
+## Hybrid EMA+Sentiment Trader (Alpaca paper)
+
+- Overview:
+  - Script: `scripts/hybrid_crypto_trader.py`
+  - Logic: EMA(12/26) cross on 15m with 1h trend confirm + Perplexity sentiment gate
+  - Modes: strict offline preview, online no-trade, notify-only, live paper trading
+
+- Environment (recommended `.env` baseline):
+```
+ALPACA_API_KEY_ID=...
+ALPACA_API_SECRET_KEY=...
+ALPACA_BASE_URL=https://paper-api.alpaca.markets
+
+# Safety gates (override per run)
+TB_TRADER_OFFLINE=1   # strict no network, synthetic bars
+TB_NO_TRADE=1         # never place orders when 1
+TB_TRADER_NOTIFY=0    # no sends unless explicitly enabled
+TB_ENABLE_DISCORD=0   # Discord off by default
+TB_NO_TELEGRAM=1      # Telegram off by default
+
+# Optional risk/signal params (defaults are conservative)
+TB_MAX_RISK_FRAC=0.005
+TB_TP_PCT=0.01
+TB_SL_PCT=0.005
+TB_SENTIMENT_CUTOFF=0.55
+```
+
+- Strict offline preview (no API calls, no orders, no sends):
+```
+TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 TB_TRADER_NOTIFY=0 TB_ENABLE_DISCORD=0 TB_NO_TELEGRAM=1 \
+python3 scripts/hybrid_crypto_trader.py --debug
+```
+
+- Online no-trade validation (API calls on; orders disabled; sends off):
+```
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=1 TB_TRADER_NOTIFY=0 TB_ENABLE_DISCORD=0 TB_NO_TELEGRAM=1 \
+python3 scripts/hybrid_crypto_trader.py --debug
+```
+
+- Signal broadcast only (no orders; Discord/Telegram parity messages):
+```
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=1 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 TB_NO_TELEGRAM=0 \
+python3 scripts/hybrid_crypto_trader.py --debug
+```
+
+- Live paper trading (orders enabled, notifications on):
+```
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 TB_NO_TELEGRAM=0 \
+python3 scripts/hybrid_crypto_trader.py --debug
+```
+
+- Forced tiny test buy hook (optional; end-to-end order submission test):
+```
+# Gate defaults to 0; when set to 1, submits a ~ $10 notional test BUY with TP/SL bracket
+TB_TRADER_TEST_FORCE_BUY=1 TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 TB_NO_TELEGRAM=0 \
+python3 scripts/hybrid_crypto_trader.py --debug
+```
+
+- Notes:
+  - Offline mode uses deterministic synthetic bars and a fixed mock sentiment; absolutely no network calls or sends.
+  - Telegram/Discord sends are strictly gated by both `TB_TRADER_NOTIFY` and their channel toggles.
+  - Orders are only sent when `TB_NO_TRADE=0` and offline is disabled.
+  - The forced test buy hook is for paper validation only and should remain `0` during normal operation.
 
 ## Tests
 - Run test suite (safe profile):
