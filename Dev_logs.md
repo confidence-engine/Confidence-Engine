@@ -1,3 +1,20 @@
+## 2025-08-30 — Hybrid EMA+Sentiment trader: offline/online/notify/paper + docs
+
+- New script: `scripts/hybrid_crypto_trader.py` implements EMA(12/26) on 15m with 1h trend confirm and Perplexity sentiment gate. Paper trading via Alpaca with bracket orders.
+- Modes and safety gates:
+  - `TB_TRADER_OFFLINE=1`: strict offline preview (synthetic bars + mock sentiment); no network; no sends.
+  - `TB_NO_TRADE=1`: online validation without order submission.
+  - `TB_TRADER_NOTIFY=1` with `TB_ENABLE_DISCORD=1`/`TB_NO_TELEGRAM=0`: parity notifications to Discord/Telegram.
+  - Optional `TB_TRADER_TEST_FORCE_BUY=1`: gated ~$10 paper test BUY with bracket (for end-to-end validation only).
+- Risk/env params: `TB_MAX_RISK_FRAC`, `TB_TP_PCT`, `TB_SL_PCT`, `TB_SENTIMENT_CUTOFF`. Alpaca creds via `.env`.
+- Tests performed:
+  - Offline preview: OK (no external calls/sends, deterministic outputs).
+  - Online no-trade: OK (Alpaca bars + PPLX sentiment fetched; no orders, no sends).
+  - Notify-only: OK (signals broadcast to both Discord and Telegram when enabled).
+  - Paper live: OK (forced tiny buy hook validated order submission and notifications with TP/SL bracket).
+- Docs updated: `docs/commands.md` — added "Hybrid EMA+Sentiment Trader" section with run profiles and env gating examples.
+- Policy: No `.py` files committed; docs/logs only.
+
 ## 2025-08-30 — Underrated scanner: verbose drop-reason logs (evidence/non-social/recency)
 
 - Change: In `scripts/underrated_scanner.py` `fetch_candidates()`, added verbose diagnostics for drop reasons when gates fire:
@@ -2086,6 +2103,37 @@ python3 -u scripts/tracer_bullet_universe.py --no-telegram
 
 **Acceptance:**
 - When one key fails or returns zero items, provider advances to the next until items are returned or keys exhausted.
+
+***
+
+## 2025-08-30 — Hybrid crypto trader: strict OFFLINE mode + safe preview
+
+- Change: Hardened `scripts/hybrid_crypto_trader.py` to ensure strict OFFLINE behavior.
+  - When `TB_TRADER_OFFLINE=1`:
+    - Bars are generated via `synthetic_bars()` for both 15m and 1h; no Alpaca calls.
+    - Sentiment uses a deterministic mock value; no Perplexity calls.
+    - Alpaca REST is not constructed; no account/orders endpoints touched.
+  - Import robustness:
+    - Adds project root to `sys.path` when run directly, so `config.py` and helpers import cleanly.
+    - Alpaca SDK import is wrapped to avoid requiring the package in OFFLINE runs.
+- Safe validation: Ran
+
+```bash
+TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 TB_TRADER_NOTIFY=0 TB_ENABLE_DISCORD=0 TB_NO_TELEGRAM=1 \
+python3 scripts/hybrid_crypto_trader.py
+```
+
+Observed clean run with signal logs and no external requests. No sends; no orders.
+
+- Next step (online no-trade validation):
+
+```bash
+# Makes external API calls (Alpaca/Perplexity), but does not submit orders and sends are disabled
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=1 TB_TRADER_NOTIFY=0 TB_ENABLE_DISCORD=0 TB_NO_TELEGRAM=1 \
+python3 scripts/hybrid_crypto_trader.py
+```
+
+- Policy: Docs-only update. No `.py` files committed.
 
 ***
 
