@@ -7,6 +7,33 @@
 - Tests added: `tests/test_grid_search.py`, `tests/test_walk_forward.py`, `tests/test_ml_baseline.py`. Entire suite green.
 - Env (optional): `TB_USE_ML_GATE=1`, `TB_ML_GATE_MODEL_PATH=eval_runs/ml/.../model.pt`, `TB_ML_GATE_MIN_PROB=0.5`.
 
+## 2025-08-31 — Hybrid trader: ATR filter + HTF regime + ML gate hardening
+
+- `scripts/hybrid_crypto_trader.py` enhancements for robustness without relaxing thresholds:
+  - ATR volatility filter (15m): gate entries when ATR% out of band.
+    - Env: `TB_USE_ATR_FILTER=1`, `TB_ATR_LEN=14`, `TB_ATR_MIN_PCT=0.0`, `TB_ATR_MAX_PCT=1.0`.
+    - Audit: writes `atr_pct` to `runs/<ts>/inputs.json`.
+  - Higher-timeframe regime check: 1h EMA200 alignment gate.
+    - Env: `TB_USE_HTF_REGIME=1`, `TB_HTF_EMA_LEN=200`.
+    - Audit: writes `htf_regime_ok` to `runs/<ts>/inputs.json`.
+  - ML probability gate hardening:
+    - Ensures finite numeric probability; clamps to [0,1].
+    - When gate enabled but inference fails, defaults `ml_prob=0.0` (conservative) and logs `[ml_gate]`.
+    - Audit now includes `ml_prob` when `TB_USE_ML_GATE=1`.
+- No notification changes. Defaults remain safe: offline/no-trade, no sends, no auto-commit of code.
+- Policy: no `.py` auto-commits; this entry documents behavior and env flags.
+
+### Docs update — hybrid trader robustness gates + heartbeat
+- Updated `.env.example` with new env vars:
+  - `TB_USE_ML_GATE`, `TB_ML_GATE_MODEL_PATH`, `TB_ML_FEATURES_PATH`, `TB_ML_GATE_MIN_PROB`
+  - `TB_USE_ATR_FILTER`, `TB_ATR_LEN`, `TB_ATR_MIN_PCT`, `TB_ATR_MAX_PCT`
+  - `TB_USE_HTF_REGIME`, `TB_HTF_EMA_LEN`
+  - `TB_TRADER_NOTIFY_HEARTBEAT`, `TB_HEARTBEAT_EVERY_N`
+- `docs/commands.md`: added examples for enabling ML/ATR/HTF gates and heartbeat; background loop snippet with heartbeat.
+- `README.md`: added "Hybrid trader robustness gates" subsection under Reliability & safety.
+- `README_CLEAN.md`: added concise bullet list under Key features.
+- Policy reaffirmed: only docs/artifacts auto-committed; never `.py` files.
+
 ## 2025-08-31 — Backtester M0 (loader+sim+strategy+CLI+tests)
 
 - New backtester package under `backtester/`:
