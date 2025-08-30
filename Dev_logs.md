@@ -34,6 +34,19 @@
 - `README_CLEAN.md`: added concise bullet list under Key features.
 - Policy reaffirmed: only docs/artifacts auto-committed; never `.py` files.
 
+### Implementation — ATR-based stop sizing + tests
+- Implemented optional ATR-based stop sizing in `scripts/hybrid_crypto_trader.py`:
+  - Env: `TB_USE_ATR_STOP=1` enables ATR stop; `TB_ATR_STOP_MULT` controls multiple (default 1.5x ATR).
+  - Replaces fixed `TB_SL_PCT` when enabled. Entry/TP/SL computed at decision time; test hook respects ATR stop.
+  - Position sizing uses computed `sl` in `calc_position_size()` risk per unit.
+- Updated `.env.example` with `TB_USE_ATR_STOP`, `TB_ATR_STOP_MULT`.
+- Added tests `tests/test_hybrid_trader_gates.py`:
+  - ATR computation and bounds, HTF regime alignment, debounce logic.
+  - ML live feature vector construction.
+  - ATR-stop sizing path sanity.
+  - Safe offline replay harness executes `main()` with all gates enabled in offline/preview mode.
+- Test run: 123 passed.
+
 ## 2025-08-31 — Backtester M0 (loader+sim+strategy+CLI+tests)
 
 - New backtester package under `backtester/`:
