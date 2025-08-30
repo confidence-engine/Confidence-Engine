@@ -1,3 +1,18 @@
+## 2025-08-31 — Backtester M0 (loader+sim+strategy+CLI+tests)
+
+- New backtester package under `backtester/`:
+  - `backtester/core.py`: DataLoader (reads `bars/*.csv`), EMA, resampler, Simulator (TP/SL, fees, slippage, cooldown, risk sizing), equity curve + metrics, and report writer.
+  - `backtester/strategies.py`: `HybridEMAStrategy` with `HybridParams` (EMA12/26, 1h trend EMA50, optional sentiment gate). Default trend rule set to `"1h"` to avoid pandas deprecation.
+  - `backtester/run_backtest.py`: CLI entry. Args for EMAs, trend timeframe, TP/SL, fees, slippage, cooldown, risk fraction, starting equity; writes artifacts under `eval_runs/backtests/<ts>/`.
+  - `backtester/__init__.py` scaffolding.
+- Tests: `tests/test_backtester_core.py` (unit) — loads real `bars/`, generates signals, runs simulator; asserts outputs. Green.
+- Sample run (safe, offline):
+  - Command: `python3 -m backtester.run_backtest --bars_dir bars --out_root eval_runs/backtests`
+  - Output dir example: `eval_runs/backtests/20250830_203202/`
+  - Artifacts: `trades.csv`, `equity.csv`, `params.json`, `summary.json`.
+- Warnings: switched default trend timeframe to `1h` (lowercase) to remove pandas resample deprecation warnings.
+- Git policy: Only artifacts are auto-committed by existing automation. No `.py` files committed.
+
 ## 2025-08-31 — Hybrid trader: heartbeat notifications (env-gated)
 
 - Added per-run heartbeat counter and optional liveness notifications in `scripts/hybrid_crypto_trader.py`.
