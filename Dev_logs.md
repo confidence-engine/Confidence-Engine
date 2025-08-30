@@ -57,6 +57,61 @@
 - Safe flags enforced: `TB_TRADER_OFFLINE=1`, `TB_NO_TRADE=1`, `TB_TRADER_NOTIFY=0`, `TB_NO_TELEGRAM=1`, `TB_ENABLE_DISCORD=0`, `TB_AUTOCOMMIT_ARTIFACTS=0`.
 - Latest run summary: `eval_runs/replays/20250830_230524/summary.md` (CSV at `grid_results.csv`). Total combos: 81.
 
+### Offline replay sweep — scorer enhancement (hypothetical BUYs via ATR stop)
+
+- Rationale: When strict gates yield no BUYs in offline replay, ranking/tuning stalls. We added a scorer-side hypothetical BUY computation that keeps live logic untouched.
+- Change scope: only `scripts/replay_sweep.py` scorer paths. No changes to `scripts/hybrid_crypto_trader.py` or live gates.
+- Method:
+  - For rows passing gates (HTF regime OK, `atr_pct` within [`TB_ATR_MIN_PCT`,`TB_ATR_MAX_PCT`], `ml_prob >= TB_ML_GATE_MIN_PROB`), if no actual BUY was produced, compute a hypothetical BUY using current `price` and ATR-based stop:
+    - `sl = price - TB_ATR_STOP_MULT * (atr_pct * price)`
+    - `entry = price`
+    - `tp = entry + TB_TRADER_MIN_RR * (entry - sl)`
+  - Score combines ML prob, sentiment, RR, and proximity to mid ATR band; outputs `action=hypo_buy` for these synthetic candidates.
+- CSV headers extended: added `price` column so scorer can derive levels; summary now reflects top-5 candidates with `hypo_buy` when applicable.
+- Safety: strictly offline; no network/sends; artifacts only under `eval_runs/replays/<ts>/`. Live behavior unchanged.
+- Example artifacts: `eval_runs/replays/20250830_231604/summary.md` and `grid_results.csv`.
+
+### Offline replay analysis CLI
+
+- New tool: `scripts/replay_analyze.py` parses the latest replay folder and produces:
+  - `analysis.md`: totals, gate-pass counts, BUY-like counts, cohort stats by `ATR_STOP_MULT` and `ML_PROB_MIN`, and top configs by RR.
+  - `top_configs.csv`: tabular export of the ranked top-N.
+- Inputs: `eval_runs/replays/<ts>/grid_results.csv` (no network).
+- Safety: offline-only, no sends, writes artifacts next to replay outputs.
+- Example run:
+  ```bash
+  TB_NO_TELEGRAM=1 TB_NO_DISCORD=1 TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 \
+  python3 scripts/replay_analyze.py --top 10
+  ```
+  Outputs under the latest `eval_runs/replays/<ts>/` dir.
+
+### Backtester — dynamic stop-loss prototypes (offline only)
+
+- Implemented dynamic stops in `backtester/core.py` Simulator (backtester only, live code untouched):
+  - `stop_mode`: `fixed_pct` (default), `atr_fixed`, `atr_trailing`.
+  - `atr_period`, `atr_mult` to control ATR sizing.
+  - Optional `time_cap_bars` exit.
+- `backtester/run_backtest.py` exposes CLI flags: `--stop_mode`, `--atr_period`, `--atr_mult`, `--time_cap_bars`.
+- Default behavior unchanged when not specifying flags.
+
+### Backtests — dynamic stops comparison (safe, offline)
+
+- Ran three backtests with identical EMA/fees/TP and varying `stop_mode`:
+  - fixed_pct → `eval_runs/backtests/20250830_232739/summary.json`
+  - atr_fixed → `eval_runs/backtests/20250830_232753/summary.json`
+  - atr_trailing → `eval_runs/backtests/20250830_232811/summary.json`
+- Combined report: `eval_runs/backtests/summary_20250830_dynamic_stops.md`.
+- Snapshot result on this dataset:
+  - fixed_pct had the best (least negative) CAGR/Sharpe among the three; recommend broader sweeps over `atr_mult`, `tp_pct`, windows.
+
+### Tests added (analyzer + simulator)
+
+- New tests:
+  - `tests/test_replay_analyze.py`: verifies `scripts/replay_analyze.py` produces `analysis.md` and `top_configs.csv` from a temp CSV.
+  - `tests/test_backtester_dynamic_stops.py`: sanity checks Simulator runs under `fixed_pct`, `atr_fixed`, `atr_trailing`.
+- Note: `pytest` is not currently installed in this environment; running the suite will require installation.
+  - Suggested (do not auto-run): `python3 -m pip install pytest`
+
 ## 2025-08-31 — Backtester M0 (loader+sim+strategy+CLI+tests)
 
 - New backtester package under `backtester/`:
