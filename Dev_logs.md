@@ -1,3 +1,48 @@
+## 2025-08-31 — Hybrid trader: per-run audit snapshots
+
+- Added audit trail under `runs/YYYY-MM-DD_HH-MM-SS/` gated by `TB_AUDIT=1` (default ON).
+- Writes `inputs.json` (symbol, time, price, ema12, ema26, ema50h, sentiment, signals) and `decision.json` (action, post-state).
+- Reuses the same `run_id` for inputs and decision for atomic snapshots.
+- Safe offline run produced: e.g., `runs/2025-08-31_00-34-46/inputs.json`, `decision.json`.
+- No code auto-commits; artifacts can be allowlisted for post-run commits.
+
+## 2025-08-31 — Auto-commit non-code artifacts
+
+- Added automatic commit of non-code artifacts after each run.
+- Trigger points:
+  - In `scripts/hybrid_crypto_trader.py` at end of run
+  - In `scripts/trader_run_and_commit.sh` after execution
+- Paths included: `runs/`, `eval_runs/`, `universe_runs/`, `trader_loop.log`.
+- Safe filter via `autocommit.py` excludes code files (`.py`, `.sh`, `.ipynb`, `.js`, `.ts`, `.go`, `.rs) and `.env*`.
+- Env flags:
+  - `TB_AUTOCOMMIT_ARTIFACTS` (default 1): enable/disable
+  - `TB_AUTOCOMMIT_PUSH` (default 1): push to origin
+- `.gitignore` keeps `state/` ignored by design.
+
+## 2025-08-31 — Hybrid trader: local state + cooldown persistence
+
+- Added lightweight persistent state under `state/` per symbol (e.g., `state/hybrid_trader_state_BTC-USD.json`).
+- Tracks: `in_position`, `last_entry`, `last_entry_ts`, `last_exit_ts`, `cooldown_until`, `last_order_id`, `last_close_order_id`.
+- On startup, reconciles `in_position` from broker positions when online (keeps as-is offline).
+- Entry gating: blocks new entries during cooldown and when already `in_position`.
+- Exit action clears `in_position` and starts cooldown window.
+- Env: `TB_TRADER_COOLDOWN_SEC` (default 3600) controls cooldown duration.
+- Safe offline preview tested; no trading or sends, logs show gating decisions.
+
+## 2025-08-31 — Hybrid trader: exponential backoff/retries hardening
+
+- Shared utility: `scripts/retry_utils.py` implements exponential backoff with jitter and status-code retries.
+- Integrated retries into `scripts/hybrid_crypto_trader.py` for external calls:
+  - Perplexity sentiment: retries on timeouts/transport errors and 408/429/5xx.
+  - Alpaca: `get_crypto_bars()`, `get_news()`, `get_account()`, `submit_order()`, `list_positions()` hardened with retries.
+- Observability: concise `[retry] ... attempt i status=... err=... next=...s` logs on retry only.
+- Env knobs (defaults in code): `TB_RETRY_ATTEMPTS=5`, `TB_RETRY_BASE_DELAY=0.5`, `TB_RETRY_MAX_DELAY=8`, `TB_RETRY_JITTER=1`, `TB_RETRY_STATUS_CODES=408,429,500,502,503,504`.
+- Validation (safe): offline run OK — no network, deterministic outputs.
+  ```bash
+  TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 python3 scripts/hybrid_crypto_trader.py
+  ```
+- Policy: No `.py` auto-commits. This log documents the change.
+
 ## 2025-08-30 — Git auto-commit/push hardening (allowlist + CI + scripts)
 
 - Expanded allowlist in `autocommit.py`:

@@ -74,15 +74,20 @@ set -e
   echo "[runner] done status=$STATUS"
 } >> "$LOG_OUT" 2>> "$LOG_ERR"
 
-# Auto-commit/push logs by default (set TB_TRADER_LOG_AUTOCOMMIT=0 to disable)
-if [ "${TB_TRADER_LOG_AUTOCOMMIT:-1}" != "0" ]; then
+# Auto-commit/push non-code artifacts by default
+# Controls:
+#  - TB_AUTOCOMMIT_ARTIFACTS: enable/disable (default 1)
+#  - TB_AUTOCOMMIT_PUSH: push to origin (default 1)
+if [ "${TB_AUTOCOMMIT_ARTIFACTS:-1}" != "0" ]; then
   if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    # Use autocommit allowlist (note: trader_loop.log at repo root is typically not allowlisted)
     TS_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-    python3 - << 'PY'
+    PY_PUSH="${TB_AUTOCOMMIT_PUSH:-1}"
+    python3 - << PY
+import os
 import autocommit as ac
-res = ac.auto_commit_and_push(['trader_loop.log'], extra_message='trader log update', push_enabled=True)
-print(res)
+push_enabled = os.getenv('TB_AUTOCOMMIT_PUSH','1') == '1'
+paths = ['runs','eval_runs','universe_runs','trader_loop.log']
+print(ac.auto_commit_and_push(paths, extra_message='trader artifacts', push_enabled=push_enabled))
 PY
   fi
 fi

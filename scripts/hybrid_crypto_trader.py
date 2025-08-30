@@ -1,12 +1,14 @@
 import os
+import subprocess
 import sys
 import time
 import logging
+import json
 from dataclasses import dataclass
 from typing import Optional, Tuple, Dict, Any, List
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-
+import git
 import numpy as np
 import pandas as pd
 import httpx
@@ -25,6 +27,7 @@ except Exception:
 from config import settings
 from scripts.discord_sender import send_discord_digest_to
 from telegram_bot import send_message as send_telegram
+from scripts.retry_utils import retry_call, RETRY_STATUS_CODES
 
 # ==========================
 # Logging
@@ -60,10 +63,16 @@ TF_SLOW = "1Hour"
 MAX_PORTFOLIO_RISK = float(os.getenv("TB_MAX_RISK_FRAC", "0.01"))   # 1%
 TP_PCT = float(os.getenv("TB_TP_PCT", "0.05"))                      # +5%
 SL_PCT = float(os.getenv("TB_SL_PCT", "0.02"))                      # -2%
+DAILY_LOSS_CAP_PCT = float(os.getenv("TB_DAILY_LOSS_CAP_PCT", "0.03"))  # 3% of reference equity
 
 # Sentiment
 SENTIMENT_THRESHOLD = float(os.getenv("TB_SENTIMENT_CUTOFF", "0.5"))
 PPLX_TIMEOUT = float(os.getenv("TB_PPLX_TIMEOUT", "12"))
+
+# State/cooldown
+COOLDOWN_SEC = int(os.getenv("TB_TRADER_COOLDOWN_SEC", "3600"))
+STATE_DIR = Path("state")
+RUNS_DIR = Path("runs")
 
 # ==========================
 # Helpers
@@ -90,6 +99,50 @@ def _decimals_for(sym: str) -> int:
     return 2 if "USD" in sym.replace("/", "") else 6
 
 
+def _state_key_for(sym: str) -> str:
+    s = _normalize_symbol(sym).replace("/", "-")
+    return f"hybrid_trader_state_{s}.json"
+
+
+def load_state(symbol: str) -> Dict[str, Any]:
+    try:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        p = STATE_DIR / _state_key_for(symbol)
+        if not p.exists():
+            return {}
+        with p.open("r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_state(symbol: str, st: Dict[str, Any]) -> None:
+    try:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        p = STATE_DIR / _state_key_for(symbol)
+        tmp = p.with_suffix(p.suffix + ".tmp")
+        with tmp.open("w") as f:
+            json.dump(st, f, indent=2, sort_keys=True)
+        tmp.replace(p)
+    except Exception as e:
+        logger.warning(f"[state] save failed: {e}")
+
+
+def _nowstamp() -> str:
+    return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+
+def write_json(path: Path, obj: Dict[str, Any]) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        with tmp.open("w") as f:
+            json.dump(obj, f, indent=2, sort_keys=True, default=str)
+        tmp.replace(path)
+    except Exception as e:
+        logger.warning(f"[audit] write failed: {e}")
+
+
 def fetch_bars(symbol: str, timeframe: str, lookback: int) -> pd.DataFrame:
     """Fetch recent crypto bars for given timeframe using Alpaca v2 crypto bars."""
     if OFFLINE:
@@ -107,7 +160,18 @@ def fetch_bars(symbol: str, timeframe: str, lookback: int) -> pd.DataFrame:
     else:
         raise ValueError(f"Unsupported timeframe: {timeframe}")
     start = end - delta
-    bars = api.get_crypto_bars(sym, timeframe, start.isoformat(), end.isoformat()).df
+    def _get_bars():
+        return api.get_crypto_bars(sym, timeframe, start.isoformat(), end.isoformat())
+    def _on_retry(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
+        logger.warning(f"[retry] get_bars attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s")
+    bars_resp = retry_call(
+        _get_bars,
+        attempts=int(os.getenv("TB_RETRY_ATTEMPTS", "5")),
+        retry_exceptions=(Exception,),
+        retry_status_codes=RETRY_STATUS_CODES,
+        on_retry=_on_retry,
+    )
+    bars = bars_resp.df
     if isinstance(bars.index, pd.MultiIndex):
         bars = bars.xs(sym, level=0)
     if bars.index.tz is None:
@@ -188,7 +252,23 @@ def sentiment_via_perplexity(headlines: list[str]) -> Tuple[float, Optional[str]
     with httpx.Client(timeout=PPLX_TIMEOUT) as client:
         for key in keys:
             try:
-                r = client.post("https://api.perplexity.ai/chat/completions", headers=_pplx_headers(key), json=payload)
+                def _post() -> httpx.Response:
+                    return client.post(
+                        "https://api.perplexity.ai/chat/completions",
+                        headers=_pplx_headers(key),
+                        json=payload,
+                    )
+                def _on_retry(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
+                    logger.warning(
+                        f"[retry] pplx attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s"
+                    )
+                r = retry_call(
+                    _post,
+                    attempts=int(os.getenv("TB_RETRY_ATTEMPTS", "5")),
+                    retry_exceptions=(httpx.TimeoutException, httpx.TransportError, TimeoutError, ConnectionError),
+                    retry_status_codes=RETRY_STATUS_CODES,
+                    on_retry=_on_retry,
+                )
                 if r.status_code != 200:
                     last_err = f"HTTP {r.status_code} {r.text[:160]}"; continue
                 data = r.json()
@@ -228,11 +308,43 @@ def sentiment_via_perplexity(headlines: list[str]) -> Tuple[float, Optional[str]
 
 def get_account_equity(api: REST) -> float:
     try:
-        acct = api.get_account()
+        def _get_acct():
+            return api.get_account()
+        def _on_retry(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
+            logger.warning(f"[retry] get_account attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s")
+        acct = retry_call(
+            _get_acct,
+            attempts=int(os.getenv("TB_RETRY_ATTEMPTS", "5")),
+            retry_exceptions=(Exception,),
+            retry_status_codes=RETRY_STATUS_CODES,
+            on_retry=_on_retry,
+        )
         eq = float(getattr(acct, "equity", getattr(acct, "cash", 0.0)) or 0.0)
         return eq
     except Exception:
         return 0.0
+
+
+def reconcile_position_state(api: Optional[REST], symbol: str, st: Dict[str, Any]) -> Dict[str, Any]:
+    """Update st['in_position'] based on broker positions when online; otherwise keep as-is."""
+    if api is None:
+        return st
+    try:
+        sym = _normalize_symbol(symbol)
+        qty = 0.0
+        for p in api.list_positions():
+            if getattr(p, "symbol", "") == sym:
+                try:
+                    qty = abs(float(p.qty))
+                except Exception:
+                    qty = 0.0
+                break
+        st = dict(st)
+        st["in_position"] = bool(qty > 0.0)
+        return st
+    except Exception as e:
+        logger.warning(f"[state] reconcile failed: {e}")
+        return st
 
 
 def calc_position_size(equity: float, entry: float, stop: float) -> float:
@@ -244,14 +356,24 @@ def calc_position_size(equity: float, entry: float, stop: float) -> float:
 
 def place_bracket(api: REST, symbol: str, qty: float, entry: float, tp: float, sl: float) -> Tuple[bool, Optional[str], Optional[str]]:
     try:
-        order = api.submit_order(
-            symbol=_normalize_symbol(symbol),
-            side="buy",
-            type="market",
-            time_in_force="gtc",
-            qty=qty,
-            take_profit={"limit_price": round(tp, _decimals_for(symbol))},
-            stop_loss={"stop_price": round(sl, _decimals_for(symbol))},
+        def _submit():
+            return api.submit_order(
+                symbol=_normalize_symbol(symbol),
+                side="buy",
+                type="market",
+                time_in_force="gtc",
+                qty=qty,
+                take_profit={"limit_price": round(tp, _decimals_for(symbol))},
+                stop_loss={"stop_price": round(sl, _decimals_for(symbol))},
+            )
+        def _on_retry(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
+            logger.warning(f"[retry] submit_order attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s")
+        order = retry_call(
+            _submit,
+            attempts=int(os.getenv("TB_RETRY_ATTEMPTS", "5")),
+            retry_exceptions=(Exception,),
+            retry_status_codes=RETRY_STATUS_CODES,
+            on_retry=_on_retry,
         )
         oid = getattr(order, "id", None) or getattr(order, "client_order_id", None)
         return True, (str(oid) if oid else None), None
@@ -262,8 +384,19 @@ def place_bracket(api: REST, symbol: str, qty: float, entry: float, tp: float, s
 def close_position_if_any(api: REST, symbol: str) -> Optional[str]:
     sym = _normalize_symbol(symbol)
     try:
+        def _list_pos():
+            return api.list_positions()
+        def _on_retry_list(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
+            logger.warning(f"[retry] list_positions attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s")
+        positions = retry_call(
+            _list_pos,
+            attempts=int(os.getenv("TB_RETRY_ATTEMPTS", "5")),
+            retry_exceptions=(Exception,),
+            retry_status_codes=RETRY_STATUS_CODES,
+            on_retry=_on_retry_list,
+        )
         pos = None
-        for p in api.list_positions():
+        for p in positions:
             if getattr(p, "symbol", "") == sym:
                 pos = p; break
         if not pos:
@@ -271,7 +404,17 @@ def close_position_if_any(api: REST, symbol: str) -> Optional[str]:
         qty = abs(float(pos.qty))
         if qty <= 0:
             return None
-        order = api.submit_order(symbol=sym, side="sell", type="market", time_in_force="gtc", qty=qty)
+        def _submit_close():
+            return api.submit_order(symbol=sym, side="sell", type="market", time_in_force="gtc", qty=qty)
+        def _on_retry_close(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
+            logger.warning(f"[retry] submit_close attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s")
+        order = retry_call(
+            _submit_close,
+            attempts=int(os.getenv("TB_RETRY_ATTEMPTS", "5")),
+            retry_exceptions=(Exception,),
+            retry_status_codes=RETRY_STATUS_CODES,
+            on_retry=_on_retry_close,
+        )
         oid = getattr(order, "id", None) or getattr(order, "client_order_id", None)
         return str(oid) if oid else None
     except Exception as e:
@@ -319,7 +462,18 @@ def notify(event: str, payload: Dict[str, Any]) -> None:
 def main() -> int:
     logger.info("Starting Hybrid EMA+Sentiment Trader (safe=%s, no_trade=%s)", OFFLINE, NO_TRADE)
     api = _rest() if not OFFLINE else None
+    # Load and reconcile state
+    state = load_state(SYMBOL)
+    if not OFFLINE:
+        state = reconcile_position_state(api, SYMBOL, state)
+    # Daily PnL book-keeping
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if state.get("pnl_date") != today:
+        # set equity reference at start of day
+        eq_ref = get_account_equity(api) if not OFFLINE else 100000.0
+        state.update({"pnl_date": today, "pnl_today": 0.0, "equity_ref": float(eq_ref)})
 
+    logger.info("[progress] Fetching bars...")
     # Fetch bars
     bars_15 = fetch_bars(SYMBOL, TF_FAST, lookback=200)
     bars_1h = fetch_bars(SYMBOL, TF_SLOW, lookback=200)
@@ -329,10 +483,12 @@ def main() -> int:
 
     ema12 = ema(bars_15["close"], 12)
     ema26 = ema(bars_15["close"], 26)
+    ema50h = ema(bars_1h["close"], 50)
     cross_up = detect_cross_up(ema12, ema26)
     cross_down = detect_cross_down(ema12, ema26)
-    trend_up = one_hour_trend_up(bars_1h)
+    trend_up = bool(bars_1h["close"].iloc[-1] > ema50h.iloc[-1])
 
+    logger.info("[progress] Computing indicators...")
     price = float(bars_15["close"].iloc[-1])
 
     # Sentiment
@@ -345,18 +501,55 @@ def main() -> int:
         ]
     else:
         try:
-            headlines = [getattr(n, "headline", getattr(n, "title", "")) for n in _rest().get_news(_normalize_symbol(SYMBOL), limit=10)]
+            api_news = _rest()
+            def _get_news():
+                return api_news.get_news(_normalize_symbol(SYMBOL), limit=10)
+            def _on_retry_news(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
+                logger.warning(f"[retry] get_news attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s")
+            news = retry_call(
+                _get_news,
+                attempts=int(os.getenv("TB_RETRY_ATTEMPTS", "5")),
+                retry_exceptions=(Exception,),
+                retry_status_codes=RETRY_STATUS_CODES,
+                on_retry=_on_retry_news,
+            )
+            headlines = [getattr(n, "headline", getattr(n, "title", "")) for n in news]
             headlines = [h for h in headlines if h]
         except Exception:
             headlines = []
+    logger.info("[progress] Fetching sentiment...")
     sentiment, serr = sentiment_via_perplexity(headlines)
     if serr:
         logger.info(f"[sentiment] fallback notice: {serr}")
 
     logger.info("Signals: cross_up=%s cross_down=%s trend_up=%s sentiment=%.3f price=%.2f", cross_up, cross_down, trend_up, sentiment, price)
 
+    # Per-run audit snapshot (inputs + signals + pre-state)
+    run_id = None
+    run_dir = None
+    if os.getenv("TB_AUDIT", "1") == "1":
+        run_id = _nowstamp()
+        run_dir = RUNS_DIR / run_id
+        inputs = {
+            "symbol": SYMBOL,
+            "time": datetime.now(timezone.utc).isoformat(),
+            "price": round(price, 2),
+            "ema12": float(ema12.iloc[-1]),
+            "ema26": float(ema26.iloc[-1]),
+            "ema50h": float(ema50h.iloc[-1]),
+            "sentiment": float(sentiment),
+            "cross_up": bool(cross_up),
+            "cross_down": bool(cross_down),
+            "trend_up": bool(trend_up),
+        }
+        write_json(run_dir / "inputs.json", inputs)
+        logger.info(f"[progress] Wrote audit inputs -> {run_dir}/inputs.json")
+
     # Decision logic
     did_anything = False
+    now_ts = int(time.time())
+    cooldown_until = int(state.get("cooldown_until", 0))
+    in_position = bool(state.get("in_position", False))
 
     # Optional test hook: force a tiny BUY to validate E2E order flow when enabled.
     # Enabled only when online (OFFLINE=0) and trading allowed (TB_NO_TRADE=0).
@@ -376,39 +569,133 @@ def main() -> int:
             notify("submit", {"symbol": SYMBOL, "side": "buy", "qty": qty, "entry": round(entry, 2), "tp": round(tp, 2), "sl": round(sl, 2), "sentiment": round(sentiment, 3), "status": "submitted" if ok else f"failed:{err}"})
             logger.info("[test] forced BUY submitted: ok=%s id=%s err=%s", ok, oid, err)
             did_anything = True
+        decision = {"action": "close"}
 
+    decision = {"action": "hold", "reason": "no_signal"}
     if cross_up and trend_up and sentiment >= SENTIMENT_THRESHOLD:
         # Long entry
-        if NO_TRADE or OFFLINE:
+        # Risk gate: daily loss cap
+        loss_cap = -DAILY_LOSS_CAP_PCT * float(state.get("equity_ref", 100000.0))
+        if float(state.get("pnl_today", 0.0)) <= loss_cap:
+            logger.info("[gate] Entry blocked: daily loss cap reached (pnl_today=%.2f cap=%.2f)", state.get("pnl_today", 0.0), loss_cap)
+        elif cooldown_until > now_ts:
+            logger.info("[gate] Entry blocked by cooldown (%ds remaining)", cooldown_until - now_ts)
+        elif in_position:
+            logger.info("[gate] Entry blocked: already in_position")
+        elif NO_TRADE or OFFLINE:
             logger.info("[gate] would BUY but blocked by no_trade/offline gates")
         equity = get_account_equity(api) if not OFFLINE else 100000.0
         qty = calc_position_size(equity, entry, sl)
         payload = {"symbol": SYMBOL, "entry": round(entry, 2), "tp": round(tp, 2), "sl": round(sl, 2), "qty": round(qty, 6), "price": round(price, 2), "sentiment": round(sentiment, 3), "status": "preview"}
-        if OFFLINE or NO_TRADE:
-            logger.info("[preview] Would BUY qty=%.6f @ %.2f tp=%.2f sl=%.2f", qty, entry, tp, sl)
-            notify("would_submit", payload)
-            did_anything = True
-        else:
-            ok, oid, err = place_bracket(api, SYMBOL, qty, entry, tp, sl)
-            payload.update({"status": "submitted" if ok else f"error: {err}", "order_id": oid})
-            notify("submit", payload)
-            logger.info("[submit] %s", payload["status"]) 
-            did_anything = True
+        if (cooldown_until <= now_ts) and (not in_position):
+            if OFFLINE or NO_TRADE:
+                logger.info("[preview] Would BUY qty=%.6f @ %.2f tp=%.2f sl=%.2f", qty, entry, tp, sl)
+                notify("would_submit", payload)
+                # Update state with intent + cooldown start (preview mode still sets cooldown)
+                state.update({
+                    "in_position": True,
+                    "last_entry": float(entry),
+                    "last_entry_ts": now_ts,
+                    "cooldown_until": now_ts + COOLDOWN_SEC,
+                    "last_qty": float(qty),
+                })
+                did_anything = True
+            else:
+                ok, oid, err = place_bracket(api, SYMBOL, qty, entry, tp, sl)
+                payload.update({"status": "submitted" if ok else f"error: {err}", "order_id": oid})
+                notify("submit", payload)
+                logger.info("[submit] %s", payload["status"]) 
+                if ok:
+                    state.update({
+                        "in_position": True,
+                        "last_entry": float(entry),
+                        "last_entry_ts": now_ts,
+                        "cooldown_until": now_ts + COOLDOWN_SEC,
+                        "last_order_id": oid,
+                        "last_qty": float(qty),
+                    })
+                did_anything = True
+            # Mark decision for audit
+            decision = {"action": "buy", "qty": float(qty), "entry": float(entry), "tp": float(tp), "sl": float(sl)}
 
     # Exit condition: bearish cross and we have a position
     if cross_down:
         if OFFLINE or NO_TRADE:
             logger.info("[preview] Would CLOSE any open position due to bearish cross")
             notify("would_close", {"symbol": SYMBOL, "price": round(price, 2), "sentiment": round(sentiment, 3), "status": "preview"})
+            # Preview: clear position and start cooldown
+            # Estimate PnL for preview close if we have last_entry/qty
+            pnl = 0.0
+            try:
+                if state.get("in_position") and (state.get("last_entry") is not None) and (state.get("last_qty") is not None):
+                    pnl = (float(price) - float(state.get("last_entry", 0.0))) * float(state.get("last_qty", 0.0))
+            except Exception:
+                pnl = 0.0
+            state.update({
+                "in_position": False,
+                "last_exit_ts": now_ts,
+                "cooldown_until": now_ts + COOLDOWN_SEC,
+                "pnl_today": float(state.get("pnl_today", 0.0)) + float(pnl),
+            })
             did_anything = True
         else:
             oid = close_position_if_any(api, SYMBOL)
             notify("close", {"symbol": SYMBOL, "price": round(price, 2), "sentiment": round(sentiment, 3), "status": "submitted", "order_id": oid})
             logger.info("[close] submitted market close order: %s", oid)
+            # Estimate realized PnL using current price vs last_entry for last_qty
+            pnl = 0.0
+            try:
+                if state.get("in_position") and (state.get("last_entry") is not None) and (state.get("last_qty") is not None):
+                    pnl = (float(price) - float(state.get("last_entry", 0.0))) * float(state.get("last_qty", 0.0))
+            except Exception:
+                pnl = 0.0
+            state.update({
+                "in_position": False,
+                "last_exit_ts": now_ts,
+                "cooldown_until": now_ts + COOLDOWN_SEC,
+                "last_close_order_id": oid,
+                "pnl_today": float(state.get("pnl_today", 0.0)) + float(pnl),
+            })
             did_anything = True
 
     if not did_anything:
         logger.info("No action taken.")
+        decision = {"action": "hold"}
+    # Persist state if we touched it
+    try:
+        save_state(SYMBOL, state)
+    except Exception:
+        pass
+
+    # Write decision + post-state
+    if os.getenv("TB_AUDIT", "1") == "1" and run_dir is not None:
+        try:
+            write_json(run_dir / "decision.json", {
+                "decision": decision,
+                "state": state,
+            })
+            logger.info(f"[progress] Wrote audit decision -> {run_dir}/decision.json")
+        except Exception as e:
+            logger.warning(f"[audit] decision write failed: {e}")
+
+    # Optional: auto-commit safe artifacts (non-code) using autocommit helper
+    try:
+        if os.getenv("TB_AUTOCOMMIT_ARTIFACTS", "1") == "1":
+            push_enabled = os.getenv("TB_AUTOCOMMIT_PUSH", "1") == "1"
+            # Call autocommit.auto_commit_and_push safely
+            code = subprocess.call([
+                "python3", "-c",
+                (
+                    "import autocommit as ac; "
+                    "print(ac.auto_commit_and_push(['runs','eval_runs','universe_runs','trader_loop.log'], "
+                    "extra_message='local artifacts', push_enabled="
+                    + ("True" if push_enabled else "False") +
+                    "))"
+                )
+            ])
+            logger.info("[autocommit] attempted with push=%s status=%s", push_enabled, code)
+    except Exception as e:
+        logger.warning("[autocommit] failed: %s", e)
     return 0
 
 
