@@ -47,6 +47,16 @@
   - Safe offline replay harness executes `main()` with all gates enabled in offline/preview mode.
 - Test run: 123 passed.
 
+### Offline replay sweep — grid over gates (safe)
+- Added `scripts/replay_sweep.py` to run a safe, offline parameter sweep and write artifacts under `eval_runs/replays/<ts>/`.
+- Grid:
+  - `TB_ML_GATE_MIN_PROB ∈ {0.55, 0.60, 0.65}`
+  - `TB_ATR_MIN_PCT ∈ {0.001, 0.0015, 0.002}`
+  - `TB_ATR_MAX_PCT ∈ {0.03, 0.05, 0.08}`
+  - `TB_ATR_STOP_MULT ∈ {1.0, 1.5, 2.0}`
+- Safe flags enforced: `TB_TRADER_OFFLINE=1`, `TB_NO_TRADE=1`, `TB_TRADER_NOTIFY=0`, `TB_NO_TELEGRAM=1`, `TB_ENABLE_DISCORD=0`, `TB_AUTOCOMMIT_ARTIFACTS=0`.
+- Latest run summary: `eval_runs/replays/20250830_230524/summary.md` (CSV at `grid_results.csv`). Total combos: 81.
+
 ## 2025-08-31 — Backtester M0 (loader+sim+strategy+CLI+tests)
 
 - New backtester package under `backtester/`:
