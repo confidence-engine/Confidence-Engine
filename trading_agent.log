@@ -1784,3 +1784,26 @@
 2025-08-31 04:28:55,583 [INFO] [progress] Wrote audit inputs -> runs/2025-08-31_04-28-47/inputs.json
 2025-08-31 04:28:55,584 [INFO] No action taken.
 2025-08-31 04:28:55,585 [INFO] [progress] Wrote audit decision -> runs/2025-08-31_04-28-47/decision.json
+2025-08-31 04:28:57,219 [INFO] [autocommit] attempted with push=True status=0
+2025-08-31 04:28:57,219 [INFO] [run] complete run_id=2025-08-31_04-28-47 decision=hold
+2025-08-31 04:28:58,622 [INFO] Starting Hybrid EMA+Sentiment Trader (safe=True, no_trade=True)
+2025-08-31 04:28:58,622 [INFO] [run] start run_id=2025-08-31_04-28-58 symbol=BTC/USD
+2025-08-31 04:28:58,622 [INFO] [progress] Fetching bars...
+2025-08-31 04:28:58,623 [INFO] [progress] Computing indicators...
+2025-08-31 04:28:58,623 [INFO] [progress] Fetching sentiment...
+2025-08-31 04:28:58,623 [INFO] Signals: cross_up=False cross_down=False trend_up=True debounce_ok=True sentiment=0.620 price=63058.17
+2025-08-31 04:28:58,629 [INFO] [ml_gate] prob=0.000 min=0.00
+2025-08-31 04:28:58,630 [INFO] [progress] Wrote audit inputs -> runs/2025-08-31_04-28-58/inputs.json
+2025-08-31 04:28:58,631 [INFO] No action taken.
+2025-08-31 04:28:58,631 [INFO] [progress] Wrote audit decision -> runs/2025-08-31_04-28-58/decision.json
+2025-08-31 04:28:58,631 [INFO] [run] complete run_id=2025-08-31_04-28-58 decision=hold
+2025-08-31 04:29:59,334 [INFO] Starting Hybrid EMA+Sentiment Trader (safe=False, no_trade=False)
+2025-08-31 04:29:59,337 [INFO] [run] start run_id=2025-08-31_04-29-59 symbol=BTC/USD
+2025-08-31 04:30:00,400 [INFO] [progress] Fetching bars...
+2025-08-31 04:30:02,635 [INFO] [progress] Computing indicators...
+2025-08-31 04:30:03,674 [INFO] [progress] Fetching sentiment...
+2025-08-31 04:30:06,276 [INFO] Signals: cross_up=False cross_down=False trend_up=False debounce_ok=False sentiment=0.620 price=108534.35
+2025-08-31 04:30:06,312 [INFO] [ml_gate] prob=0.000 min=0.50
+2025-08-31 04:30:06,314 [INFO] [progress] Wrote audit inputs -> runs/2025-08-31_04-29-59/inputs.json
+2025-08-31 04:30:06,315 [INFO] No action taken.
+2025-08-31 04:30:06,317 [INFO] [progress] Wrote audit decision -> runs/2025-08-31_04-29-59/decision.json
