@@ -990,3 +990,41 @@ TB_UNIVERSE_GIT_AUTOCOMMIT=1 python3 scripts/scan_universe.py --config config/un
 ```
 TB_UNIVERSE_GIT_AUTOCOMMIT=1 TB_UNIVERSE_GIT_PUSH=1 python3 scripts/scan_universe.py --config config/universe.yaml --top 5
 ```
+
+---
+
+## Ops & Automation — Hybrid Trader (24/7)
+
+This project includes a fully automated hybrid crypto trader with self-healing and monitoring.
+
+- **Start loop**: `scripts/start_hybrid_loop.sh`
+  - Loads `.env`, sets conservative defaults, starts a periodic ML retrainer and the trader loop.
+  - Preflight: if `config/promoted_params.json` is missing/stale (> `TB_START_MAX_PROMOTED_AGE_DAYS`, default 8), it auto-runs `scripts/weekly_propose_canary.sh` before starting.
+  - Artifacts auto-commit/push (JSON/CSV/MD only; never `*.py`) controlled by `TB_AUTOCOMMIT_ARTIFACTS`, `TB_AUTOCOMMIT_PUSH`.
+
+- **Robustness gates (env toggles)**
+  - `TB_USE_ML_GATE`, `TB_ML_GATE_MODEL_PATH`, `TB_ML_GATE_MIN_PROB`
+  - `TB_USE_ATR_FILTER`, `TB_ATR_LEN`, `TB_ATR_MIN_PCT`, `TB_ATR_MAX_PCT`
+  - `TB_USE_HTF_REGIME`, `TB_HTF_EMA_LEN`
+
+- **Notifications**
+  - Enable via `TB_TRADER_NOTIFY=1` and channels: Discord (`TB_ENABLE_DISCORD=1`, `DISCORD_WEBHOOK_URL`), Telegram allowed unless `TB_NO_TELEGRAM=1`.
+  - Heartbeats every N runs: `TB_TRADER_NOTIFY_HEARTBEAT=1`, `TB_HEARTBEAT_EVERY_N`.
+
+- **Watchdog (cron)**
+  - Every 2 minutes restarts the loop if it dies: `scripts/watchdog_hybrid.sh`  (crontab tag `# com.tracer.watchdog-hybrid`).
+
+- **Daily health check (cron 09:00)**
+  - `scripts/health_check.sh` verifies process, log freshness, recent `runs/`, and promoted params freshness.
+  - Self-heal: if `promoted_params.json` is stale/missing, it runs `scripts/weekly_propose_canary.sh` once (lock-protected), then re-checks before alerting.
+  - Alerts only on failure (Discord/Telegram gated by env).
+
+- **Weekly propose+canary**
+  - Primary cron Sundays 03:00; backup Wednesdays 03:00 to ensure refresh.
+
+- **Quick ops**
+  - Start live: `bash scripts/start_hybrid_loop.sh`
+  - Tail logs: `tail -n 200 -f trader_loop.err` and `tail -n 200 -f trader_loop.log`
+  - Processes: `ps ax | egrep 'hybrid_crypto_trader.py|ml_retrainer.py' | egrep -v egrep`
+
+See `docs/commands.md` for concrete cron lines and stop/disable examples.

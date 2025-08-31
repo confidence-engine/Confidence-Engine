@@ -387,3 +387,54 @@ python3 -m pytest -q
 - TB_NO_TELEGRAM, TB_NO_DISCORD — disable sends during safe runs
 - TB_UNIVERSE_GIT_AUTOCOMMIT/PUSH, TB_EVAL_GIT_AUTOCOMMIT/PUSH — control git ops
 
+## Ops & Automation (Hybrid Trader)
+
+- **Start 24/7 loop**
+  - Preferred entrypoint (preflight + nohup + retrainer):
+  ```
+  bash scripts/start_hybrid_loop.sh
+  ```
+  - Preflight refresh: auto-runs `scripts/weekly_propose_canary.sh` if `config/promoted_params.json` is missing/stale (> `TB_START_MAX_PROMOTED_AGE_DAYS`, default 8).
+
+- **Watchdog (every 2 minutes)** — restarts loop if down
+  - Install cron (tag: `# com.tracer.watchdog-hybrid`):
+  ```
+  */2 * * * * /bin/bash -lc "/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/watchdog_hybrid.sh" # com.tracer.watchdog-hybrid
+  ```
+
+- **Daily health check (09:00)** — alerts only on failure; self-heals staleness
+  - Install cron (tag: `# com.tracer.health-check`):
+  ```
+  0 9 * * * /bin/bash -lc "/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/health_check.sh" # com.tracer.health-check
+  ```
+
+- **Weekly propose+canary** — parameter refresh
+  - Primary (Sunday 03:00) + Backup (Wednesday 03:00):
+  ```
+  0 3 * * 0 /bin/bash -lc "/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/weekly_propose_canary.sh" # com.tracer.weekly-propose-canary
+  0 3 * * 3 /bin/bash -lc "/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/weekly_propose_canary.sh" # com.tracer.weekly-propose-canary-backup
+  ```
+
+- **Monitoring**
+  - Logs:
+  ```
+  tail -n 200 -f trader_loop.err
+  tail -n 200 -f trader_loop.log
+  ```
+  - Processes:
+  ```
+  ps ax | egrep 'hybrid_crypto_trader.py|ml_retrainer.py' | egrep -v egrep
+  ```
+
+- **Stop/Pause**
+  - Stop trader once (watchdog may restart):
+  ```
+  pkill -f 'python3 scripts/hybrid_crypto_trader.py'
+  ```
+  - Temporarily disable watchdog/health check: edit with `crontab -e` and remove or comment the lines above (identified by tags).
+
+- **Key env knobs**
+  - Notifications: `TB_TRADER_NOTIFY`, `TB_TRADER_NOTIFY_HEARTBEAT`, `TB_HEARTBEAT_EVERY_N`, `TB_ENABLE_DISCORD`, `TB_NO_TELEGRAM`
+  - Robustness: `TB_USE_ML_GATE`, `TB_ML_GATE_MIN_PROB`, `TB_USE_ATR_FILTER`, `TB_ATR_*`, `TB_USE_HTF_REGIME`, `TB_HTF_EMA_LEN`
+  - Health thresholds: `TB_HEALTH_MAX_LOG_AGE_MIN`, `TB_HEALTH_MAX_RUNS_AGE_HR`, `TB_HEALTH_MAX_PROMOTED_AGE_DAYS`, `TB_HEALTH_SELFHEAL_LOCK_MAX_MIN`
+  - Start preflight: `TB_START_MAX_PROMOTED_AGE_DAYS`

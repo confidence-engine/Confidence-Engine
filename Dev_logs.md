@@ -1,3 +1,35 @@
+## 2025-08-31 — Reliability hardening: no-intervention weekly refresh
+
+- `scripts/start_hybrid_loop.sh`: added preflight that auto-runs `scripts/weekly_propose_canary.sh` if `config/promoted_params.json` is missing or stale (threshold `TB_START_MAX_PROMOTED_AGE_DAYS`, default 8).
+- `scripts/health_check.sh`: added self-heal path to run `scripts/weekly_propose_canary.sh` once (lock-protected) if `promoted_params.json` is stale, then re-checks freshness before alerting.
+- Cron: added backup weekly run on Wednesdays 03:00 (in addition to Sundays 03:00).
+- Outcome: Weekly propose+canary now occurs automatically or is self-healed; alerts only if both scheduled and self-heal paths fail.
+
+## 2025-08-31 — Watchdog + Daily Health Check installed
+
+- Added `scripts/start_hybrid_loop.sh` to standardize launching the autonomous loop (nohup) with auto-apply, ATR/HTF gates, ML retrain, and artifact auto-commit.
+- Added `scripts/watchdog_hybrid.sh` to restart the loop if it dies; optional Discord alert on restart (gated by `TB_ENABLE_DISCORD` + `DISCORD_WEBHOOK_URL`).
+- Added `scripts/health_check.sh` to verify process status, log freshness, and recent `runs/` artifacts; alerts only on failure (Discord/Telegram gated by env).
+- Cron installed:
+  - `*/2 * * * *` watchdog — `# com.tracer.watchdog-hybrid`
+  - `0 9 * * *` daily health check — `# com.tracer.health-check`
+
+## 2025-08-31 — Weekly propose+canary scheduled via cron (fallback to launchd)
+
+- Installed crontab entry to run `scripts/weekly_propose_canary.sh` every Sunday at 03:00 local time.
+- Rationale: launchd bootstrap failed in this session; cron provides a reliable fallback.
+- Safety: script defaults to offline/no-trade for propose+canary; commits only artifacts (no `.py`).
+
+## 2025-08-31 — Live auto-apply verified + weekly automation assets
+
+- Live auto-apply in `scripts/hybrid_crypto_trader.py` fixed a global declaration issue and verified offline:
+  - Safe run applied `TP_PCT` from `config/promoted_params.json` and wrote audit at `eval_runs/live_auto_apply/apply_<ts>.json`.
+  - Kill switch/env: `TB_AUTO_APPLY_ENABLED=1` to enable, `TB_AUTO_APPLY_KILL=1` to block immediately.
+- Weekly automation (opt-in, disabled by default):
+  - Script: `scripts/weekly_propose_canary.sh` runs propose + guarded canary with conservative guardrails; commits artifacts only.
+  - launchd plist: `launchd/com.tracer.weekly-propose-canary.plist` schedules Sundays 03:00; `Disabled=true` (manual `launchctl load` required).
+- Safety: offline/no-trade defaults; no `.py` auto-commits. Artifacts and docs only.
+
 ## 2025-08-31 — Backtester M1–M4 completed (grid, walk-forward, ML, live gate)
 
 - Grid search (`backtester/grid_search.py`): runs param sweeps; writes `results.csv`, `top20.csv` under `eval_runs/backtests/grid_<ts>/`.
