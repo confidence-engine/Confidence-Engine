@@ -118,6 +118,11 @@ class Simulator:
         cooldown_sec: int = 3600,
         risk_frac: float = 0.01,
         starting_equity: float = 10000.0,
+        # Dynamic stop prototypes (backtester-only)
+        stop_mode: str = "fixed_pct",  # one of: fixed_pct, atr_fixed, atr_trailing
+        atr_period: int = 14,
+        atr_mult: float = 1.5,
+        time_cap_bars: int = 0,  # 0 disables time-based exit
     ):
         self.fee = fee_bps / 10000.0
         self.slip = slippage_bps / 10000.0
@@ -126,6 +131,10 @@ class Simulator:
         self.cooldown = timedelta(seconds=cooldown_sec)
         self.risk_frac = risk_frac
         self.starting_equity = starting_equity
+        self.stop_mode = stop_mode
+        self.atr_period = atr_period
+        self.atr_mult = atr_mult
+        self.time_cap_bars = max(0, int(time_cap_bars or 0))
 
     def run(self, bars: pd.DataFrame, signals: pd.DataFrame) -> Tuple[List[Trade], pd.DataFrame, Dict[str, float]]:
         in_pos = False
@@ -134,6 +143,25 @@ class Simulator:
         last_exit_time: Optional[pd.Timestamp] = None
         trades: List[Trade] = []
         equity = self.starting_equity
+        current_stop = None  # dynamic stop tracker
+        bars_in_trade = 0
+
+        # Precompute ATR (simple true range with Wilder smoothing)
+        def _atr(df: pd.DataFrame, period: int) -> pd.Series:
+            high = df["high"].astype(float)
+            low = df["low"].astype(float)
+            close = df["close"].astype(float)
+            prev_close = close.shift(1)
+            tr = pd.concat([
+                (high - low),
+                (high - prev_close).abs(),
+                (low - prev_close).abs(),
+            ], axis=1).max(axis=1)
+            # Wilder's smoothing
+            atr = tr.ewm(alpha=1/period, adjust=False).mean()
+            return atr
+
+        atr_series = _atr(bars, self.atr_period) if self.stop_mode in ("atr_fixed", "atr_trailing") else None
 
         for i, row in bars.iterrows():
             ts = row["timestamp"]
@@ -152,10 +180,33 @@ class Simulator:
                     trades.append(Trade(entry_time=ts, entry_price=entry_price, qty=qty, reason="enter_long"))
                     in_pos = True
                     last_exit_time = None
+                    bars_in_trade = 0
+                    # Initialize dynamic stop
+                    if self.stop_mode == "fixed_pct":
+                        current_stop = entry_price * (1 - self.sl)
+                    elif self.stop_mode in ("atr_fixed", "atr_trailing") and atr_series is not None:
+                        atr_val = float(atr_series.iloc[i]) if pd.notna(atr_series.iloc[i]) else float("nan")
+                        if np.isfinite(atr_val):
+                            current_stop = entry_price - self.atr_mult * atr_val
+                        else:
+                            current_stop = entry_price * (1 - self.sl)
+                    else:
+                        current_stop = entry_price * (1 - self.sl)
             else:
-                # Check TP/SL intra-bar
+                # Update trailing ATR stop if enabled
+                if self.stop_mode == "atr_trailing" and atr_series is not None:
+                    atr_val = float(atr_series.iloc[i]) if pd.notna(atr_series.iloc[i]) else float("nan")
+                    if np.isfinite(atr_val):
+                        proposed = c - self.atr_mult * atr_val
+                        # Only ratchet upwards for long positions
+                        if current_stop is None:
+                            current_stop = proposed
+                        else:
+                            current_stop = max(current_stop, proposed)
+
+                # Check TP/SL intra-bar (use current_stop)
                 take = entry_price * (1 + self.tp)
-                stop = entry_price * (1 - self.sl)
+                stop = current_stop if current_stop is not None else entry_price * (1 - self.sl)
                 exit_reason = None
                 exit_price = None
                 if l <= stop:
@@ -167,6 +218,9 @@ class Simulator:
                 elif sig.get("exit_long", False):
                     exit_price = c * (1 - self.slip)
                     exit_reason = "signal_exit"
+                elif self.time_cap_bars > 0 and bars_in_trade >= self.time_cap_bars:
+                    exit_price = c * (1 - self.slip)
+                    exit_reason = "time_cap"
 
                 if exit_price is not None:
                     fee = exit_price * qty * self.fee
@@ -176,9 +230,11 @@ class Simulator:
                     equity += (exit_price - entry_price) * qty - fee
                     in_pos = False
                     last_exit_time = ts
+                    current_stop = None
+                    bars_in_trade = 0
                 else:
                     # hold
-                    pass
+                    bars_in_trade += 1
 
             # cooldown: prevent immediate re-entry after an exit
             if not in_pos and last_exit_time is not None:

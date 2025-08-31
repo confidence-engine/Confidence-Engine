@@ -25,6 +25,11 @@ def main():
     ap.add_argument("--cooldown_sec", type=int, default=3600)
     ap.add_argument("--risk_frac", type=float, default=0.01)
     ap.add_argument("--starting_equity", type=float, default=10000.0)
+    # Dynamic stop prototypes (backtester-only)
+    ap.add_argument("--stop_mode", default="fixed_pct", choices=["fixed_pct", "atr_fixed", "atr_trailing"])
+    ap.add_argument("--atr_period", type=int, default=14)
+    ap.add_argument("--atr_mult", type=float, default=1.5)
+    ap.add_argument("--time_cap_bars", type=int, default=0)
     args = ap.parse_args()
 
     loader = DataLoader(args.bars_dir)
@@ -48,6 +53,10 @@ def main():
         cooldown_sec=args.cooldown_sec,
         risk_frac=args.risk_frac,
         starting_equity=args.starting_equity,
+        stop_mode=args.stop_mode,
+        atr_period=args.atr_period,
+        atr_mult=args.atr_mult,
+        time_cap_bars=args.time_cap_bars,
     )
 
     trades, curve, summary = sim.run(bars, signals)

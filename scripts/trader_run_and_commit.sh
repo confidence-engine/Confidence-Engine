@@ -86,7 +86,7 @@ if [ "${TB_AUTOCOMMIT_ARTIFACTS:-1}" != "0" ]; then
 import os
 import autocommit as ac
 push_enabled = os.getenv('TB_AUTOCOMMIT_PUSH','1') == '1'
-paths = ['runs','eval_runs','universe_runs','trader_loop.log']
+paths = ['runs','eval_runs','universe_runs']
 print(ac.auto_commit_and_push(paths, extra_message='trader artifacts', push_enabled=push_enabled))
 PY
   fi

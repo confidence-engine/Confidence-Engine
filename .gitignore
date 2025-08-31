@@ -11,3 +11,17 @@ __pycache__/
 # Trader state (transient)
 state/
 !state/trade_journal.csv
+
+# Logs and runtime outputs (transient)
+trader_loop.log
+trader_loop.err
+trading_agent.log
+*.log
+*.err
+
+# Canary-generated bar caches (transient)
+bars_canary_*/
+
+# Do not track new Python scripts/tests going forward
+scripts/*.py
+tests/*.py

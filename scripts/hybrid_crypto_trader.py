@@ -58,6 +58,12 @@ NO_TELEGRAM = os.getenv("TB_NO_TELEGRAM", "1").lower() in ("1", "true", "on", "y
 HEARTBEAT = os.getenv("TB_TRADER_NOTIFY_HEARTBEAT", "0") == "1"
 HEARTBEAT_EVERY_N = int(os.getenv("TB_HEARTBEAT_EVERY_N", "12"))  # every N runs
 
+# Live auto-apply of promoted parameters (opt-in)
+AUTO_APPLY_ENABLED = os.getenv("TB_AUTO_APPLY_ENABLED", "0").lower() in ("1", "true", "on", "yes")
+AUTO_APPLY_KILL = os.getenv("TB_AUTO_APPLY_KILL", "0").lower() in ("1", "true", "on", "yes")
+PROMOTED_PARAMS_PATH = Path("config/promoted_params.json")
+AUTO_APPLY_AUDIT_DIR = Path("eval_runs/live_auto_apply")
+
 # Optional ML gate
 USE_ML_GATE = os.getenv("TB_USE_ML_GATE", "0") == "1"
 ML_MODEL_PATH = os.getenv("TB_ML_GATE_MODEL_PATH", "eval_runs/ml/latest/model.pt")
@@ -85,6 +91,10 @@ MAX_PORTFOLIO_RISK = float(os.getenv("TB_MAX_RISK_FRAC", "0.01"))   # 1%
 TP_PCT = float(os.getenv("TB_TP_PCT", "0.05"))                      # +5%
 SL_PCT = float(os.getenv("TB_SL_PCT", "0.02"))                      # -2%
 DAILY_LOSS_CAP_PCT = float(os.getenv("TB_DAILY_LOSS_CAP_PCT", "0.03"))  # 3% of reference equity
+
+# Optional ATR-based stop sizing (replaces fixed SL_PCT when enabled)
+USE_ATR_STOP = os.getenv("TB_USE_ATR_STOP", "0") == "1"
+ATR_STOP_MULT = float(os.getenv("TB_ATR_STOP_MULT", "1.5"))
 
 # Sentiment
 SENTIMENT_THRESHOLD = float(os.getenv("TB_SENTIMENT_CUTOFF", "0.5"))
@@ -162,6 +172,105 @@ def write_json(path: Path, obj: Dict[str, Any]) -> None:
         tmp.replace(path)
     except Exception as e:
         logger.warning(f"[audit] write failed: {e}")
+
+
+def _safe_float(v: Any, default: float = 0.0) -> float:
+    try:
+        if v is None:
+            return default
+        return float(v)
+    except Exception:
+        return default
+
+
+def maybe_auto_apply_params(now_utc: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """If enabled and not killed, load promoted params and apply to runtime globals.
+
+    Maps promoted config fields to live runtime variables:
+      - risk_frac -> MAX_PORTFOLIO_RISK
+      - stop_mode == fixed_pct -> USE_ATR_STOP=False, TP_PCT/SL_PCT from tp_pct/sl_pct
+      - stop_mode in {atr_fixed, atr_trailing} -> USE_ATR_STOP=True, ATR_STOP_MULT from atr_mult, ATR_LEN from atr_period, TP_PCT from tp_pct
+
+    Writes an audit JSON under eval_runs/live_auto_apply/.
+    """
+    # Declare globals up-front since we both read and assign them
+    global MAX_PORTFOLIO_RISK, TP_PCT, SL_PCT, USE_ATR_STOP, ATR_STOP_MULT, ATR_LEN
+    if not AUTO_APPLY_ENABLED or AUTO_APPLY_KILL:
+        return None
+    try:
+        if not PROMOTED_PARAMS_PATH.exists():
+            return None
+        with PROMOTED_PARAMS_PATH.open("r") as f:
+            cfg = json.load(f)
+        applied: Dict[str, Any] = {"status": "skipped", "reason": "no_changes"}
+        # Prepare current snapshot
+        curr = {
+            "MAX_PORTFOLIO_RISK": MAX_PORTFOLIO_RISK,
+            "TP_PCT": TP_PCT,
+            "SL_PCT": SL_PCT,
+            "USE_ATR_STOP": USE_ATR_STOP,
+            "ATR_STOP_MULT": ATR_STOP_MULT,
+            "ATR_LEN": ATR_LEN,
+        }
+        # Compute next
+        next_vals = dict(curr)
+        risk_frac = _safe_float(cfg.get("risk_frac"), curr["MAX_PORTFOLIO_RISK"])
+        stop_mode = str(cfg.get("stop_mode") or "").strip()
+        tp_pct = cfg.get("tp_pct")
+        sl_pct = cfg.get("sl_pct")
+        atr_mult = cfg.get("atr_mult")
+        atr_period = cfg.get("atr_period")
+        if risk_frac is not None:
+            next_vals["MAX_PORTFOLIO_RISK"] = float(max(0.0, min(0.05, risk_frac)))
+        if stop_mode == "fixed_pct":
+            next_vals["USE_ATR_STOP"] = False
+            if tp_pct is not None:
+                next_vals["TP_PCT"] = max(0.0, float(tp_pct))
+            if sl_pct is not None:
+                next_vals["SL_PCT"] = max(0.0, float(sl_pct))
+        elif stop_mode in ("atr_fixed", "atr_trailing"):
+            next_vals["USE_ATR_STOP"] = True
+            if atr_mult is not None:
+                next_vals["ATR_STOP_MULT"] = max(0.1, float(atr_mult))
+            if atr_period is not None:
+                try:
+                    next_vals["ATR_LEN"] = max(1, int(atr_period))
+                except Exception:
+                    pass
+            if tp_pct is not None:
+                next_vals["TP_PCT"] = max(0.0, float(tp_pct))
+        # Detect changes
+        changed = {k: (curr[k], next_vals[k]) for k in curr.keys() if curr[k] != next_vals[k]}
+        if not changed:
+            return None
+        # Apply to globals
+        MAX_PORTFOLIO_RISK = float(next_vals["MAX_PORTFOLIO_RISK"])
+        TP_PCT = float(next_vals["TP_PCT"])
+        SL_PCT = float(next_vals["SL_PCT"]) if not next_vals["USE_ATR_STOP"] else SL_PCT
+        USE_ATR_STOP = bool(next_vals["USE_ATR_STOP"])
+        ATR_STOP_MULT = float(next_vals["ATR_STOP_MULT"]) if USE_ATR_STOP else ATR_STOP_MULT
+        ATR_LEN = int(next_vals["ATR_LEN"]) if USE_ATR_STOP else ATR_LEN
+        # Audit
+        ts = now_utc or datetime.now(timezone.utc).isoformat()
+        audit = {
+            "ts_utc": ts,
+            "status": "applied",
+            "from": curr,
+            "to": next_vals,
+            "promoted": cfg,
+        }
+        AUTO_APPLY_AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+        write_json(AUTO_APPLY_AUDIT_DIR / f"apply_{_nowstamp()}.json", audit)
+        logger.info("[auto_apply] Applied promoted params: %s", {k: v[1] for k, v in changed.items()})
+        return audit
+    except Exception as e:
+        try:
+            AUTO_APPLY_AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+            write_json(AUTO_APPLY_AUDIT_DIR / f"apply_error_{_nowstamp()}.json", {"error": str(e)[:500]})
+        except Exception:
+            pass
+        logger.warning(f"[auto_apply] failed: {e}")
+        return None
 
 
 def fetch_bars(symbol: str, timeframe: str, lookback: int) -> pd.DataFrame:
@@ -615,6 +724,8 @@ def main() -> int:
     # Assign a run_id early for consistent logging regardless of TB_AUDIT
     _run_id = _nowstamp()
     logger.info("[run] start run_id=%s symbol=%s", _run_id, SYMBOL)
+    # Attempt to auto-apply promoted parameters (opt-in)
+    maybe_auto_apply_params()
     api = _rest() if not OFFLINE else None
     # Load and reconcile state
     state = load_state(SYMBOL)
@@ -764,9 +875,17 @@ def main() -> int:
         # ~$10 notional qty (respecting Alpaca ~$10 min)
         test_notional = max(10.0, float(os.getenv("TB_TEST_NOTIONAL", "10")))
         qty = max(0.000001, round(test_notional / max(price, 1e-6), 6))
-        entry = price
+        entry = float(price)
         tp = entry * (1.0 + TP_PCT)
-        sl = entry * (1.0 - SL_PCT)
+        # Respect ATR-based stop sizing if enabled
+        if USE_ATR_STOP:
+            try:
+                atr_curr = float(atr(fetch_bars(SYMBOL, TF_FAST, lookback=ATR_LEN + 60), ATR_LEN).iloc[-1]) if OFFLINE else float(atr(bars_15, ATR_LEN).iloc[-1])
+            except Exception:
+                atr_curr = 0.0
+            sl = max(0.0, entry - ATR_STOP_MULT * atr_curr)
+        else:
+            sl = entry * (1.0 - SL_PCT)
         if api is not None:
             ok, oid, err = place_bracket(api, SYMBOL, qty, entry, tp, sl)
             notify("submit", {"symbol": SYMBOL, "side": "buy", "qty": qty, "entry": round(entry, 2), "tp": round(tp, 2), "sl": round(sl, 2), "sentiment": round(sentiment, 3), "status": "submitted" if ok else f"failed:{err}"})
@@ -804,6 +923,17 @@ def main() -> int:
             logger.info("[gate] Entry blocked: already in_position")
         elif NO_TRADE or OFFLINE:
             logger.info("[gate] would BUY but blocked by no_trade/offline gates")
+        # Compute entry/TP/SL
+        entry = float(price)
+        tp = entry * (1.0 + TP_PCT)
+        if USE_ATR_STOP:
+            try:
+                atr_curr = float(atr(bars_15, ATR_LEN).iloc[-1])
+            except Exception:
+                atr_curr = 0.0
+            sl = max(0.0, entry - ATR_STOP_MULT * atr_curr)
+        else:
+            sl = entry * (1.0 - SL_PCT)
         equity = get_account_equity(api) if not OFFLINE else 100000.0
         qty = calc_position_size(equity, entry, sl)
         payload = {"symbol": SYMBOL, "entry": round(entry, 2), "tp": round(tp, 2), "sl": round(sl, 2), "qty": round(qty, 6), "price": round(price, 2), "sentiment": round(sentiment, 3), "status": "preview"}

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.tracer.weekly-propose-canary</string>
+
+    <!-- Disabled by default: user must load manually with launchctl -->
+    <key>Disabled</key>
+    <true/>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/weekly_propose_canary.sh</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/mouryadamarasing</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Sunday at 03:00 local time -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>7</integer>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/weekly_runner.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/weekly_runner.err.log</string>
+</dict>
+</plist>
