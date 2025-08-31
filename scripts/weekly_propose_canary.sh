@@ -42,6 +42,12 @@ mkdir -p "$LOG_DIR"
   python3 scripts/canary_manager.py
 } | tee -a "$LOG_DIR/canary_manager.log"
 
+# 2b) Refresh backtest aggregate rollups so dashboards stay current
+{
+  echo "[weekly] refreshing backtest aggregates @ $TS"
+  python3 scripts/backtest_aggregate.py --out_root eval_runs/backtests || python3 scripts/backtest_aggregate.py || true
+} | tee -a "$LOG_DIR/backtest_aggregate.log"
+
 # 3) Auto-commit artifacts only (never code)
 if [[ "${TB_AUTOCOMMIT_ARTIFACTS}" == "1" ]]; then
   python3 - <<'PY'
