@@ -1,4 +1,18 @@
 ## 2025-08-31 — Reliability hardening: no-intervention weekly refresh
+## 2025-08-31 — Ops tests: Watchdog + Self-heal
+
+- Watchdog test: killed trader once, ran `scripts/watchdog_hybrid.sh`; wrapper kept loop alive and trader remained active. Verified process present post-test.
+- Health self-heal dry-run: moved `config/promoted_params.json` aside; ran `scripts/health_check.sh` with sends/commits disabled. It invoked `scripts/weekly_propose_canary.sh` (auto_tuner + canary). No promotion occurred; restored original promoted params. Artifacts written under `eval_runs/auto_tuner/<ts>/` and `eval_runs/canary/<ts>/notify.txt`.
+- Crons present: watchdog (*/2m), health (09:00), weekly (Sun 03:00) + backup (Wed 03:00).
+
+## 2025-08-31 — Installed crons (watchdog, health, weekly+backup)
+
+- Added user crontab entries:
+  - Watchdog every 2 minutes: `scripts/watchdog_hybrid.sh` (`# com.tracer.watchdog-hybrid`)
+  - Daily health at 09:00: `scripts/health_check.sh` (`# com.tracer.health-check`)
+  - Weekly propose+canary (Sun 03:00) and backup (Wed 03:00): `scripts/weekly_propose_canary.sh`
+- Purpose: ensure auto-recovery, daily self-check with self-heal, and periodic parameter refresh.
+
 
 - `scripts/start_hybrid_loop.sh`: added preflight that auto-runs `scripts/weekly_propose_canary.sh` if `config/promoted_params.json` is missing or stale (threshold `TB_START_MAX_PROMOTED_AGE_DAYS`, default 8).
 - `scripts/health_check.sh`: added self-heal path to run `scripts/weekly_propose_canary.sh` once (lock-protected) if `promoted_params.json` is stale, then re-checks freshness before alerting.
