@@ -1,0 +1,25 @@
+{
+  "proposal": {
+    "stop_mode": "atr_trailing",
+    "atr_mult": 2.0,
+    "atr_period": 21,
+    "tp_pct": 0.01,
+    "sl_pct": 0.01,
+    "time_cap_bars": 0,
+    "risk_frac": 0.01,
+    "metrics": {
+      "sharpe": -0.2789039425554448,
+      "cagr": -0.0015015502700457262,
+      "max_dd": 4.9815409468279585e-05,
+      "trades": 22,
+      "run_dir": "eval_runs/backtests/20250830_235112"
+    }
+  },
+  "context": {
+    "replay_latest": "/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/eval_runs/replays/20250830_231604",
+    "aggregate_csv": "/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/eval_runs/backtests/aggregate.csv",
+    "sweep_args": "--stop_modes fixed_pct,atr_fixed,atr_trailing --atr_mults 1.0,1.5,2.0 --tp_pcts 0.01,0.02,0.03 --atr_periods 10,14,21 --time_caps 0,8,16 --risk_fracs 0.01,0.02",
+    "out_root": "eval_runs/backtests",
+    "timestamp": "20250831_011811"
+  }
+}
