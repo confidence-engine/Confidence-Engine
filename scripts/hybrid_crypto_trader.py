@@ -148,6 +148,7 @@ USE_ML_GATE = os.getenv("TB_USE_ML_GATE", "0") == "1"
 ML_MODEL_PATH = os.getenv("TB_ML_GATE_MODEL_PATH", "eval_runs/ml/latest/model.pt")
 ML_FEATURES_PATH = os.getenv("TB_ML_FEATURES_PATH", "eval_runs/ml/latest/features.csv")
 ML_MIN_PROB = float(os.getenv("TB_ML_GATE_MIN_PROB", "0.5"))
+ML_SOFT_GATE = os.getenv("TB_ML_GATE_SOFT", "1") == "1"
 
 # Signal debounce: require EMA12>EMA26 for last N bars (0 disables)
 SIGNAL_DEBOUNCE_N = int(os.getenv("TB_SIGNAL_DEBOUNCE_N", "1"))
@@ -160,6 +161,14 @@ ATR_MAX_PCT = float(os.getenv("TB_ATR_MAX_PCT", "1.0"))
 
 USE_HTF_REGIME = os.getenv("TB_USE_HTF_REGIME", "0") == "1"
 HTF_EMA_LEN = int(os.getenv("TB_HTF_EMA_LEN", "200"))  # 1h EMA200 as 4h regime proxy
+
+# Optional 1h entry path (in addition to 15m). When enabled, a 1h EMA cross-up
+# can trigger a smaller-sized entry even if 15m cross is quiet.
+USE_1H_ENTRY = os.getenv("TB_USE_1H_ENTRY", "1") == "1"
+EMA_1H_FAST = int(os.getenv("TB_1H_EMA_FAST", "12"))
+EMA_1H_SLOW = int(os.getenv("TB_1H_EMA_SLOW", "26"))
+DEBOUNCE_1H_N = int(os.getenv("TB_1H_DEBOUNCE_N", "1"))
+SIZE_1H_MULT = float(os.getenv("TB_1H_SIZE_MULT", "0.5"))  # fraction of normal size
 
 SYMBOL = os.getenv("SYMBOL", settings.symbol or "BTC/USD")
 TF_FAST = "15Min"
@@ -843,6 +852,13 @@ def main() -> int:
     # Assign a run_id early for consistent logging regardless of TB_AUDIT
     _run_id = _nowstamp()
     logger.info("[run] start run_id=%s symbol=%s", _run_id, SYMBOL)
+    # Log resolved ML model directory for reproducibility and grep-ability
+    try:
+        if USE_ML_GATE and ML_MODEL_PATH:
+            _resolved_model_dir = os.path.dirname(os.path.realpath(ML_MODEL_PATH))
+            logger.info("[ml_gate] using model_dir=%s", _resolved_model_dir)
+    except Exception:
+        pass
     # Attempt to auto-apply promoted parameters (opt-in)
     maybe_auto_apply_params()
     api = _rest() if not OFFLINE else None
@@ -868,8 +884,13 @@ def main() -> int:
     ema12 = ema(bars_15["close"], 12)
     ema26 = ema(bars_15["close"], 26)
     ema50h = ema(bars_1h["close"], 50)
+    # 1h signal EMAs
+    ema1h_fast = ema(bars_1h["close"], EMA_1H_FAST)
+    ema1h_slow = ema(bars_1h["close"], EMA_1H_SLOW)
     cross_up = detect_cross_up(ema12, ema26)
     cross_down = detect_cross_down(ema12, ema26)
+    cross_up_1h = detect_cross_up(ema1h_fast, ema1h_slow)
+    cross_down_1h = detect_cross_down(ema1h_fast, ema1h_slow)
     trend_up = bool(bars_1h["close"].iloc[-1] > ema50h.iloc[-1])
 
     logger.info("[progress] Computing indicators...")
@@ -914,11 +935,27 @@ def main() -> int:
             debounce_ok = bool(cond.all())
         except Exception:
             debounce_ok = False
-    logger.info("Signals: cross_up=%s cross_down=%s trend_up=%s debounce_ok=%s sentiment=%.3f price=%.2f", cross_up, cross_down, trend_up, debounce_ok, sentiment, price)
+    # Optional 1h debounce: require EMA_fast>EMA_slow across last N 1h bars
+    debounce_1h_ok = True
+    if DEBOUNCE_1H_N > 0:
+        try:
+            cond1h = (ema1h_fast > ema1h_slow).iloc[-DEBOUNCE_1H_N:]
+            debounce_1h_ok = bool(cond1h.all())
+        except Exception:
+            debounce_1h_ok = False
+    logger.info(
+        "Signals: 15m[cross_up=%s cross_down=%s debounce_ok=%s] 1h[cross_up=%s cross_down=%s debounce_ok=%s] trend_up=%s sentiment=%.3f price=%.2f",
+        cross_up, cross_down, debounce_ok, cross_up_1h, cross_down_1h, debounce_1h_ok, trend_up, sentiment, price,
+    )
 
     # Optional ML probability gate
     ml_prob: Optional[float] = None
+    ml_model_dir: Optional[str] = None
     if USE_ML_GATE:
+        try:
+            ml_model_dir = os.path.dirname(os.path.realpath(ML_MODEL_PATH)) if ML_MODEL_PATH else None
+        except Exception:
+            ml_model_dir = None
         model, feat_names = _load_ml_gate(ML_MODEL_PATH, ML_FEATURES_PATH)
         if model is not None and feat_names is not None:
             x = _build_live_feature_vector(bars_15, feat_names)
@@ -950,11 +987,15 @@ def main() -> int:
             "sentiment": float(sentiment),
             "cross_up": bool(cross_up),
             "cross_down": bool(cross_down),
+            "cross_up_1h": bool(cross_up_1h),
+            "cross_down_1h": bool(cross_down_1h),
             "trend_up": bool(trend_up),
         }
         # Enrich audit with optional gates
         if USE_ML_GATE:
             inputs["ml_prob"] = float(ml_prob if ml_prob is not None else 0.0)
+            if ml_model_dir:
+                inputs["ml_model_dir"] = ml_model_dir
         # ATR filter info
         atr_pct_val = None
         htf_ok_val = None
@@ -1030,7 +1071,16 @@ def main() -> int:
             htf_ok = False
 
     decision = {"action": "hold", "reason": "no_signal"}
-    if cross_up and trend_up and debounce_ok and atr_ok and htf_ok and sentiment >= SENTIMENT_THRESHOLD and ((not USE_ML_GATE) or (ml_prob is not None and ml_prob >= ML_MIN_PROB)):
+    # Primary 15m entry path
+    # Evaluate ML gate condition with optional soft-neutral behavior
+    def _ml_gate_ok() -> bool:
+        if not USE_ML_GATE:
+            return True
+        if ml_prob is None:
+            return ML_SOFT_GATE  # neutral pass when soft gate enabled
+        return ml_prob >= ML_MIN_PROB
+
+    if cross_up and trend_up and debounce_ok and atr_ok and htf_ok and sentiment >= SENTIMENT_THRESHOLD and _ml_gate_ok():
         # Long entry
         # Risk gate: daily loss cap
         loss_cap = -DAILY_LOSS_CAP_PCT * float(state.get("equity_ref", 100000.0))
@@ -1086,6 +1136,63 @@ def main() -> int:
                 did_anything = True
             # Mark decision for audit
             decision = {"action": "buy", "qty": float(qty), "entry": float(entry), "tp": float(tp), "sl": float(sl)}
+
+    # Secondary 1h entry path (smaller size) — only if 15m path didn't act
+    if (decision.get("action") == "hold") and USE_1H_ENTRY and cross_up_1h and debounce_1h_ok and atr_ok and htf_ok and sentiment >= SENTIMENT_THRESHOLD and _ml_gate_ok():
+        # Risk gate: daily loss cap
+        loss_cap = -DAILY_LOSS_CAP_PCT * float(state.get("equity_ref", 100000.0))
+        if float(state.get("pnl_today", 0.0)) <= loss_cap:
+            logger.info("[gate-1h] Entry blocked: daily loss cap reached (pnl_today=%.2f cap=%.2f)", state.get("pnl_today", 0.0), loss_cap)
+        elif cooldown_until > now_ts:
+            logger.info("[gate-1h] Entry blocked by cooldown (%ds remaining)", cooldown_until - now_ts)
+        elif in_position:
+            logger.info("[gate-1h] Entry blocked: already in_position")
+        elif NO_TRADE or OFFLINE:
+            logger.info("[gate-1h] would BUY (1h) but blocked by no_trade/offline gates")
+        # Compute entry/TP/SL
+        entry = float(price)
+        tp = entry * (1.0 + TP_PCT)
+        if USE_ATR_STOP:
+            try:
+                atr_curr = float(atr(bars_15, ATR_LEN).iloc[-1])
+            except Exception:
+                atr_curr = 0.0
+            sl = max(0.0, entry - ATR_STOP_MULT * atr_curr)
+        else:
+            sl = entry * (1.0 - SL_PCT)
+        equity = get_account_equity(api) if not OFFLINE else 100000.0
+        qty_base = calc_position_size(equity, entry, sl)
+        qty = max(0.0, float(qty_base * max(0.0, min(1.0, SIZE_1H_MULT))))
+        payload = {"symbol": SYMBOL, "entry": round(entry, 2), "tp": round(tp, 2), "sl": round(sl, 2), "qty": round(qty, 6), "price": round(price, 2), "sentiment": round(sentiment, 3), "status": "preview", "path": "1h"}
+        if (cooldown_until <= now_ts) and (not in_position):
+            if OFFLINE or NO_TRADE:
+                logger.info("[preview-1h] Would BUY(1h) qty=%.6f @ %.2f tp=%.2f sl=%.2f", qty, entry, tp, sl)
+                notify("would_submit", payload)
+                # Update state with intent + cooldown start (preview mode still sets cooldown)
+                state.update({
+                    "in_position": True,
+                    "last_entry": float(entry),
+                    "last_entry_ts": now_ts,
+                    "cooldown_until": now_ts + COOLDOWN_SEC,
+                    "last_qty": float(qty),
+                })
+                did_anything = True
+            else:
+                ok, oid, err = place_bracket(api, SYMBOL, qty, entry, tp, sl)
+                payload.update({"status": "submitted" if ok else f"error: {err}", "order_id": oid})
+                notify("submit", payload)
+                logger.info("[submit-1h] %s", payload["status"]) 
+                if ok:
+                    state.update({
+                        "in_position": True,
+                        "last_entry": float(entry),
+                        "last_entry_ts": now_ts,
+                        "cooldown_until": now_ts + COOLDOWN_SEC,
+                        "last_order_id": oid,
+                        "last_qty": float(qty),
+                    })
+                did_anything = True
+            decision = {"action": "buy_1h", "qty": float(qty), "entry": float(entry), "tp": float(tp), "sl": float(sl)}
 
     # Exit condition: bearish cross — notify only if currently in a position
     if cross_down:

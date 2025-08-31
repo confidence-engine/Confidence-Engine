@@ -54,7 +54,9 @@ export TB_HTF_EMA_LEN=${TB_HTF_EMA_LEN:-200}
 # ML gate + retraining
 export TB_USE_ML_GATE=${TB_USE_ML_GATE:-1}
 export TB_ML_GATE_MODEL_PATH=${TB_ML_GATE_MODEL_PATH:-eval_runs/ml/latest/model.pt}
+export TB_ML_FEATURES_PATH=${TB_ML_FEATURES_PATH:-eval_runs/ml/latest/features.csv}
 export TB_ML_GATE_MIN_PROB=${TB_ML_GATE_MIN_PROB:-0.5}
+export TB_ML_GATE_SOFT=${TB_ML_GATE_SOFT:-1}
 export TB_ML_RETRAIN_EVERY_SEC=${TB_ML_RETRAIN_EVERY_SEC:-3600}
 
 # Live trading defaults (set to 1 for dry run)
@@ -110,6 +112,13 @@ while true; do
     PROB="${TB_EPS_PROB:-0.22}"
     ATR="${TB_EPS_ATR:-0.0005}"
     MODE="epsilon"
+  fi
+
+  # Enforce a minimum ML threshold floor for safety during exploration
+  FLOOR="${TB_ML_PROB_FLOOR:-0.25}"
+  awk_cmp=$(awk -v a="$PROB" -v b="$FLOOR" "BEGIN{print (a<b)?1:0}")
+  if [ "$awk_cmp" = "1" ]; then
+    PROB="$FLOOR"
   fi
 
   # Minimal sizing during exploration to cap risk

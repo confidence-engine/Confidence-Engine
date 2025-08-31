@@ -88,7 +88,89 @@ if [ "${PROMOTED_STALE:-0}" = "1" ]; then
   fi
 fi
 
-# 4) Exit or alert
+# 4) ML model health: latest symlink, can-infer probe, and ml_prob monitoring
+if [ "${TB_USE_ML_GATE:-1}" = "1" ]; then
+  ML_LATEST="eval_runs/ml/latest"
+  if [ ! -d "$ML_LATEST" ]; then
+    FAIL_MSGS+=("Missing ML latest dir: $ML_LATEST")
+  else
+    # Verify expected files exist
+    if [ ! -f "$ML_LATEST/model.pt" ]; then
+      FAIL_MSGS+=("ML latest missing model.pt")
+    fi
+    if [ ! -f "$ML_LATEST/features.csv" ] && [ -z "${TB_ML_FEATURES_PATH:-}" ]; then
+      FAIL_MSGS+=("ML latest missing features.csv and TB_ML_FEATURES_PATH not set")
+    fi
+  fi
+
+  # Lightweight sanity: ensure non-empty artifacts exist (avoid heavy inference here)
+  for f in "$ML_LATEST/model.pt" "$ML_LATEST/features.csv"; do
+    if [ -f "$f" ]; then
+      if [ ! -s "$f" ]; then
+        FAIL_MSGS+=("ML artifact empty: $f")
+      fi
+    fi
+  done
+
+  # Alert if latest points to an old directory (stale model)
+  MAX_AGE_HR=${TB_ML_LATEST_MAX_AGE_HR:-24}
+  # Resolve the real path of the model dir
+  REAL_DIR=$(python3 - <<'PY'
+import os
+import sys
+p = os.path.realpath('eval_runs/ml/latest')
+print(p)
+PY
+)
+  if [ -d "$REAL_DIR" ]; then
+    mtime=$(stat -f %m "$REAL_DIR" 2>/dev/null || stat -c %Y "$REAL_DIR" 2>/dev/null || echo 0)
+    age_hr=$(( (NOW_TS - mtime) / 3600 ))
+    if [ "$age_hr" -gt "$MAX_AGE_HR" ]; then
+      FAIL_MSGS+=("ML latest target is stale: ${age_hr}h > ${MAX_AGE_HR}h (dir: ${REAL_DIR})")
+    fi
+  else
+    FAIL_MSGS+=("ML latest resolves to non-dir: ${REAL_DIR}")
+  fi
+
+  # Monitor recent ml_prob values for missing/constant signals
+  # Skip this check in offline mode to avoid deterministic synthetic data causing false alarms
+  if [ "${TB_TRADER_OFFLINE:-0}" != "1" ]; then
+    LOOKBACK=${TB_HEALTH_ML_PROB_LOOKBACK:-20}
+    PYTHONPATH="$ROOT_DIR" python3 - "$LOOKBACK" <<'PY'
+import glob, json, os, sys
+N = int(sys.argv[1])
+runs = sorted([p for p in glob.glob('runs/*') if os.path.isdir(p)], reverse=True)[:N]
+vals = []
+for r in runs:
+    p = os.path.join(r, 'inputs.json')
+    try:
+        with open(p, 'r') as f:
+            obj = json.load(f)
+        v = obj.get('ml_prob', None)
+        if isinstance(v, (int, float)):
+            vals.append(float(v))
+    except Exception:
+        pass
+if len(vals) == 0:
+    print('[ML health] No recent ml_prob values found')
+    sys.exit(11)
+# if all equal within tiny tolerance, flag as possibly stuck
+if max(vals) - min(vals) < 1e-6:
+    print('[ML health] ml_prob constant across recent runs (possible stuck model)')
+    sys.exit(11)
+print('[ML health] recent ml_prob variability OK')
+sys.exit(0)
+PY
+  fi
+  rc=$?
+  if [ "$rc" = "10" ]; then
+    FAIL_MSGS+=("ml_prob missing across recent runs")
+  elif [ "$rc" = "11" ]; then
+    FAIL_MSGS+=("ml_prob constant across recent runs (possible stuck model)")
+  fi
+fi
+
+# 5) Exit or alert
 if [ ${#FAIL_MSGS[@]} -eq 0 ]; then
   echo "[health_check] OK at $(date -u +%F_%T)"
   exit 0
