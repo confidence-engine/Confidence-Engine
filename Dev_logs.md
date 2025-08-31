@@ -1,4 +1,22 @@
 ## 2025-08-31 — Reliability hardening: no-intervention weekly refresh
+## 2025-08-31 — Exploration gating for continuous learning/trading
+
+- Implemented exploration in `scripts/start_hybrid_loop.sh`:
+  - 10-min/hour exploration window (minutes 10–19): relaxed to `TB_ML_GATE_MIN_PROB=0.28`, `TB_ATR_MIN_PCT=0.0008`.
+  - 5% epsilon-greedy per-iteration: relaxed to `TB_ML_GATE_MIN_PROB=0.22`, `TB_ATR_MIN_PCT=0.0005`.
+  - Day-trading base defaults: `TB_ML_GATE_MIN_PROB=0.35`, `TB_ATR_MIN_PCT=0.001`.
+  - Each iteration logs applied gate: `[start_hybrid_loop] gate PROB=... ATR=... mode=normal|window|epsilon`.
+- Restarted loop to apply changes and verified logs update.
+- Purpose: ensure non-idle behavior while maintaining guardrails; collect live feedback opportunistically with minimal added risk.
+
+## 2025-08-31 — Weekly dry-run (safe) successful
+
+- Ran `scripts/weekly_propose_canary.sh` with sends off. Sequence executed: auto_tuner -> canary_manager -> backtest_aggregate -> autocommit.
+- Evidence:
+  - `eval_runs/weekly/20250831_013613/backtest_aggregate.log` shows: "Aggregated 1013 runs into eval_runs/backtests/aggregate.csv and aggregate.md".
+  - Aggregates updated at 07:09 local: `aggregate.csv` (240K), `aggregate.md` (2.2K).
+  - Autocommit reported: "Committed and pushed." (non-code artifacts only).
+
 ## 2025-08-31 — Wired weekly rollup refresh
 
 - Updated `scripts/weekly_propose_canary.sh` to run `scripts/backtest_aggregate.py` after canary and before autocommit.
