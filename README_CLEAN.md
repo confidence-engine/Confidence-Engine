@@ -208,3 +208,53 @@ Parity highlights (v3.1.16):
 
 ## 12) License
 See `LICENSE`.
+
+---
+
+## 13) Live Hybrid Trading Agent — Status and Ops (2025-08-31)
+
+This repository includes a hybrid trading agent that is currently live, autonomous, and self-learning with guardrails.
+
+### Current status
+- Live processes: `scripts/start_hybrid_loop.sh` runs a wrapper that manages a periodic ML retrainer and a resilient trader loop (`python3 scripts/hybrid_crypto_trader.py`).
+- Guardrails:
+  - Watchdog cron restarts the loop if it dies.
+  - Daily health check verifies logs freshness, recent runs, and promoted params; includes a self-heal path.
+  - Weekly propose+canary refresh evaluates new parameter proposals and only promotes upon canary pass.
+- Artifacts: Non-code artifacts (JSON/CSV/MD/YAML, images) are auto-committed and pushed. `.py` files are never auto-committed.
+
+### Crons installed (user crontab)
+```
+*/2 * * * * /bin/bash -lc "/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/watchdog_hybrid.sh" # com.tracer.watchdog-hybrid
+0 9 * * * /bin/bash -lc "/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/health_check.sh" # com.tracer.health-check
+0 3 * * 0 /bin/bash -lc "/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/weekly_propose_canary.sh" # com.tracer.weekly-propose-canary
+0 3 * * 3 /bin/bash -lc "/Users/mouryadamarasing/Documents/Project-Tracer-Bullet/scripts/weekly_propose_canary.sh" # com.tracer.weekly-propose-canary-backup
+```
+
+### Health/self-heal behavior
+- `scripts/health_check.sh` flags when `config/promoted_params.json` is missing/stale and will attempt a single self-heal by running `scripts/weekly_propose_canary.sh` (lock-protected to avoid spam), then re-checks freshness before alerting.
+- Alerts are gated by environment:
+  - Discord only if `TB_ENABLE_DISCORD=1` and `DISCORD_WEBHOOK_URL` present.
+  - Telegram is disabled when `TB_NO_TELEGRAM=1`.
+
+### Artifact policy (permanent directive)
+- Auto-commit/push all non-code artifacts after runs to keep the working tree clean and maintain traceability.
+- Never auto-commit `.py` files. Documentation updates are committed automatically.
+
+### Operational commands (manual)
+- Verify crons: `crontab -l`
+- Manual watchdog trigger: `bash scripts/watchdog_hybrid.sh`
+- Manual health check (no sends): `TB_ENABLE_DISCORD=0 TB_NO_TELEGRAM=1 bash scripts/health_check.sh`
+- Refresh backtest rollups: `python3 scripts/backtest_aggregate.py --out_root eval_runs/backtests`
+
+### Validation tests performed (2025-08-31)
+- Watchdog test: killed the trader once; watchdog/wrapper ensured the loop remained healthy and trader kept running.
+- Health self-heal dry-run: moved `config/promoted_params.json` aside, ran `scripts/health_check.sh` with sends/commits disabled; it executed `scripts/weekly_propose_canary.sh` (auto-tuner + canary). No promotion occurred; original params restored. Artifacts were written under `eval_runs/auto_tuner/<ts>/` and `eval_runs/canary/<ts>/notify.txt`.
+- Backtest rollups: refreshed `eval_runs/backtests/aggregate.md` and `aggregate.csv` after the batch. These will be kept current post-batches.
+
+### Quick references
+- Logs: `trader_loop.log`, `trader_loop.err`
+- Artifacts: `runs/…`, `eval_runs/…` (auto-committed, non-code only)
+- Parameters: `config/promoted_params.json`
+- Latest model link: `eval_runs/ml/latest/`
+
