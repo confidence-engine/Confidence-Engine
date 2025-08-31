@@ -1657,6 +1657,13 @@ Below is a consolidated, milestone-based roadmap compiled from our conversation 
 ## Executive verdict
 
 - Alignment: The project remains aligned with the original “Tracer Bullet” approach and the objective to build an interpretable, evidence-driven alpha engine that blends narrative with price/volume and ships incrementally with auditability and guardrails. We are not building “something else”; we’ve deepened exactly what we set out to do: reliability first, explainability, multi-asset foundations, and human-readable outputs.  
+## 2025-08-31 — Stop auto-committing logs
+
+- Adjusted `scripts/trader_run_and_commit.sh` to remove `trader_loop.log` from autocommit paths.
+- Confirmed `.gitignore` ignores `*.log`, `*.err`, and specific trader logs.
+- Untracked already-tracked logs (`trader_loop.log`, `trader_loop.err`, `trading_agent.log`) so ignores apply going forward.
+- Rationale: reduce source control noise and ensure only artifacts (JSON/CSV/MD) are committed automatically.
+
 - Scope adjustments: Two timeline corrections were made for clarity, not direction changes:  
   - 24/7 cloud scheduling is now explicitly a later milestone (v6) after full testing, rather than earlier.  
   - v3.3 expands to all available crypto alts (not a small subset).  
