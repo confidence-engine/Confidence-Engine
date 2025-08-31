@@ -7477,3 +7477,21 @@
 2025-08-31 05:44:47,639 [INFO] [progress] Wrote audit inputs -> runs/2025-08-31_05-44-40/inputs.json
 2025-08-31 05:44:47,641 [INFO] No action taken.
 2025-08-31 05:44:47,643 [INFO] [progress] Wrote audit decision -> runs/2025-08-31_05-44-40/decision.json
+2025-08-31 05:44:49,317 [INFO] [autocommit] attempted with push=True status=0
+2025-08-31 05:44:49,318 [INFO] [run] complete run_id=2025-08-31_05-44-40 decision=hold
+2025-08-31 05:46:51,775 [INFO] Starting Hybrid EMA+Sentiment Trader (safe=False, no_trade=False)
+2025-08-31 05:46:51,786 [INFO] [run] start run_id=2025-08-31_05-46-51 symbol=BTC/USD
+2025-08-31 05:46:52,920 [INFO] [progress] Fetching bars...
+2025-08-31 05:46:55,298 [INFO] [progress] Computing indicators...
+2025-08-31 05:46:56,388 [INFO] [progress] Fetching sentiment...
+2025-08-31 05:46:57,935 [INFO] Starting Hybrid EMA+Sentiment Trader (safe=True, no_trade=True)
+2025-08-31 05:46:57,935 [INFO] [run] start run_id=2025-08-31_05-46-57 symbol=BTC/USD
+2025-08-31 05:46:57,936 [INFO] [auto_apply] Applied promoted params: {'TP_PCT': 0.01}
+2025-08-31 05:46:57,936 [INFO] [progress] Fetching bars...
+2025-08-31 05:46:57,938 [INFO] [progress] Computing indicators...
+2025-08-31 05:46:57,938 [INFO] [progress] Fetching sentiment...
+2025-08-31 05:46:57,939 [INFO] Signals: cross_up=False cross_down=False trend_up=True debounce_ok=True sentiment=0.620 price=63058.17
+2025-08-31 05:46:57,965 [INFO] [ml_gate] prob=0.000 min=0.50
+2025-08-31 05:46:57,966 [INFO] [progress] Wrote audit inputs -> runs/2025-08-31_05-46-57/inputs.json
+2025-08-31 05:46:57,967 [INFO] No action taken.
+2025-08-31 05:46:57,969 [INFO] [progress] Wrote audit decision -> runs/2025-08-31_05-46-57/decision.json
