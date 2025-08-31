@@ -25,6 +25,15 @@
 - Start loop now writes both gate line from `scripts/start_hybrid_loop.sh` and per-order events from the Python trader, enabling monitoring of live trade frequency during exploration.
 - Safety: pure logging; respects existing OFFLINE/NO_TRADE gates; no changes to order logic or sizing beyond prior exploration overrides.
 
+## 2025-08-31 — Cron installed: watchdog, health, weekly/backup
+
+- Installed user crontab entries:
+  - `*/2 * * * *` watchdog — `scripts/watchdog_hybrid.sh` (appends to `trader_loop.log`/`.err`).
+  - `0 9 * * *` daily health — `scripts/health_check.sh` with sends disabled by default (`TB_ENABLE_DISCORD=0 TB_NO_TELEGRAM=1`).
+  - `0 3 * * 0` weekly propose+canary — `scripts/weekly_propose_canary.sh` (logs to `eval_runs/weekly/cron.log`).
+  - `0 3 * * 3` backup weekly propose+canary — same as above.
+- Purpose: ensure autonomous restart/self-heal and periodic tuning with artifact-only commits.
+
 ## 2025-08-31 — Weekly dry-run (safe) successful
 
 - Ran `scripts/weekly_propose_canary.sh` with sends off. Sequence executed: auto_tuner -> canary_manager -> backtest_aggregate -> autocommit.
