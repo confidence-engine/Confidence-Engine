@@ -61,6 +61,85 @@ HEARTBEAT_EVERY_N = int(os.getenv("TB_HEARTBEAT_EVERY_N", "12"))  # every N runs
 # Live auto-apply of promoted parameters (opt-in)
 AUTO_APPLY_ENABLED = os.getenv("TB_AUTO_APPLY_ENABLED", "0").lower() in ("1", "true", "on", "yes")
 AUTO_APPLY_KILL = os.getenv("TB_AUTO_APPLY_KILL", "0").lower() in ("1", "true", "on", "yes")
+
+# ==========================
+# Per-fill logging helpers
+# ==========================
+GATE_MODE = os.getenv("TB_GATE_MODE", "normal")
+
+def log_order_event(event: str, symbol: str, side: str, qty, price=None, extra=None):
+    """
+    Structured log for stderr/file so it shows in trader_loop.err and trading_agent.log.
+    event: 'order_submitted' | 'order_filled' | 'order_partially_filled'
+    """
+    try:
+        q = float(qty) if qty is not None else None
+    except Exception:
+        q = qty
+    payload: Dict[str, Any] = {
+        "event": event,
+        "mode": GATE_MODE,
+        "symbol": symbol,
+        "side": side,
+        "qty": q,
+    }
+    if price is not None:
+        try:
+            payload["price"] = float(price)
+        except Exception:
+            payload["price"] = price
+    if extra:
+        try:
+            payload.update(extra)
+        except Exception:
+            pass
+    logger.info("[order] %s", payload)
+    
+def try_log_fill_once(api: Optional[REST], order_id: Optional[str], symbol: str, side: str) -> None:
+    """Best-effort single status check to emit a fill log without blocking the loop.
+    Controlled by TB_LOG_FILLS=1. Safe if REST or order_id is missing.
+    """
+    if os.getenv("TB_LOG_FILLS", "1") != "1":
+        return
+    if api is None or not order_id:
+        return
+    try:
+        def _get():
+            return api.get_order(order_id)
+        def _on_retry(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
+            # keep quiet; fills polling is best-effort
+            return
+        odr = retry_call(
+            _get,
+            attempts=1,
+            retry_exceptions=(Exception,),
+            retry_status_codes=RETRY_STATUS_CODES,
+            on_retry=_on_retry,
+        )
+        status = str(getattr(odr, "status", "")).lower()
+        filled_qty = getattr(odr, "filled_qty", None)
+        filled_avg_price = getattr(odr, "filled_avg_price", None)
+        if status == "filled":
+            log_order_event(
+                "order_filled",
+                symbol=symbol,
+                side=side,
+                qty=filled_qty,
+                price=filled_avg_price,
+                extra={"order_id": order_id},
+            )
+        elif status in ("partially_filled", "partial"):  # tolerate variants
+            log_order_event(
+                "order_partially_filled",
+                symbol=symbol,
+                side=side,
+                qty=filled_qty,
+                price=filled_avg_price,
+                extra={"order_id": order_id},
+            )
+    except Exception:
+        # best-effort only
+        return
 PROMOTED_PARAMS_PATH = Path("config/promoted_params.json")
 AUTO_APPLY_AUDIT_DIR = Path("eval_runs/live_auto_apply")
 
@@ -565,6 +644,27 @@ def place_bracket(api: REST, symbol: str, qty: float, entry: float, tp: float, s
             on_retry=_on_retry,
         )
         oid = getattr(order, "id", None) or getattr(order, "client_order_id", None)
+        # Per-fill logging: order submission
+        try:
+            log_order_event(
+                "order_submitted",
+                symbol=symbol,
+                side="buy",
+                qty=qty,
+                extra={
+                    "order_id": (str(oid) if oid else None),
+                    "entry": entry,
+                    "tp": tp,
+                    "sl": sl,
+                },
+            )
+        except Exception:
+            pass
+        # Best-effort immediate fill check (non-blocking)
+        try:
+            try_log_fill_once(api, str(oid) if oid else None, symbol, "buy")
+        except Exception:
+            pass
         return True, (str(oid) if oid else None), None
     except Exception as e:
         return False, None, str(e)
@@ -605,6 +705,25 @@ def close_position_if_any(api: REST, symbol: str) -> Optional[str]:
             on_retry=_on_retry_close,
         )
         oid = getattr(order, "id", None) or getattr(order, "client_order_id", None)
+        # Per-fill logging: close order submission
+        try:
+            log_order_event(
+                "order_submitted",
+                symbol=sym,
+                side="sell",
+                qty=qty,
+                extra={
+                    "order_id": (str(oid) if oid else None),
+                    "reason": "close_position",
+                },
+            )
+        except Exception:
+            pass
+        # Best-effort immediate fill check (non-blocking)
+        try:
+            try_log_fill_once(api, str(oid) if oid else None, sym, "sell")
+        except Exception:
+            pass
         return str(oid) if oid else None
     except Exception as e:
         logger.warning(f"[trade] close error: {e}")

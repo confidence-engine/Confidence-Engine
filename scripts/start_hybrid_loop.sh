@@ -74,9 +74,57 @@ python3 scripts/ml_retrainer.py --bars_dir bars --out_root eval_runs/ml --link_d
   sleep "${TB_ML_RETRAIN_EVERY_SEC}"
 done ) &
 
-# Trader loop
+# Trader loop with exploration windows and epsilon-greedy
 while true; do
-  python3 scripts/hybrid_crypto_trader.py || true
+  # Determine exploration mode for this iteration
+  NOW_MIN=$(date +%M)
+  EXPLORATION_WINDOW=0
+  if [ "$NOW_MIN" -ge 10 ] && [ "$NOW_MIN" -lt 20 ]; then
+    EXPLORATION_WINDOW=1
+  fi
+
+  # 10% epsilon-greedy by default (configurable via TB_EPSILON_PCT)
+  R=$((RANDOM % 100))
+  EPS=0
+  if [ "$R" -lt "${TB_EPSILON_PCT:-10}" ]; then
+    EPS=1
+  fi
+
+  # Base thresholds (day-trading defaults can be overridden by env)
+  BASE_PROB="${TB_ML_GATE_MIN_PROB:-0.35}"
+  BASE_ATR="${TB_ATR_MIN_PCT:-0.001}"
+
+  PROB="$BASE_PROB"
+  ATR="$BASE_ATR"
+  MODE="normal"
+
+  # Exploration window relax
+  if [ "$EXPLORATION_WINDOW" = "1" ]; then
+    PROB="${TB_EXP_PROB:-0.26}"
+    ATR="${TB_EXP_ATR:-0.0007}"
+    MODE="window"
+  fi
+
+  # Epsilon-greedy relax (overrides window)
+  if [ "$EPS" = "1" ]; then
+    PROB="${TB_EPS_PROB:-0.22}"
+    ATR="${TB_EPS_ATR:-0.0005}"
+    MODE="epsilon"
+  fi
+
+  # Minimal sizing during exploration to cap risk
+  if [ "$MODE" = "window" ] || [ "$MODE" = "epsilon" ]; then
+    export TB_SIZE_MIN_R="${TB_SIZE_MIN_R_EXP:-0.05}"
+    export TB_SIZE_MAX_R="${TB_SIZE_MAX_R_EXP:-0.15}"
+  else
+    # Clear exploration overrides (fall back to .env or defaults inside sizing)
+    unset TB_SIZE_MIN_R || true
+    unset TB_SIZE_MAX_R || true
+  fi
+
+  echo "[start_hybrid_loop] gate PROB=$PROB ATR=$ATR mode=$MODE size_min_R=${TB_SIZE_MIN_R:-def} size_max_R=${TB_SIZE_MAX_R:-def}" >> trader_loop.log
+
+  TB_GATE_MODE="$MODE" TB_ML_GATE_MIN_PROB="$PROB" TB_ATR_MIN_PCT="$ATR" python3 scripts/hybrid_crypto_trader.py || true
   sleep 60
 done
 ' > trader_loop.log 2> trader_loop.err & disown

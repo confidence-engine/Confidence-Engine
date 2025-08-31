@@ -25,3 +25,6 @@ bars_canary_*/
 # Do not track new Python scripts/tests going forward
 scripts/*.py
 tests/*.py
+
+# Exception: track the main live trader so we can patch it
+!scripts/hybrid_crypto_trader.py
