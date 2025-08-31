@@ -1,4 +1,9 @@
 ## 2025-08-31 — Reliability hardening: no-intervention weekly refresh
+## 2025-08-31 — Wired weekly rollup refresh
+
+- Updated `scripts/weekly_propose_canary.sh` to run `scripts/backtest_aggregate.py` after canary and before autocommit.
+- Purpose: keep `eval_runs/backtests/aggregate.md` and `.csv` up-to-date automatically after weekly batches.
+
 ## 2025-08-31 — Ops tests: Watchdog + Self-heal
 
 - Watchdog test: killed trader once, ran `scripts/watchdog_hybrid.sh`; wrapper kept loop alive and trader remained active. Verified process present post-test.
