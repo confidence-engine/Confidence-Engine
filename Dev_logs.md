@@ -2,6 +2,25 @@
 ## 2025-08-31 — Hybrid trader: 1h entry signal (secondary path)
 ### 2025-09-01 — ML gate unblocked: trained baseline + stable symlink
 ### 2025-09-01 — ML mitigations: per-run pin, soft gate, health checks, prob floor
+### 2025-09-01 — Ops UX: log resolved model dir + stale-latest alert
+### 2025-09-01 — start_hybrid_loop.sh fix: awk quoting
+
+- Fixed quoting in `scripts/start_hybrid_loop.sh` inside the single-quoted nohup block by switching the inner `awk` program to use double quotes. This removed a `syntax error near unexpected token '('` at line 119.
+- Validation:
+  - `bash -n scripts/start_hybrid_loop.sh` now passes.
+  - Safe health check run shows ml_prob constancy warning when offline; offline-skip mode added previously prevents false alarms when `TB_TRADER_OFFLINE=1`.
+  - Will validate live loop launch via safe dry-run (no-trade, no-sends) prior to enabling trades.
+
+
+- Trader now logs the resolved ML model directory at run start for grep:
+  - Example log: `[ml_gate] using model_dir=/abs/path/to/eval_runs/ml/ml_YYYYMMDD_HHMMSS`
+  - File: `scripts/hybrid_crypto_trader.py`
+- Health check alerts if `eval_runs/ml/latest` points to a directory older than `TB_ML_LATEST_MAX_AGE_HR` (default `24`):
+  - File: `scripts/health_check.sh`
+- Validation:
+  - Safe offline run emitted the model_dir line and wrote audits.
+  - Health check (alerts off) passed with recent `ml_prob` present and `latest` fresh.
+
 
 - Per-run reproducibility: trader now logs `ml_model_dir` into `runs/<ts>/inputs.json` alongside `ml_prob`.
 - Soft ML gate: added `TB_ML_GATE_SOFT=1` (default). If inference fails (e.g., artifacts missing), gate treats ML as neutral (does not block). Set to `0` for hard block behavior.
