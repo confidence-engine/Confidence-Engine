@@ -7653,3 +7653,16 @@
 2025-08-31 06:25:57,717 [INFO] [progress] Wrote audit inputs -> runs/2025-08-31_06-25-50/inputs.json
 2025-08-31 06:25:57,718 [INFO] No action taken.
 2025-08-31 06:25:57,720 [INFO] [progress] Wrote audit decision -> runs/2025-08-31_06-25-50/decision.json
+2025-08-31 06:25:59,300 [INFO] [autocommit] attempted with push=True status=0
+2025-08-31 06:25:59,301 [INFO] [run] complete run_id=2025-08-31_06-25-50 decision=hold
+2025-08-31 06:27:01,354 [INFO] Starting Hybrid EMA+Sentiment Trader (safe=False, no_trade=False)
+2025-08-31 06:27:01,367 [INFO] [run] start run_id=2025-08-31_06-27-01 symbol=BTC/USD
+2025-08-31 06:27:01,367 [INFO] [auto_apply] Applied promoted params: {'TP_PCT': 0.01}
+2025-08-31 06:27:02,522 [INFO] [progress] Fetching bars...
+2025-08-31 06:27:04,743 [INFO] [progress] Computing indicators...
+2025-08-31 06:27:05,801 [INFO] [progress] Fetching sentiment...
+2025-08-31 06:27:08,562 [INFO] Signals: cross_up=False cross_down=False trend_up=True debounce_ok=True sentiment=0.650 price=109442.36
+2025-08-31 06:27:08,606 [INFO] [ml_gate] prob=0.000 min=0.50
+2025-08-31 06:27:08,608 [INFO] [progress] Wrote audit inputs -> runs/2025-08-31_06-27-01/inputs.json
+2025-08-31 06:27:08,608 [INFO] No action taken.
+2025-08-31 06:27:08,610 [INFO] [progress] Wrote audit decision -> runs/2025-08-31_06-27-01/decision.json
