@@ -1,4 +1,10 @@
 ## 2025-08-31 — Reliability hardening: no-intervention weekly refresh
+### 2025-08-31 — Forced restart with day-trading base gates
+
+- Killed any running loops and relaunched `scripts/start_hybrid_loop.sh`.
+- Set base gates for session: `TB_ML_GATE_MIN_PROB=0.35`, `TB_ATR_MIN_PCT=0.001`.
+- Verified via `trader_loop.log` gate line and active process list.
+
 ## 2025-08-31 — Exploration gating for continuous learning/trading
 
 - Implemented exploration in `scripts/start_hybrid_loop.sh`:
@@ -8,6 +14,16 @@
   - Each iteration logs applied gate: `[start_hybrid_loop] gate PROB=... ATR=... mode=normal|window|epsilon`.
 - Restarted loop to apply changes and verified logs update.
 - Purpose: ensure non-idle behavior while maintaining guardrails; collect live feedback opportunistically with minimal added risk.
+
+## 2025-08-31 — Per-fill order logging (tagged by exploration mode)
+
+- `scripts/hybrid_crypto_trader.py`:
+  - Added `log_order_event()` helper and `GATE_MODE` read from `TB_GATE_MODE` env to tag events with `mode=normal|window|epsilon`.
+  - On submission, logs `[order]` payloads with `event=order_submitted`, `symbol`, `side`, `qty`, `entry/tp/sl` and `order_id`.
+  - Added `try_log_fill_once()` best-effort status check (guarded by `TB_LOG_FILLS=1`, default ON) to emit `[order]` with `event=order_filled` or `event=order_partially_filled` including `filled_qty` and `filled_avg_price`.
+  - Hooked into both `place_bracket()` (BUY) and `close_position_if_any()` (SELL close) without blocking the loop; retries disabled for this probe (attempts=1).
+- Start loop now writes both gate line from `scripts/start_hybrid_loop.sh` and per-order events from the Python trader, enabling monitoring of live trade frequency during exploration.
+- Safety: pure logging; respects existing OFFLINE/NO_TRADE gates; no changes to order logic or sizing beyond prior exploration overrides.
 
 ## 2025-08-31 — Weekly dry-run (safe) successful
 
