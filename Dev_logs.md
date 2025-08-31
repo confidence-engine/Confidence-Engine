@@ -1,4 +1,56 @@
 ## 2025-08-31 — Reliability hardening: no-intervention weekly refresh
+## 2025-08-31 — Hybrid trader: 1h entry signal (secondary path)
+### 2025-09-01 — ML gate unblocked: trained baseline + stable symlink
+### 2025-09-01 — ML mitigations: per-run pin, soft gate, health checks, prob floor
+
+- Per-run reproducibility: trader now logs `ml_model_dir` into `runs/<ts>/inputs.json` alongside `ml_prob`.
+- Soft ML gate: added `TB_ML_GATE_SOFT=1` (default). If inference fails (e.g., artifacts missing), gate treats ML as neutral (does not block). Set to `0` for hard block behavior.
+- Start script safety: `scripts/start_hybrid_loop.sh` now:
+  - Exports `TB_ML_FEATURES_PATH`, `TB_ML_GATE_SOFT`.
+  - Enforces `TB_ML_PROB_FLOOR` (default `0.25`) so exploration never drops ML threshold below this floor.
+- Health checks: `scripts/health_check.sh` now validates ML artifacts under `eval_runs/ml/latest/` and monitors `ml_prob` across recent runs, alerting if missing or constant (stuck model). Uses lightweight file checks to avoid heavy inference.
+- Validation:
+  - Safe offline run: `TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 TB_USE_ML_GATE=1 TB_ML_GATE_MIN_PROB=0.35 python3 scripts/hybrid_crypto_trader.py` wrote audits including `ml_model_dir`.
+  - Health check (alerts off): `TB_ENABLE_DISCORD=0 TB_NO_TELEGRAM=1 bash scripts/health_check.sh` returned OK.
+- Env summary:
+  - `TB_ML_GATE_SOFT` (default `1`): soft-neutral on ML inference failure.
+  - `TB_ML_PROB_FLOOR` (default `0.25`): minimum ML threshold applied in start loop.
+
+
+- Trained baseline MLP via backtester to produce valid ML artifacts:
+  - Command: `python3 -c "from backtester.ml_baseline import run_ml_baseline; print(run_ml_baseline('bars'))"`
+  - Output dir example: `eval_runs/ml/ml_20250831_184632/` with `model.pt`, `features.csv`, and `metrics.json`.
+- Created stable pointer: `eval_runs/ml/latest -> eval_runs/ml/ml_20250831_184632/` (symlink).
+- Verified live ML gate in safe preview:
+  - `TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 TB_USE_ML_GATE=1 TB_ML_GATE_MODEL_PATH=eval_runs/ml/latest/model.pt TB_ML_FEATURES_PATH=eval_runs/ml/latest/features.csv TB_ML_GATE_MIN_PROB=0.35 python3 scripts/hybrid_crypto_trader.py`
+  - Observed `[ml_gate] prob=0.383 min=0.35` and audits written.
+- How to enable ML gate in runtime:
+  - In `.env`: set `TB_USE_ML_GATE=1`, `TB_ML_GATE_MODEL_PATH=eval_runs/ml/latest/model.pt`, `TB_ML_FEATURES_PATH=eval_runs/ml/latest/features.csv`, and desired `TB_ML_GATE_MIN_PROB` (e.g., `0.35`).
+  - Or export vars in `scripts/start_hybrid_loop.sh` before launching the trader.
+- Notes:
+  - Re-run the training periodically (weekly job candidate) and update the `latest` symlink to refresh the model without code changes.
+  - Model is a small MLP (features from `backtester/features.py`); replaceable with stronger models later.
+
+
+- Added optional 1‑hour timeframe entry path in `scripts/hybrid_crypto_trader.py`:
+  - Computes 1h EMA cross using configurable lengths and optional debounce.
+  - Allows BUY entries on 1h cross‑up when 15m entry is quiet, using a smaller size multiplier.
+  - Keeps all safety gates: ATR in-band, HTF regime, sentiment threshold, and ML probability gate.
+- Env flags (defaults in parentheses):
+  - `TB_USE_1H_ENTRY=1` (enable 1h entry path)
+  - `TB_1H_EMA_FAST=12`, `TB_1H_EMA_SLOW=26` (1h EMAs for signal)
+  - `TB_1H_DEBOUNCE_N=1` (require EMA_fast > EMA_slow for last N 1h bars)
+  - `TB_1H_SIZE_MULT=0.5` (fraction of normal position size for 1h entries)
+- Audits extended:
+  - `runs/<ts>/inputs.json` now includes `cross_up_1h`, `cross_down_1h`.
+  - Decision logs show path: primary `buy` (15m) vs `buy_1h` (1h secondary).
+- Validation (safe):
+  - Ran offline/no‑trade: observed log line `Signals: 15m[...] 1h[...] trend_up=...` and audits written with 1h fields.
+  - ML gate remains active; invalid model artifacts will still block entries until retrained.
+- Sizing/Stops:
+  - Entry, TP/SL respect current TP/SL or ATR stop config; quantity scaled by `TB_1H_SIZE_MULT`.
+  - Cooldown and `in_position` state shared across both paths; 1h entries won’t double-enter if already in a trade.
+
 ### 2025-08-31 — Forced restart with day-trading base gates
 
 - Killed any running loops and relaunched `scripts/start_hybrid_loop.sh`.
