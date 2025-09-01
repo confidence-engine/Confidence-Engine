@@ -1,3 +1,66 @@
+## 2025-09-01 — Enhanced Auto-Commit System Implementation
+
+### 🚀 Permanent Directive Implementation: Auto-Commit Non-Script Files
+
+**System Enhancement**: Complete auto-commit system for all non-script files, excluding scripts/ and .env always.
+
+#### 📁 New Auto-Commit Infrastructure
+- **New File**: `autocommit_enhanced.py` - Enhanced auto-commit system with comprehensive filtering
+- **New File**: `.git/hooks/post-commit` - Git hook for automatic commits on every commit
+- **New File**: `periodic_autocommit.sh` - Script for periodic auto-commits (can be cron-scheduled)
+- **New File**: `setup_autocommit_cron.sh` - Easy cron setup for periodic commits
+
+#### 🎯 Auto-Commit Rules (Permanent Directive)
+- ✅ **Auto-commit ALL non-script files** (docs, data, logs, configs, etc.)
+- ❌ **Exclude entire scripts/ directory** (no Python, shell, or other scripts)
+- ❌ **Exclude .env files** (all variants: .env, .env.*, .env.local)
+- ❌ **Exclude sensitive files** (.git/, .venv/, __pycache__/, .DS_Store, etc.)
+- ❌ **Exclude executable extensions** (.py, .sh, .js, .ts, .go, .rs, etc.)
+
+#### 🔧 System Features
+- **Smart File Detection**: Automatically detects modified/untracked files
+- **Git Hook Integration**: Runs after every git commit
+- **Periodic Execution**: Can be scheduled via cron (every 30 minutes)
+- **Dual Branch Support**: Separate commits for main branch and data branch
+- **Comprehensive Logging**: Detailed logs in autocommit.log
+- **Error Handling**: Graceful failure handling and recovery
+- **Push Control**: Optional push to remote repository
+
+#### 📊 Auto-Commit Categories
+- **Main Branch**: Documentation, configs, README files, markdown, etc.
+- **Data Branch**: bars/, runs/, eval_runs/, logs, JSON artifacts, CSV data
+- **Excluded**: scripts/, .env files, Python/shell scripts, executables
+
+#### 🧪 Testing & Validation
+- **Test Run**: Successfully committed `test_integration_report.json`
+- **File Filtering**: Correctly identified and excluded script files
+- **Git Integration**: Proper staging, committing, and push operations
+- **Error Handling**: Robust error recovery and logging
+
+#### 📋 Usage Examples
+```bash
+# List files that would be committed
+python3 autocommit_enhanced.py --list
+
+# Run complete auto-commit cycle
+python3 autocommit_enhanced.py --run
+
+# Auto-commit non-script files only
+python3 autocommit_enhanced.py --main-only
+
+# Setup periodic cron job (every 30 minutes)
+./setup_autocommit_cron.sh
+```
+
+#### 🔄 Automation Triggers
+- **Post-Commit Hook**: Runs after every git commit
+- **Periodic Script**: Can be scheduled via cron for regular commits
+- **Manual Execution**: Command-line interface for on-demand commits
+
+**Status**: ✅ **Fully Operational** - Auto-commit system active and tested. All non-script files will be automatically committed and pushed according to permanent directive.
+
+---
+
 ## 2025-09-01 — Advanced Trading System Implementation Complete
 
 ### Major System Overhaul: Multi-Architecture ML + Advanced Risk Management + Market Regime Detection
