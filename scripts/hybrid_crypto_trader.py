@@ -584,12 +584,19 @@ def _build_live_feature_vector(bars_15: pd.DataFrame, feature_names: list[str]) 
         rs = gain / loss
         df["rsi"] = 100 - (100 / (1 + rs))
 
+        # RSI divergence (difference between current RSI and its SMA)
+        df["rsi_sma"] = df["rsi"].rolling(window=14).mean()
+        df["rsi_divergence"] = df["rsi"] - df["rsi_sma"]
+
         # MACD (Moving Average Convergence Divergence)
         df["ema12"] = ema(df["close"], 12)
         df["ema26"] = ema(df["close"], 26)
         df["macd"] = df["ema12"] - df["ema26"]
         df["macd_signal"] = ema(df["macd"], 9)
         df["macd_histogram"] = df["macd"] - df["macd_signal"]
+
+        # MACD momentum (rate of change of MACD histogram)
+        df["macd_momentum"] = df["macd_histogram"].pct_change()
 
         # Bollinger Bands
         df["sma20"] = df["close"].rolling(window=20).mean()
@@ -598,9 +605,25 @@ def _build_live_feature_vector(bars_15: pd.DataFrame, feature_names: list[str]) 
         df["bb_lower"] = df["sma20"] - (df["std20"] * 2)
         df["bb_position"] = (df["close"] - df["bb_lower"]) / (df["bb_upper"] - df["bb_lower"])
 
+        # Bollinger Band width (volatility measure)
+        df["bb_width"] = (df["bb_upper"] - df["bb_lower"]) / df["sma20"]
+
         # Momentum indicators
         df["momentum_5"] = df["close"] / df["close"].shift(5) - 1
         df["momentum_10"] = df["close"] / df["close"].shift(10) - 1
+        df["momentum_20"] = df["close"] / df["close"].shift(20) - 1
+
+        # Rate of Change (ROC) indicators
+        df["roc_5"] = df["close"].pct_change(periods=5)
+        df["roc_10"] = df["close"].pct_change(periods=10)
+        df["roc_20"] = df["close"].pct_change(periods=20)
+
+        # ATR (Average True Range)
+        high_low = df["high"] - df["low"]
+        high_close = (df["high"] - df["close"].shift(1)).abs()
+        low_close = (df["low"] - df["close"].shift(1)).abs()
+        true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+        df["atr"] = true_range.rolling(window=14).mean()
 
         # Volatility measures
         df["close_volatility"] = df["close"].pct_change().rolling(20).std()
@@ -609,6 +632,16 @@ def _build_live_feature_vector(bars_15: pd.DataFrame, feature_names: list[str]) 
         # Volume indicators
         df["volume_sma"] = df["volume"].rolling(window=20).mean()
         df["volume_ratio"] = df["volume"] / df["volume_sma"]
+        df["volume_trend"] = df["volume"].pct_change().rolling(5).mean()
+
+        # Price acceleration (second derivative)
+        df["price_acceleration"] = df["close"].pct_change().pct_change()
+
+        # Support and resistance levels (simplified)
+        df["support_level"] = df["low"].rolling(window=20).min()
+        df["resistance_level"] = df["high"].rolling(window=20).max()
+        df["support_distance"] = (df["close"] - df["support_level"]) / df["close"]
+        df["resistance_distance"] = (df["resistance_level"] - df["close"]) / df["close"]
 
         # Original features
         df["ema12_slope"] = df["ema12"].pct_change()
