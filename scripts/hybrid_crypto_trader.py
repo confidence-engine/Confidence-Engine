@@ -642,6 +642,9 @@ def _build_live_feature_vector(bars_15: pd.DataFrame, feature_names: list[str]) 
         df["resistance_level"] = df["high"].rolling(window=20).max()
         df["support_distance"] = (df["close"] - df["support_level"]) / df["close"]
         df["resistance_distance"] = (df["resistance_level"] - df["close"]) / df["close"]
+        
+        # Combined support-resistance feature for ML model
+        df["support_resistance"] = df["support_distance"] - df["resistance_distance"]
 
         # Original features
         df["ema12_slope"] = df["ema12"].pct_change()
