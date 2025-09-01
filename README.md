@@ -3,8 +3,8 @@ Here is a draft for the README introduction that puts the Tracer Bullet philosop
 
 ***
 
-# Confidence Engine — The Agile Divergence Engine for Crypto Alpha
-> Looking for the concise version? See [README_CLEAN.md](README_CLEAN.md).
+# Confidence Engine — Institutional-Grade Multi-Asset Divergence Engine
+> Looking for the concise version? See [README_CLEAN.md](README_CLEAN.md) | [Enhanced Features Summary](ENHANCED_HYBRID_SUMMARY.md)
 
 ## Our Mission: Exploit Emotional-Math Gaps with Perfect Discipline
 
@@ -18,8 +18,13 @@ We ask the key question nonstop:
 
 By measuring and quantifying these divergences rigorously, filtering for relevance and confidence, and adapting thresholds dynamically, Confidence Engine provides **real-time, explainable**, and **action-ready** trading signals — all delivered with evidence and playbook guidance directly to your Telegram DM.
 
-## Why Confidence Engine Is Different
+## Why Confidence Engine Is Now Institutional-Grade
 
+- **Multi-Asset Portfolio:** Advanced portfolio management across BTC/USD, ETH/USD, SOL/USD, and LINK/USD with correlation controls
+- **Kelly Optimal Sizing:** Dynamic position sizing using Kelly Criterion based on win probability and expected returns  
+- **Advanced Risk Management:** Portfolio VaR limits, individual position limits, and regime-based risk adjustments
+- **Market Regime Detection:** Bull/bear/sideways regime classification with volatility and momentum analysis
+- **Adaptive Learning:** Real-time parameter optimization with exploration windows and performance tracking
 - **Philosophy-first:** We shipped a fast, end‑to‑end prototype (V1) to validate our core edge early, avoiding premature complexity.
 - **Elegant simplicity:** We leverage two clean, high-quality signal pillars — Alpaca price data and Perplexity synthesized narrative — before adding noisy social feeds.
 - **Hybrid intelligence:** Combining quantitative “oracle” data and qualitative “psychologist” narrative to find true market inefficiencies.
