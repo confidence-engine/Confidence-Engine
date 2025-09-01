@@ -37,6 +37,18 @@ from scripts.discord_sender import send_discord_digest_to
 from telegram_bot import send_message as send_telegram
 from scripts.retry_utils import retry_call, RETRY_STATUS_CODES
 
+# ========== VALIDATION IMPROVEMENTS ==========
+try:
+    from validation_analyzer import ValidationAnalyzer
+    from paper_trading_optimizer import PaperTradingOptimizer
+    VALIDATION_TOOLS_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.info("✅ Validation tools imported successfully")
+except ImportError as e:
+    VALIDATION_TOOLS_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning(f"⚠️ Validation tools not available: {e}")
+
 # ========== ZERO-COST ENHANCEMENTS ==========
 
 import asyncio
@@ -1022,6 +1034,12 @@ ATR_STOP_MULT = float(os.getenv("TB_ATR_STOP_MULT", "1.5"))
 SENTIMENT_THRESHOLD = float(os.getenv("TB_SENTIMENT_CUTOFF", "0.5"))
 PPLX_TIMEOUT = float(os.getenv("TB_PPLX_TIMEOUT", "12"))
 
+# Validation Mode Settings
+VALIDATION_MODE = os.getenv("TB_VALIDATION_MODE", "0") == "1"
+LOG_ALL_SIGNALS = os.getenv("TB_LOG_ALL_SIGNALS", "0") == "1"
+MIN_CONFIDENCE = float(os.getenv("TB_MIN_CONFIDENCE", "0.65"))
+DIVERGENCE_THRESHOLD = float(os.getenv("TB_DIVERGENCE_THRESHOLD", "0.5"))
+
 # State/cooldown
 COOLDOWN_SEC = int(os.getenv("TB_TRADER_COOLDOWN_SEC", "3600"))
 STATE_DIR = Path("state")
@@ -1076,6 +1094,14 @@ def initialize_enhanced_components():
         if USE_ADAPTIVE_STRATEGY:
             components['adaptive_strategy'] = AdaptiveStrategy()
             logger.info("✅ Adaptive Strategy initialized")
+            
+        # Initialize Validation Tools
+        if VALIDATION_TOOLS_AVAILABLE and VALIDATION_MODE:
+            components['validation_analyzer'] = ValidationAnalyzer()
+            components['threshold_optimizer'] = PaperTradingOptimizer()
+            logger.info("✅ Validation tools initialized (validation mode)")
+        elif VALIDATION_TOOLS_AVAILABLE:
+            logger.info("✅ Validation tools available but validation mode disabled")
             
     except Exception as e:
         logger.error("Failed to initialize enhanced components: %s", e)
@@ -2189,6 +2215,38 @@ def main() -> int:
                     sentiment = 0.5  # Neutral default
                     logger.warning(f"Sentiment was None for {symbol}, using neutral default")
                 
+                # Calculate confidence and divergence for validation
+                # Basic confidence calculation (can be enhanced)
+                confidence = min(0.9, 0.5 + abs(sentiment - 0.5) + (0.1 if trend_up else 0))
+                divergence = abs(sentiment - 0.5) * 2  # Simple divergence proxy
+                
+                # Log signal for validation tracking
+                if VALIDATION_TOOLS_AVAILABLE and (VALIDATION_MODE or LOG_ALL_SIGNALS):
+                    signal_data = {
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
+                        'symbol': symbol,
+                        'signal_type': 'entry',
+                        'entry_reason': entry_reason,
+                        'sentiment': sentiment,
+                        'confidence': confidence,
+                        'divergence': divergence,
+                        'price': price,
+                        'cross_up': cross_up,
+                        'cross_up_1h': cross_up_1h,
+                        'trend_up': trend_up,
+                        'cooldown_ok': cooldown_ok,
+                        'will_trade': False,  # Will be updated below
+                        'validation_mode': VALIDATION_MODE
+                    }
+                    
+                    # Log signal to validation system
+                    try:
+                        if 'validation_analyzer' in components:
+                            # Store for later analysis
+                            components['validation_analyzer'].log_signal(signal_data)
+                    except Exception as e:
+                        logger.warning("Failed to log validation signal: %s", e)
+                
                 # Calculate position size using enhanced methods
                 position_size_usd = calculate_enhanced_position_size(
                     components, symbol, bars_15, bars_1h, sentiment, current_equity
@@ -2219,6 +2277,14 @@ def main() -> int:
                         'size_usd': position_size_usd
                     }
                     trading_decisions.append(decision)
+                    
+                    # Update validation signal to indicate trade will execute
+                    if VALIDATION_TOOLS_AVAILABLE and (VALIDATION_MODE or LOG_ALL_SIGNALS):
+                        signal_data['will_trade'] = True
+                        signal_data['qty'] = qty
+                        signal_data['size_usd'] = position_size_usd
+                        signal_data['stop_loss'] = stop_loss
+                        signal_data['take_profit'] = take_profit
                     
                     logger.info("[%s] ENTRY SIGNAL: %s (qty=%.4f, $%.2f)", 
                                symbol, entry_reason, qty, position_size_usd)
@@ -2395,6 +2461,22 @@ def main() -> int:
                     })
         except Exception as e:
             logger.warning("Failed to update adaptive strategy: %s", e)
+    
+    # Run validation analysis if enabled
+    if VALIDATION_TOOLS_AVAILABLE and VALIDATION_MODE:
+        try:
+            if 'validation_analyzer' in components:
+                validation_report = components['validation_analyzer'].generate_validation_report()
+                logger.info("📊 Validation Report: Signals/week=%.1f, Target=7.0", 
+                           validation_report.get('signal_frequency', {}).get('current_avg_per_week', 0))
+                
+                # Log recommendations if any
+                recommendations = validation_report.get('actionable_recommendations', {})
+                if recommendations.get('immediate_actions'):
+                    for action in recommendations['immediate_actions'][:2]:  # Show top 2
+                        logger.info("💡 Validation Recommendation: %s", action)
+        except Exception as e:
+            logger.warning("Failed to run validation analysis: %s", e)
     
     logger.info("Enhanced multi-asset trading cycle complete: %d trades executed", len(executed_trades))
     
