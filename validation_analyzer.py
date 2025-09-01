@@ -324,8 +324,9 @@ class ValidationAnalyzer:
         # Generate actionable recommendations
         report['recommendations'] = self._generate_actionable_recommendations(report)
         
-        # Save report
-        report_file = f"validation_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        # Save report to validation_reports folder
+        os.makedirs('validation_reports', exist_ok=True)
+        report_file = f"validation_reports/validation_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         with open(report_file, 'w') as f:
             json.dump(report, f, indent=2, default=str)
         
@@ -645,7 +646,7 @@ def main():
     for action in recommendations.get('immediate_actions', []):
         print(f"  • {action}")
     
-    print(f"\n✅ Full report saved to validation_report_*.json")
+    print(f"\n✅ Full report saved to validation_reports/validation_report_*.json")
     print(f"✅ Analysis database updated: validation_analysis.db")
 
 if __name__ == "__main__":
