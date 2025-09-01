@@ -1853,7 +1853,7 @@ Notes:
 - No documentation updates in this commit (docs will be consolidated later)
 - Full test suite passing locally
 
-V3.1 universe mirroring + git integration feat(v3.1): universe scan mirroring and opt-in git auto-commit/push
+V3.1 universe mirroring + git integrationfeat(v3.1): universe scan mirroring and opt-in git auto-commit/push
 	•	scripts/scan_universe.py:
 	•	Add TB_UNIVERSE_MIRROR_TO_RUNS=1 to copy universe_runs file into runs/
 	•	Add TB_UNIVERSE_GIT_AUTOCOMMIT=1 to git add/commit universe file(s)
