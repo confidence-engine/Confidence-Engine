@@ -994,15 +994,41 @@ SIZE_1H_MULT = float(os.getenv("TB_1H_SIZE_MULT", "0.5"))  # fraction of normal 
 # Multi-asset support
 SYMBOL = os.getenv("SYMBOL", settings.symbol or "BTC/USD")
 MULTI_ASSET_MODE = os.getenv("TB_MULTI_ASSET", "0") == "1"
-ASSET_LIST = os.getenv("TB_ASSET_LIST", "BTC/USD,ETH/USD,SOL/USD,LINK/USD").split(",") if MULTI_ASSET_MODE else [SYMBOL]
+ASSET_LIST = os.getenv("TB_ASSET_LIST", "BTC/USD,ETH/USD,SOL/USD,LINK/USD,LTC/USD,BCH/USD,UNI/USD,AAVE/USD,AVAX/USD,DOT/USD,MATIC/USD").split(",") if MULTI_ASSET_MODE else [SYMBOL]
 
 # Alpaca-supported crypto pairs only (verified compatibility)
 SUPPORTED_ASSETS = {
-    "BTC/USD": {"min_size": 0.0001, "enabled": True},
-    "ETH/USD": {"min_size": 0.001, "enabled": True}, 
-    "SOL/USD": {"min_size": 0.01, "enabled": True},
-    "LINK/USD": {"min_size": 0.1, "enabled": True},
-    # Note: ADA/USD is NOT supported by Alpaca paper trading
+    # Major Blue Chips (Top Market Cap)
+    "BTC/USD": {"min_size": 0.0001, "enabled": True},    # Bitcoin
+    "ETH/USD": {"min_size": 0.001, "enabled": True},     # Ethereum
+    "SOL/USD": {"min_size": 0.01, "enabled": True},      # Solana
+    "LINK/USD": {"min_size": 0.1, "enabled": True},      # Chainlink
+    
+    # Additional Blue Chips (High Liquidity & Market Cap)
+    "LTC/USD": {"min_size": 0.01, "enabled": True},      # Litecoin
+    "BCH/USD": {"min_size": 0.001, "enabled": True},     # Bitcoin Cash
+    "UNI/USD": {"min_size": 0.1, "enabled": True},       # Uniswap
+    "AAVE/USD": {"min_size": 0.01, "enabled": True},     # Aave
+    "AVAX/USD": {"min_size": 0.01, "enabled": True},     # Avalanche
+    "DOT/USD": {"min_size": 0.1, "enabled": True},       # Polkadot
+    "MATIC/USD": {"min_size": 1.0, "enabled": True},     # Polygon
+    
+    # DeFi Blue Chips
+    "MKR/USD": {"min_size": 0.001, "enabled": True},     # Maker
+    "COMP/USD": {"min_size": 0.01, "enabled": True},     # Compound
+    "YFI/USD": {"min_size": 0.0001, "enabled": True},    # Yearn Finance
+    "CRV/USD": {"min_size": 1.0, "enabled": True},       # Curve
+    "SNX/USD": {"min_size": 0.1, "enabled": True},       # Synthetix
+    "SUSHI/USD": {"min_size": 0.1, "enabled": True},     # SushiSwap
+    
+    # Additional Quality Projects
+    "XTZ/USD": {"min_size": 0.1, "enabled": True},       # Tezos
+    "GRT/USD": {"min_size": 1.0, "enabled": True},       # The Graph
+    
+    # Notes: 
+    # - ADA/USD is NOT supported by Alpaca
+    # - Min sizes are estimated based on typical Alpaca requirements
+    # - All major blue chips with good liquidity included
 }
 
 TF_FAST = "15Min"
