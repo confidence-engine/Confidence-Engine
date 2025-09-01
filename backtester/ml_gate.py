@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 
 from .features import build_features
-from .ml_baseline import EnhancedMLP
+from .models import EnhancedMLP
 
 
 def predict_prob(bars: pd.DataFrame, model_path: str) -> Optional[float]:
