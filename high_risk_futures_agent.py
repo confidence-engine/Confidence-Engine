@@ -1,7 +1,22 @@
 #!/usr/bin/env python3
 """
 High-Risk Futures Agent
-Separate from main agent - focused on leveraged futures/perpetuals trading
+Se        # Strategy parameters
+        self.momentum_window = 12  # hours
+        self.volatility_window = 24  # hours
+        self.min_momentum_threshold = 0.02  # 2% momentum
+        self.max_volatility_threshold = 0.08    # 8% max volatility
+
+        # New: Market regime and correlation tracking
+        self.market_regime = 'unknown'
+        self.correlation_matrix = {}
+        self.trailing_stops = {}  # Track trailing stop levels
+
+        logger.info(f"🚀 {self.name} initialized")
+        logger.info(f"💰 Capital: ${self.capital}")
+        logger.info(f"⚡ Max Leverage: {self.max_leverage}x")
+        logger.info(f"🎯 Risk per Trade: {self.risk_per_trade*100}%")
+        logger.info(f"📊 Symbols: {', '.join(self.symbols)}") main agent - focused on leveraged futures/perpetuals trading
 """
 
 import os
@@ -57,13 +72,121 @@ class HighRiskFuturesAgent:
         self.min_momentum_threshold = 0.02  # 2% momentum
         self.max_volatility_threshold = 0.08  # 8% max volatility
 
-        logger.info(f"🚀 {self.name} initialized")
-        logger.info(f"💰 Capital: ${self.capital}")
-        logger.info(f"⚡ Max Leverage: {self.max_leverage}x")
-        logger.info(f"🎯 Risk per Trade: {self.risk_per_trade*100}%")
-        logger.info(f"📊 Symbols: {', '.join(self.symbols)}")
+    def detect_market_regime(self, symbol: str) -> str:
+        """Detect if market is trending or ranging"""
+        try:
+            # Get longer-term data for regime detection
+            data = enhanced_futures_bars(symbol, '1h', 48)  # 48 hours of data
+            if data is None or len(data) < 24:
+                return 'unknown'
 
-    def is_market_open(self) -> bool:
+            prices = data['close']
+
+            # Calculate trend strength (slope of linear regression)
+            x = np.arange(len(prices))
+            slope, _ = np.polyfit(x, prices.values, 1)
+            trend_strength = abs(slope) / prices.mean()
+
+            # Calculate volatility (standard deviation of returns)
+            returns = prices.pct_change().dropna()
+            volatility = returns.std()
+
+            # Calculate ADX-like indicator for trend strength
+            high_prices = data['high']
+            low_prices = data['low']
+
+            # Simple trend detection
+            if trend_strength > 0.001 and volatility < 0.03:  # Strong trend, low volatility
+                return 'trending'
+            elif trend_strength < 0.0005 and volatility > 0.05:  # Weak trend, high volatility
+                return 'ranging'
+            else:
+                return 'sideways'
+
+        except Exception as e:
+            logger.warning(f"Error detecting market regime for {symbol}: {e}")
+            return 'unknown'
+
+    def calculate_symbol_correlations(self) -> Dict[str, Dict[str, float]]:
+        """Calculate correlation matrix between all symbols"""
+        try:
+            correlations = {}
+            symbol_data = {}
+
+            # Get data for all symbols
+            for symbol in self.symbols:
+                data = enhanced_futures_bars(symbol, '1h', 24)  # 24 hours
+                if data is not None and len(data) > 12:
+                    symbol_data[symbol] = data['close'].pct_change().dropna()
+
+            # Calculate correlations
+            for symbol1 in self.symbols:
+                if symbol1 not in symbol_data:
+                    continue
+                correlations[symbol1] = {}
+
+                for symbol2 in self.symbols:
+                    if symbol2 not in symbol_data:
+                        correlations[symbol1][symbol2] = 0.0
+                        continue
+
+                    try:
+                        corr = symbol_data[symbol1].corr(symbol_data[symbol2])
+                        correlations[symbol1][symbol2] = corr if not np.isnan(corr) else 0.0
+                    except:
+                        correlations[symbol1][symbol2] = 0.0
+
+            return correlations
+
+        except Exception as e:
+            logger.warning(f"Error calculating correlations: {e}")
+            return {}
+
+    def check_correlation_filter(self, symbol: str) -> bool:
+        """Check if symbol is too correlated with existing positions"""
+        if not self.positions:
+            return True  # No positions, so no correlation issue
+
+        # Update correlation matrix if needed
+        if not self.correlation_matrix:
+            self.correlation_matrix = self.calculate_symbol_correlations()
+
+        # Check correlation with existing positions
+        for existing_symbol in self.positions.keys():
+            if existing_symbol in self.correlation_matrix and symbol in self.correlation_matrix[existing_symbol]:
+                correlation = abs(self.correlation_matrix[existing_symbol][symbol])
+                if correlation > 0.7:  # High correlation threshold
+                    logger.info(f"⚠️ Skipping {symbol} due to high correlation ({correlation:.2f}) with {existing_symbol}")
+                    return False
+
+        return True
+
+    def calculate_dynamic_leverage(self, symbol: str, volatility: float) -> int:
+        """Calculate dynamic leverage based on volatility"""
+        try:
+            # Base leverage
+            base_leverage = self.max_leverage
+
+            # Adjust based on volatility
+            if volatility > 0.06:  # High volatility
+                adjusted_leverage = max(1, int(base_leverage * 0.6))  # Reduce to 60%
+            elif volatility > 0.04:  # Medium volatility
+                adjusted_leverage = max(1, int(base_leverage * 0.8))  # Reduce to 80%
+            else:  # Low volatility
+                adjusted_leverage = base_leverage  # Use full leverage
+
+            # Adjust based on market regime
+            regime = self.detect_market_regime(symbol)
+            if regime == 'ranging':
+                adjusted_leverage = max(1, int(adjusted_leverage * 0.7))  # Reduce in ranging markets
+            elif regime == 'trending':
+                adjusted_leverage = min(self.max_leverage, int(adjusted_leverage * 1.2))  # Increase in trending markets
+
+            return min(adjusted_leverage, self.max_leverage)
+
+        except Exception as e:
+            logger.warning(f"Error calculating dynamic leverage for {symbol}: {e}")
+            return self.max_leverage
         """Check if futures markets are open (crypto markets are 24/7)"""
         return True  # Crypto futures are always open
 
@@ -129,6 +252,10 @@ class HighRiskFuturesAgent:
         if signal['strength'] < self.min_momentum_threshold:
             return False
 
+        # NEW: Check correlation filter
+        if not self.check_correlation_filter(symbol):
+            return False
+
         # Check market conditions
         if not self.is_market_open():
             return False
@@ -151,8 +278,10 @@ class HighRiskFuturesAgent:
                 logger.warning(f"❌ Position calculation failed: {pos_info['error']}")
                 return False
 
-            # Apply leverage limits
-            leverage = min(pos_info['leverage_used'], self.max_leverage)
+            # Apply leverage limits with dynamic adjustment
+            volatility = signal.get('volatility', 0.05)
+            dynamic_leverage = self.calculate_dynamic_leverage(symbol, volatility)
+            leverage = min(pos_info['leverage_used'], dynamic_leverage)
             pos_info['leverage_used'] = leverage
 
             # Execute trade
@@ -169,7 +298,11 @@ class HighRiskFuturesAgent:
                     'quantity': float(quantity),
                     'leverage': leverage,
                     'timestamp': datetime.now().isoformat(),
-                    'signal': signal
+                    'signal': signal,
+                    'highest_price': float(entry_price),  # For trailing stops
+                    'lowest_price': float(entry_price),   # For trailing stops
+                    'trailing_stop_pct': 0.05,  # 5% trailing stop
+                    'profit_target_pct': 0.08   # 8% profit target
                 }
 
                 # Log trade
@@ -199,7 +332,7 @@ class HighRiskFuturesAgent:
             return False
 
     def check_positions(self):
-        """Check and manage open positions"""
+        """Check and manage open positions with advanced exit timing"""
         for symbol, position in list(self.positions.items()):
             try:
                 # Get current price
@@ -215,29 +348,98 @@ class HighRiskFuturesAgent:
                 if entry_price is None or entry_price == 0:
                     continue
 
-                # Calculate P&L
-                if position['side'] == 'buy':
+                side = position.get('side', 'buy')
+                leverage = position.get('leverage', 1) or 1
+
+                # Calculate current P&L
+                if side == 'buy':
                     pnl_pct = (current_price - entry_price) / entry_price
                 else:
                     pnl_pct = (entry_price - current_price) / entry_price
 
-                quantity = position.get('quantity', 0) or 0
-                leverage = position.get('leverage', 1) or 1
-                pnl_amount = pnl_pct * quantity * leverage
+                # Update trailing stop levels
+                self.update_trailing_stops(symbol, current_price, position)
 
-                # Simple exit conditions
-                if pnl_pct > 0.05:  # 5% profit target
-                    logger.info(f"🎯 Profit target hit for {symbol}: +{pnl_pct:.2%}")
-                    self.close_position(symbol, 'profit_target')
-                elif pnl_pct < -0.03:  # 3% stop loss
-                    logger.warning(f"🛑 Stop loss hit for {symbol}: {pnl_pct:.2%}")
-                    self.close_position(symbol, 'stop_loss')
-                elif pnl_pct > 0.10:  # 10% trailing stop
-                    logger.info(f"📈 Trailing stop for {symbol}: +{pnl_pct:.2%}")
-                    self.close_position(symbol, 'trailing_stop')
+                # Check exit conditions
+                exit_reason = self.should_exit_position(symbol, current_price, pnl_pct, position)
+
+                if exit_reason:
+                    self.close_position(symbol, exit_reason)
 
             except Exception as e:
                 logger.warning(f"Error checking position for {symbol}: {e}")
+
+    def update_trailing_stops(self, symbol: str, current_price: float, position: Dict):
+        """Update trailing stop levels for a position"""
+        try:
+            side = position.get('side', 'buy')
+
+            if side == 'buy':
+                # For long positions, track highest price
+                if current_price > position.get('highest_price', position['entry_price']):
+                    position['highest_price'] = current_price
+                    # Update trailing stop level
+                    trailing_stop_price = current_price * (1 - position.get('trailing_stop_pct', 0.05))
+                    position['trailing_stop_price'] = trailing_stop_price
+            else:
+                # For short positions, track lowest price
+                if current_price < position.get('lowest_price', position['entry_price']):
+                    position['lowest_price'] = current_price
+                    # Update trailing stop level
+                    trailing_stop_price = current_price * (1 + position.get('trailing_stop_pct', 0.05))
+                    position['trailing_stop_price'] = trailing_stop_price
+
+        except Exception as e:
+            logger.warning(f"Error updating trailing stops for {symbol}: {e}")
+
+    def should_exit_position(self, symbol: str, current_price: float, pnl_pct: float, position: Dict) -> str:
+        """Determine if position should be exited based on various conditions"""
+        try:
+            side = position.get('side', 'buy')
+            entry_price = position.get('entry_price', 0)
+            profit_target_pct = position.get('profit_target_pct', 0.08)
+            trailing_stop_pct = position.get('trailing_stop_pct', 0.05)
+
+            # 1. Profit target hit
+            if pnl_pct >= profit_target_pct:
+                return 'profit_target'
+
+            # 2. Stop loss hit (fixed percentage from entry)
+            if pnl_pct <= -0.03:  # 3% stop loss
+                return 'stop_loss'
+
+            # 3. Trailing stop hit
+            if 'trailing_stop_price' in position:
+                trailing_stop_price = position['trailing_stop_price']
+                if side == 'buy' and current_price <= trailing_stop_price:
+                    return 'trailing_stop'
+                elif side == 'sell' and current_price >= trailing_stop_price:
+                    return 'trailing_stop'
+
+            # 4. Maximum loss limit (10% from entry)
+            if pnl_pct <= -0.10:
+                return 'max_loss_limit'
+
+            # 5. Time-based exit (if position is too old)
+            position_age_hours = (datetime.now() - datetime.fromisoformat(position['timestamp'])).total_seconds() / 3600
+            if position_age_hours > 24:  # Close after 24 hours
+                return 'time_limit'
+
+            # 6. Volatility-based exit (if volatility spikes)
+            try:
+                data = enhanced_futures_bars(symbol, '1h', 6)  # Last 6 hours
+                if data is not None and len(data) >= 6:
+                    recent_volatility = data['close'].pct_change().std()
+                    if recent_volatility > 0.08:  # High volatility
+                        return 'high_volatility'
+            except:
+                pass
+
+            return None  # No exit condition met
+
+        except Exception as e:
+            logger.warning(f"Error checking exit conditions for {symbol}: {e}")
+            return None
 
     def close_position(self, symbol: str, reason: str):
         """Close a position"""
@@ -293,7 +495,7 @@ class HighRiskFuturesAgent:
             logger.error(f"Error closing position for {symbol}: {e}")
 
     def get_status(self) -> Dict:
-        """Get agent status"""
+        """Get agent status with enhanced information"""
         return {
             'name': self.name,
             'capital': self.capital,
@@ -303,6 +505,8 @@ class HighRiskFuturesAgent:
             'positions': list(self.positions.keys()),
             'total_trades': len(self.trade_log),
             'win_rate': self.calculate_win_rate(),
+            'market_regime': self.market_regime,
+            'correlation_pairs': len(self.correlation_matrix) if self.correlation_matrix else 0,
             'timestamp': datetime.now().isoformat()
         }
 
@@ -316,8 +520,11 @@ class HighRiskFuturesAgent:
         return winning_trades / len(closed_trades)
 
     def run_trading_cycle(self):
-        """Run one complete trading cycle"""
+        """Run one complete trading cycle with enhanced features"""
         logger.info("🔄 Starting trading cycle...")
+
+        # Update market regime and correlations
+        self.update_market_context()
 
         # Check existing positions
         self.check_positions()
@@ -330,7 +537,10 @@ class HighRiskFuturesAgent:
             signal = self.calculate_momentum_signal(symbol)
 
             if signal['signal'] != 'neutral' and self.should_trade(symbol, signal):
+                # Log additional context
+                regime = self.detect_market_regime(symbol)
                 logger.info(f"🎯 Signal detected for {symbol}: {signal['signal']} ({signal['strength']:.4f})")
+                logger.info(f"📊 Market regime: {regime} | Volatility: {signal.get('volatility', 0):.4f}")
                 self.execute_trade(symbol, signal)
 
                 # Limit to one trade per cycle
@@ -339,6 +549,23 @@ class HighRiskFuturesAgent:
         # Log status
         status = self.get_status()
         logger.info(f"📊 Status: ${status['daily_pnl']:.2f} P&L | {status['open_positions']} positions | {status['trades_today']} trades today")
+
+    def update_market_context(self):
+        """Update market regime and correlation data"""
+        try:
+            # Update correlation matrix periodically
+            if not self.correlation_matrix or np.random.random() < 0.1:  # 10% chance each cycle
+                self.correlation_matrix = self.calculate_symbol_correlations()
+                logger.info("📈 Updated correlation matrix")
+
+            # Update market regime for primary symbol
+            if self.symbols:
+                primary_symbol = self.symbols[0]
+                self.market_regime = self.detect_market_regime(primary_symbol)
+                logger.info(f"🌍 Market regime: {self.market_regime}")
+
+        except Exception as e:
+            logger.warning(f"Error updating market context: {e}")
 
     async def run_continuous(self, interval_seconds: int = 300):
         """Run continuous trading loop"""
@@ -383,9 +610,17 @@ def main():
     print(f"📈 Open Positions: {status['open_positions']}")
     print(f"🎯 Win Rate: {status['win_rate']:.1%}")
     print(f"📝 Total Trades: {status['total_trades']}")
+    print(f"🌍 Market Regime: {status['market_regime']}")
+    print(f"📊 Correlation Pairs: {status['correlation_pairs']}")
 
-    print("\n✅ High-risk futures agent ready!")
-    print("💡 Run with: python3 high_risk_futures_agent.py --continuous")
+    print("\n✅ Enhanced High-Risk Futures Agent Ready!")
+    print("🚀 New Features:")
+    print("  • Market regime detection (trending/ranging)")
+    print("  • Correlation filtering to avoid correlated positions")
+    print("  • Dynamic leverage adjustment based on volatility")
+    print("  • Advanced exit timing with trailing stops")
+    print("  • Profit targets and time-based exits")
+    print("\n💡 Run with: python3 high_risk_futures_agent.py --continuous")
 
 if __name__ == "__main__":
     import argparse
