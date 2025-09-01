@@ -4,6 +4,9 @@ import sys
 import time
 import logging
 import json
+import functools
+import sqlite3
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Optional, Tuple, Dict, Any, List
 from datetime import datetime, timedelta, timezone
@@ -33,6 +36,300 @@ from config import settings
 from scripts.discord_sender import send_discord_digest_to
 from telegram_bot import send_message as send_telegram
 from scripts.retry_utils import retry_call, RETRY_STATUS_CODES
+
+# ========== ZERO-COST ENHANCEMENTS ==========
+
+import asyncio
+import concurrent.futures
+
+class CircuitBreaker:
+    """Prevents API failures from crashing the agent"""
+    def __init__(self, failure_threshold=3, recovery_timeout=60):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
+        
+    def __call__(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            if self.state == "OPEN":
+                if time.time() - self.last_failure_time > self.recovery_timeout:
+                    self.state = "HALF_OPEN"
+                    logger.info(f"Circuit breaker HALF_OPEN for {func.__name__}")
+                else:
+                    logger.warning(f"Circuit breaker OPEN for {func.__name__}")
+                    return None  # Return None instead of raising exception
+                    
+            try:
+                result = func(*args, **kwargs)
+                if self.state == "HALF_OPEN":
+                    self.state = "CLOSED"
+                    self.failure_count = 0
+                    logger.info(f"Circuit breaker CLOSED for {func.__name__}")
+                return result
+            except Exception as e:
+                self.failure_count += 1
+                self.last_failure_time = time.time()
+                
+                if self.failure_count >= self.failure_threshold:
+                    self.state = "OPEN"
+                    logger.error(f"Circuit breaker OPENED for {func.__name__} after {self.failure_count} failures")
+                
+                logger.error(f"Circuit breaker caught error in {func.__name__}: {e}")
+                return None  # Return None instead of raising
+        return wrapper
+
+class PerformanceTracker:
+    """Track agent performance and errors"""
+    def __init__(self):
+        self.start_time = time.time()
+        self.trade_count = 0
+        self.error_count = 0
+        self.last_heartbeat = time.time()
+        
+    def heartbeat(self):
+        self.last_heartbeat = time.time()
+        
+    def record_trade(self):
+        self.trade_count += 1
+        
+    def record_error(self):
+        self.error_count += 1
+        
+    def get_stats(self):
+        uptime = time.time() - self.start_time
+        return {
+            "uptime_hours": uptime / 3600,
+            "trade_count": self.trade_count,
+            "error_count": self.error_count,
+            "last_heartbeat_ago": time.time() - self.last_heartbeat
+        }
+
+class TradingDatabase:
+    """SQLite database for better data management"""
+    def __init__(self, db_path="enhanced_trading.db"):
+        self.db_path = db_path
+        self.init_database()
+        
+    def init_database(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS trades (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    run_id TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    price REAL NOT NULL,
+                    confidence REAL,
+                    pnl REAL,
+                    metadata TEXT
+                )
+            """)
+            
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS performance (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    trades_today INTEGER,
+                    win_rate REAL,
+                    total_pnl REAL,
+                    uptime_hours REAL,
+                    error_count INTEGER
+                )
+            """)
+            
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS positions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT NOT NULL,
+                    position_side TEXT,
+                    position_qty REAL DEFAULT 0,
+                    position_entry_price REAL DEFAULT 0,
+                    last_entry_time REAL,
+                    order_id TEXT,
+                    pnl_today REAL DEFAULT 0,
+                    pnl_total REAL DEFAULT 0,
+                    last_updated TEXT NOT NULL,
+                    UNIQUE(symbol)
+                )
+            """)
+            
+    def log_trade(self, run_id: str, symbol: str, action: str, price: float, 
+                  confidence: float = None, pnl: float = None):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                INSERT INTO trades (timestamp, run_id, symbol, action, price, confidence, pnl)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                datetime.utcnow().isoformat(),
+                run_id,
+                symbol,
+                action,
+                price,
+                confidence,
+                pnl
+            ))
+            
+    def get_recent_performance(self, hours: int = 24):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT COUNT(*) as trades,
+                       AVG(CASE WHEN pnl > 0 THEN 1.0 ELSE 0.0 END) as win_rate,
+                       SUM(pnl) as total_pnl
+                FROM trades 
+                WHERE timestamp > datetime('now', '-{} hours')
+                AND pnl IS NOT NULL
+            """.format(hours))
+            row = cursor.fetchone()
+            return {
+                "trades": row[0] or 0,
+                "win_rate": row[1] or 0,
+                "total_pnl": row[2] or 0
+            }
+            
+    def save_position_state(self, symbol: str, state: dict):
+        """Save position state to SQLite instead of JSON"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO positions 
+                (symbol, position_side, position_qty, position_entry_price, 
+                 last_entry_time, order_id, pnl_today, pnl_total, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                symbol,
+                state.get("position_side"),
+                state.get("position_qty", 0),
+                state.get("position_entry_price", 0),
+                state.get("last_entry_time"),
+                state.get("order_id"),
+                state.get("pnl_today", 0),
+                state.get("pnl_total", 0),
+                datetime.utcnow().isoformat()
+            ))
+            
+    def load_position_state(self, symbol: str) -> dict:
+        """Load position state from SQLite with JSON fallback"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT position_side, position_qty, position_entry_price, 
+                       last_entry_time, order_id, pnl_today, pnl_total
+                FROM positions WHERE symbol = ?
+            """, (symbol,))
+            row = cursor.fetchone()
+            
+            if row:
+                return {
+                    "position_side": row[0],
+                    "position_qty": row[1] or 0,
+                    "position_entry_price": row[2] or 0,
+                    "last_entry_time": row[3],
+                    "order_id": row[4],
+                    "pnl_today": row[5] or 0,
+                    "pnl_total": row[6] or 0
+                }
+            else:
+                # Fallback to JSON file and migrate
+                try:
+                    json_state = load_state(symbol)
+                    if json_state:
+                        self.save_position_state(symbol, json_state)
+                        logger.info(f"Migrated {symbol} state from JSON to SQLite")
+                        return json_state
+                except Exception as e:
+                    logger.warning(f"Could not load JSON state for {symbol}: {e}")
+                    
+                # Return default empty state
+                return {
+                    "position_side": None,
+                    "position_qty": 0,
+                    "position_entry_price": 0,
+                    "last_entry_time": None,
+                    "order_id": None,
+                    "pnl_today": 0,
+                    "pnl_total": 0
+                }
+
+# Initialize zero-cost enhancements
+performance_tracker = PerformanceTracker()
+trading_db = TradingDatabase()
+
+# ========== ASYNC PROCESSING ENHANCEMENTS ==========
+
+class AsyncProcessor:
+    """Async processing for parallel data fetching"""
+    def __init__(self, max_workers=3):
+        self.max_workers = max_workers
+        
+    def run_parallel(self, tasks):
+        """Run multiple tasks in parallel using thread pool"""
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_task = {executor.submit(task['func'], *task.get('args', []), **task.get('kwargs', {})): task for task in tasks}
+            results = {}
+            
+            for future in concurrent.futures.as_completed(future_to_task):
+                task = future_to_task[future]
+                task_name = task['name']
+                try:
+                    results[task_name] = future.result()
+                except Exception as e:
+                    logger.error(f"Task {task_name} failed: {e}")
+                    results[task_name] = None
+                    performance_tracker.record_error()
+                    
+            return results
+            
+    def fetch_all_symbol_data(self, symbol):
+        """Fetch all data for a symbol in parallel"""
+        tasks = [
+            {
+                'name': 'bars_15m',
+                'func': fetch_bars,
+                'args': [symbol, TF_FAST],
+                'kwargs': {'lookback': 200}
+            },
+            {
+                'name': 'bars_1h', 
+                'func': fetch_bars,
+                'args': [symbol, TF_SLOW],
+                'kwargs': {'lookback': 200}
+            }
+        ]
+        
+        # Add sentiment fetch if not offline
+        if not OFFLINE:
+            tasks.append({
+                'name': 'sentiment',
+                'func': self.fetch_sentiment_for_symbol,
+                'args': [symbol]
+            })
+            
+        return self.run_parallel(tasks)
+        
+    def fetch_sentiment_for_symbol(self, symbol):
+        """Fetch sentiment for a specific symbol"""
+        try:
+            if OFFLINE:
+                return 0.6  # Default sentiment
+                
+            api_news = _rest()
+            if api_news:
+                news_resp = api_news.get_news(_normalize_symbol(symbol), limit=10)
+                headlines = [item.headline for item in news_resp]
+                sentiment, _ = sentiment_via_perplexity(headlines)
+                return sentiment
+            else:
+                return 0.5
+        except Exception as e:
+            logger.warning(f"Error fetching sentiment for {symbol}: {e}")
+            return 0.5
+
+# Initialize async processor
+async_processor = AsyncProcessor(max_workers=3)
+
+# ========== END ZERO-COST ENHANCEMENTS ==========
 
 # Import enhanced components
 try:
@@ -720,6 +1017,7 @@ def _pplx_headers(api_key: str) -> dict:
     return {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
 
+@CircuitBreaker(failure_threshold=3, recovery_timeout=60)
 def sentiment_via_perplexity(headlines: list[str]) -> Tuple[float, Optional[str]]:
     """
     Ask Perplexity to score sentiment in [0,1] for Bitcoin given the provided headlines.
@@ -1227,6 +1525,9 @@ def notify(event: str, payload: Dict[str, Any]) -> None:
 def main() -> int:
     logger.info("Starting Enhanced Multi-Asset Hybrid Trader (safe=%s, no_trade=%s)", OFFLINE, NO_TRADE)
     
+    # Initialize performance tracking
+    performance_tracker.heartbeat()
+    
     # Initialize enhanced components
     components = initialize_enhanced_components()
     
@@ -1237,6 +1538,11 @@ def main() -> int:
     # Assign a run_id early for consistent logging
     _run_id = _nowstamp()
     logger.info("[run] start run_id=%s assets=%s", _run_id, enabled_assets)
+    
+    # Log performance stats
+    stats = performance_tracker.get_stats()
+    logger.info("Performance stats: uptime=%.1fh trades=%d errors=%d", 
+                stats["uptime_hours"], stats["trade_count"], stats["error_count"])
     
     # Log ML model info if available
     try:
@@ -1259,7 +1565,8 @@ def main() -> int:
     current_positions = {}
     
     for symbol in enabled_assets:
-        state = load_state(symbol)
+        # Use SQLite state management instead of JSON
+        state = trading_db.load_position_state(symbol)
         if not OFFLINE:
             state = reconcile_position_state(api, symbol, state)
         asset_states[symbol] = state
@@ -1292,12 +1599,22 @@ def main() -> int:
         try:
             logger.info("[progress] Processing %s...", symbol)
             
-            # Fetch bars
-            bars_15 = fetch_bars(symbol, TF_FAST, lookback=200)
-            bars_1h = fetch_bars(symbol, TF_SLOW, lookback=200)
+            # Fetch data in parallel for better performance
+            start_time = time.time()
+            parallel_data = async_processor.fetch_all_symbol_data(symbol)
+            fetch_time = time.time() - start_time
             
-            if len(bars_15) < 50 or len(bars_1h) < 60:
-                logger.warning("Insufficient bars for %s: 15m=%d 1h=%d", symbol, len(bars_15), len(bars_1h))
+            bars_15 = parallel_data.get('bars_15m')
+            bars_1h = parallel_data.get('bars_1h')
+            sentiment = parallel_data.get('sentiment', 0.5)
+            
+            logger.debug(f"Parallel data fetch for {symbol}: {fetch_time:.2f}s")
+            
+            if (bars_15 is None or bars_1h is None or 
+                len(bars_15) < 50 or len(bars_1h) < 60):
+                logger.warning("Insufficient bars for %s: 15m=%d 1h=%d", symbol, 
+                              len(bars_15) if bars_15 is not None else 0, 
+                              len(bars_1h) if bars_1h is not None else 0)
                 continue
             
             # Calculate indicators
@@ -1315,20 +1632,11 @@ def main() -> int:
             
             price = float(bars_15["close"].iloc[-1])
             
-            # Get sentiment
+            # Use pre-fetched sentiment from parallel processing
             if OFFLINE:
                 headlines = [f"{symbol} consolidates after recent move; traders watch key levels"]
-                sentiment = 0.6  # Slightly bullish default
-            else:
-                try:
-                    api_news = _rest()
-                    news_resp = api_news.get_news(_normalize_symbol(symbol), limit=10)
-                    headlines = [item.headline for item in news_resp]
-                    sentiment, _ = sentiment_via_perplexity(headlines)
-                except Exception as e:
-                    logger.warning("Failed to get sentiment for %s: %s", symbol, e)
-                    headlines = []
-                    sentiment = 0.5
+                sentiment = sentiment or 0.6  # Use fetched sentiment or default
+            # Sentiment already fetched in parallel, use that value
             
             # Enhanced trading decision
             can_trade, reason = should_trade_asset(components, symbol, bars_15, bars_1h, sentiment, current_positions)
@@ -1432,6 +1740,7 @@ def main() -> int:
         
         except Exception as e:
             logger.error("Error processing %s: %s", symbol, e)
+            performance_tracker.record_error()
             continue
     
     # Execute trading decisions
@@ -1448,6 +1757,18 @@ def main() -> int:
                     )
                     
                     if success:
+                        # Track performance
+                        performance_tracker.record_trade()
+                        
+                        # Log to database
+                        trading_db.log_trade(
+                            run_id=_run_id,
+                            symbol=symbol,
+                            action='BUY',
+                            price=decision['price'],
+                            confidence=decision.get('confidence', 0.5)
+                        )
+                        
                         # Update state
                         state = asset_states[symbol]
                         state.update({
@@ -1457,6 +1778,8 @@ def main() -> int:
                             "last_entry_time": time.time(),
                             "order_id": order_id
                         })
+                        # Save state to both SQLite and JSON for now
+                        trading_db.save_position_state(symbol, state)
                         save_state(symbol, state)
                         
                         executed_trades.append(decision)
@@ -1548,17 +1871,13 @@ def main() -> int:
     
     logger.info("Enhanced multi-asset trading cycle complete: %d trades executed", len(executed_trades))
     
-    # For multi-asset mode, skip single-asset sentiment logic and go to completion
-    multi_asset_mode = os.getenv("TB_MULTI_ASSET", "0") == "1"
-    if multi_asset_mode and len(executed_trades) >= 0:  # Multi-asset processing complete
-        # Set decision for completion logging
-        decision = {"action": "multi_asset_complete", "trades": len(executed_trades)}
-        # Jump to heartbeat and autocommit section at line ~1914
-        goto_completion = True
-    else:
-        goto_completion = False
+    # Enhanced mode always uses multi-asset processing
+    decision = {"action": "multi_asset_complete", "trades": len(executed_trades)}
     
-    if not goto_completion:
+    # Skip old single-asset code and jump to completion
+    # (The old single-asset code is kept below for reference but not executed)
+    """
+    OLD SINGLE-ASSET CODE - COMMENTED OUT
         # Continue with single-asset sentiment analysis logic
         
         # Sentiment
@@ -1591,6 +1910,9 @@ def main() -> int:
     sentiment, serr = sentiment_via_perplexity(headlines)
     if serr:
         logger.info(f"[sentiment] fallback notice: {serr}")
+    """
+    
+    # Jump to heartbeat section
 
     # Optional signal debounce: require EMA12>EMA26 across last N bars
     debounce_ok = True
