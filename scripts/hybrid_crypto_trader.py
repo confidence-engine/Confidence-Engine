@@ -495,14 +495,21 @@ def check_performance_tracker():
         return 100  # Critical
 
 def check_memory_usage():
-    """Check memory usage (basic estimate)"""
-    import gc
+    """Check actual memory usage in MB"""
+    import psutil
+    import os
     try:
-        objects = len(gc.get_objects())
-        # Rough estimate: warn at 50k objects, critical at 100k
-        return objects / 1000  # Return objects in thousands
+        # Get current process memory usage
+        process = psutil.Process(os.getpid())
+        memory_mb = process.memory_info().rss / 1024 / 1024  # Convert to MB
+        return memory_mb
     except Exception:
-        return 0
+        # Fallback to object count if psutil not available
+        import gc
+        objects = len(gc.get_objects())
+        # Rough estimate: assume ~1KB per object on average
+        estimated_mb = objects / 1000  # Convert to MB
+        return estimated_mb
 
 def check_api_connectivity():
     """Check if we can connect to Alpaca API"""
@@ -520,7 +527,7 @@ def check_api_connectivity():
 # Register all health checks
 health_monitor.register_check('database', check_database_connection, critical_threshold=0.5)
 health_monitor.register_check('performance', check_performance_tracker, warning_threshold=10, critical_threshold=25)
-health_monitor.register_check('memory', check_memory_usage, warning_threshold=50, critical_threshold=100)
+health_monitor.register_check('memory', check_memory_usage, warning_threshold=1024, critical_threshold=2048)
 health_monitor.register_check('api_connectivity', check_api_connectivity, critical_threshold=0.5)
 
 # ========== CONFIGURATION MANAGEMENT SYSTEM ==========
@@ -842,6 +849,10 @@ enhanced_async_processor = AsyncEnhancedProcessor(max_workers=3)
 
 # Import enhanced components
 try:
+    # Import from the root-level advanced_risk_manager.py (not scripts/)
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))  # Add project root to path
     from advanced_risk_manager import AdvancedRiskManager, KellyPositionSizer
     from market_regime_detector import MarketRegimeDetector
     from ensemble_ml_models import TradingEnsemble
@@ -2188,6 +2199,14 @@ def main() -> int:
                               len(bars_1h) if bars_1h is not None else 0)
                 continue
             
+            # Initialize signal variables to avoid UnboundLocalError
+            cross_up = False
+            cross_down = False
+            cross_up_1h = False
+            cross_down_1h = False
+            trend_up = False
+            price = 0.0
+            
             # Calculate indicators
             ema12 = ema(bars_15["close"], 12)
             ema26 = ema(bars_15["close"], 26)
@@ -2509,381 +2528,20 @@ def main() -> int:
     # Enhanced mode always uses multi-asset processing
     decision = {"action": "multi_asset_complete", "trades": len(executed_trades)}
     
-    # Skip old single-asset code and jump to completion
-    # (The old single-asset code is kept below for reference but not executed)
-    """
-    OLD SINGLE-ASSET CODE - COMMENTED OUT
-        # Continue with single-asset sentiment analysis logic
-        
-        # Sentiment
-        # In OFFLINE mode, do not fetch from Alpaca; use mock headlines
-        if OFFLINE:
-            headlines: List[str] = [
-                "Bitcoin consolidates after sharp move; traders eye EMA cross",
-                "ETF flows steady as BTC holds key support",
-                "Macro stable ahead of Fed speakers; risk tone neutral to positive",
-            ]
-    else:
-        try:
-            api_news = _rest()
-            def _get_news():
-                return api_news.get_news(_normalize_symbol(SYMBOL), limit=10)
-            def _on_retry_news(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
-                logger.warning(f"[retry] get_news attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s")
-            news = retry_call(
-                _get_news,
-                attempts=int(os.getenv("TB_RETRY_ATTEMPTS", "5")),
-                retry_exceptions=(Exception,),
-                retry_status_codes=RETRY_STATUS_CODES,
-                on_retry=_on_retry_news,
-            )
-            headlines = [getattr(n, "headline", getattr(n, "title", "")) for n in news]
-            headlines = [h for h in headlines if h]
-        except Exception:
-            headlines = []
-    logger.info("[progress] Fetching sentiment...")
-    sentiment, serr = sentiment_via_perplexity(headlines)
-    if serr:
-        logger.info(f"[sentiment] fallback notice: {serr}")
-    """
-    
-    # Jump to heartbeat section
-
-    # Optional signal debounce: require EMA12>EMA26 across last N bars
-    debounce_ok = True
-    if SIGNAL_DEBOUNCE_N > 0:
-        try:
-            cond = (ema12 > ema26).iloc[-SIGNAL_DEBOUNCE_N:]
-            debounce_ok = bool(cond.all())
-        except Exception:
-            debounce_ok = False
-    # Optional 1h debounce: require EMA_fast>EMA_slow across last N 1h bars
-    debounce_1h_ok = True
-    if DEBOUNCE_1H_N > 0:
-        try:
-            cond1h = (ema1h_fast > ema1h_slow).iloc[-DEBOUNCE_1H_N:]
-            debounce_1h_ok = bool(cond1h.all())
-        except Exception:
-            debounce_1h_ok = False
-    logger.info(
-        "Signals: 15m[cross_up=%s cross_down=%s debounce_ok=%s] 1h[cross_up=%s cross_down=%s debounce_ok=%s] trend_up=%s sentiment=%.3f price=%.2f",
-        cross_up, cross_down, debounce_ok, cross_up_1h, cross_down_1h, debounce_1h_ok, trend_up, sentiment, price,
-    )
-
-    # Optional ML probability gate
-    ml_prob: Optional[float] = None
-    ml_model_dir: Optional[str] = None
-    if USE_ML_GATE:
-        try:
-            ml_model_dir = os.path.dirname(os.path.realpath(ML_MODEL_PATH)) if ML_MODEL_PATH else None
-        except Exception:
-            ml_model_dir = None
-        model, feat_names = _load_ml_gate(ML_MODEL_PATH, ML_FEATURES_PATH)
-        if model is not None and feat_names is not None:
-            x = _build_live_feature_vector(bars_15, feat_names)
-            if x is not None:
-                with torch.no_grad():
-                    logit = model(x)
-                    prob_val = float(torch.sigmoid(logit).item())
-                    # Ensure finite numeric
-                    if not np.isfinite(prob_val):
-                        prob_val = 0.0
-                    ml_prob = max(0.0, min(1.0, prob_val))
-        # If gate is enabled but we failed to compute, be conservative
-        if ml_prob is None:
-            ml_prob = 0.0
-        logger.info("[ml_gate] prob=%.3f min=%.2f", ml_prob, ML_MIN_PROB)
-
-    # Per-run audit snapshot (inputs + signals + pre-state)
+    # Define variables needed for heartbeat and completion
+    now_ts = int(time.time())
     run_id = _run_id
     run_dir = None
-    if os.getenv("TB_AUDIT", "1") == "1":
-        run_dir = RUNS_DIR / run_id
-        inputs = {
-            "symbol": SYMBOL,
-            "time": datetime.now(timezone.utc).isoformat(),
-            "price": round(price, 2),
-            "ema12": float(ema12.iloc[-1]),
-            "ema26": float(ema26.iloc[-1]),
-            "ema50h": float(ema50h.iloc[-1]),
-            "sentiment": float(sentiment),
-            "cross_up": bool(cross_up),
-            "cross_down": bool(cross_down),
-            "cross_up_1h": bool(cross_up_1h),
-            "cross_down_1h": bool(cross_down_1h),
-            "trend_up": bool(trend_up),
-        }
-        # Enrich audit with optional gates
-        if USE_ML_GATE:
-            inputs["ml_prob"] = float(ml_prob if ml_prob is not None else 0.0)
-            if ml_model_dir:
-                inputs["ml_model_dir"] = ml_model_dir
-        # ATR filter info
-        atr_pct_val = None
-        htf_ok_val = None
-        if USE_ATR_FILTER:
-            try:
-                atr_series = atr(bars_15, ATR_LEN)
-                atr_val = float(atr_series.iloc[-1])
-                atr_pct_val = float(atr_val / max(price, 1e-9))
-            except Exception:
-                atr_pct_val = None
-        if USE_HTF_REGIME:
-            try:
-                ema_htf = ema(bars_1h["close"], HTF_EMA_LEN)
-                htf_ok_val = bool(bars_1h["close"].iloc[-1] > ema_htf.iloc[-1])
-            except Exception:
-                htf_ok_val = None
-        if atr_pct_val is not None:
-            inputs["atr_pct"] = round(atr_pct_val, 6)
-        if htf_ok_val is not None:
-            inputs["htf_regime_ok"] = bool(htf_ok_val)
-        write_json(run_dir / "inputs.json", inputs)
-        logger.info(f"[progress] Wrote audit inputs -> {run_dir}/inputs.json")
-
-    # Decision logic
-    did_anything = False
-    now_ts = int(time.time())
-    cooldown_until = int(state.get("cooldown_until", 0))
-    in_position = bool(state.get("in_position", False))
-
-    # Optional test hook: force a tiny BUY to validate E2E order flow when enabled.
-    # Enabled only when online (OFFLINE=0) and trading allowed (TB_NO_TRADE=0).
-    if (os.getenv("TB_TRADER_TEST_FORCE_BUY", "0") == "1") and (not OFFLINE) and (not NO_TRADE):
-        try:
-            equity = get_account_equity(api) if api is not None else 0.0
-        except Exception:
-            equity = 0.0
-        # ~$10 notional qty (respecting Alpaca ~$10 min)
-        test_notional = max(10.0, float(os.getenv("TB_TEST_NOTIONAL", "10")))
-        qty = max(0.000001, round(test_notional / max(price, 1e-6), 6))
-        entry = float(price)
-        tp = entry * (1.0 + TP_PCT)
-        # Respect ATR-based stop sizing if enabled
-        if USE_ATR_STOP:
-            try:
-                atr_curr = float(atr(fetch_bars(SYMBOL, TF_FAST, lookback=ATR_LEN + 60), ATR_LEN).iloc[-1]) if OFFLINE else float(atr(bars_15, ATR_LEN).iloc[-1])
-            except Exception:
-                atr_curr = 0.0
-            sl = max(0.0, entry - ATR_STOP_MULT * atr_curr)
-        else:
-            sl = entry * (1.0 - SL_PCT)
-        if api is not None:
-            ok, oid, err = place_bracket(api, SYMBOL, qty, entry, tp, sl)
-            notify("submit", {"symbol": SYMBOL, "side": "buy", "qty": qty, "entry": round(entry, 2), "tp": round(tp, 2), "sl": round(sl, 2), "sentiment": round(sentiment, 3), "status": "submitted" if ok else f"failed:{err}"})
-            logger.info("[test] forced BUY submitted: ok=%s id=%s err=%s", ok, oid, err)
-            did_anything = True
-        decision = {"action": "close"}
-
-    # Compute optional filter booleans
-    atr_ok = True
-    if USE_ATR_FILTER:
-        try:
-            atr_curr = float(atr(bars_15, ATR_LEN).iloc[-1])
-            atr_pct = float(atr_curr / max(price, 1e-9))
-            atr_ok = (atr_pct >= ATR_MIN_PCT) and (atr_pct <= ATR_MAX_PCT)
-        except Exception:
-            atr_ok = False
-    htf_ok = True
-    if USE_HTF_REGIME:
-        try:
-            ema_htf = ema(bars_1h["close"], HTF_EMA_LEN)
-            htf_ok = bool(bars_1h["close"].iloc[-1] > ema_htf.iloc[-1])
-        except Exception:
-            htf_ok = False
-
-    decision = {"action": "hold", "reason": "no_signal"}
-    # Primary 15m entry path
-    # Evaluate ML gate condition with optional soft-neutral behavior
-    def _ml_gate_ok() -> bool:
-        if not USE_ML_GATE:
-            return True
-        if ml_prob is None:
-            return ML_SOFT_GATE  # neutral pass when soft gate enabled
-        return ml_prob >= ML_MIN_PROB
-
-    if cross_up and trend_up and debounce_ok and atr_ok and htf_ok and sentiment >= SENTIMENT_THRESHOLD and _ml_gate_ok():
-        # Long entry
-        # Risk gate: daily loss cap
-        loss_cap = -DAILY_LOSS_CAP_PCT * float(state.get("equity_ref", 100000.0))
-        if float(state.get("pnl_today", 0.0)) <= loss_cap:
-            logger.info("[gate] Entry blocked: daily loss cap reached (pnl_today=%.2f cap=%.2f)", state.get("pnl_today", 0.0), loss_cap)
-        elif cooldown_until > now_ts:
-            logger.info("[gate] Entry blocked by cooldown (%ds remaining)", cooldown_until - now_ts)
-        elif in_position:
-            logger.info("[gate] Entry blocked: already in_position")
-        elif NO_TRADE or OFFLINE:
-            logger.info("[gate] would BUY but blocked by no_trade/offline gates")
-        # Compute entry/TP/SL
-        entry = float(price)
-        tp = entry * (1.0 + TP_PCT)
-        if USE_ATR_STOP:
-            try:
-                atr_curr = float(atr(bars_15, ATR_LEN).iloc[-1])
-            except Exception:
-                atr_curr = 0.0
-            sl = max(0.0, entry - ATR_STOP_MULT * atr_curr)
-        else:
-            sl = entry * (1.0 - SL_PCT)
-        equity = get_account_equity(api) if not OFFLINE else 100000.0
-        qty = calc_position_size(equity, entry, sl)
-        payload = {"symbol": SYMBOL, "entry": round(entry, 2), "tp": round(tp, 2), "sl": round(sl, 2), "qty": round(qty, 6), "price": round(price, 2), "sentiment": round(sentiment, 3), "status": "preview"}
-        if (cooldown_until <= now_ts) and (not in_position):
-            if OFFLINE or NO_TRADE:
-                logger.info("[preview] Would BUY qty=%.6f @ %.2f tp=%.2f sl=%.2f", qty, entry, tp, sl)
-                notify("would_submit", payload)
-                # Update state with intent + cooldown start (preview mode still sets cooldown)
-                state.update({
-                    "in_position": True,
-                    "last_entry": float(entry),
-                    "last_entry_ts": now_ts,
-                    "cooldown_until": now_ts + COOLDOWN_SEC,
-                    "last_qty": float(qty),
-                })
-                did_anything = True
-            else:
-                ok, oid, err = place_bracket(api, SYMBOL, qty, entry, tp, sl)
-                payload.update({"status": "submitted" if ok else f"error: {err}", "order_id": oid})
-                notify("submit", payload)
-                logger.info("[submit] %s", payload["status"]) 
-                if ok:
-                    state.update({
-                        "in_position": True,
-                        "last_entry": float(entry),
-                        "last_entry_ts": now_ts,
-                        "cooldown_until": now_ts + COOLDOWN_SEC,
-                        "last_order_id": oid,
-                        "last_qty": float(qty),
-                    })
-                did_anything = True
-            # Mark decision for audit
-            decision = {"action": "buy", "qty": float(qty), "entry": float(entry), "tp": float(tp), "sl": float(sl)}
-
-    # Secondary 1h entry path (smaller size) — only if 15m path didn't act
-    if (decision.get("action") == "hold") and USE_1H_ENTRY and cross_up_1h and debounce_1h_ok and atr_ok and htf_ok and sentiment >= SENTIMENT_THRESHOLD and _ml_gate_ok():
-        # Risk gate: daily loss cap
-        loss_cap = -DAILY_LOSS_CAP_PCT * float(state.get("equity_ref", 100000.0))
-        if float(state.get("pnl_today", 0.0)) <= loss_cap:
-            logger.info("[gate-1h] Entry blocked: daily loss cap reached (pnl_today=%.2f cap=%.2f)", state.get("pnl_today", 0.0), loss_cap)
-        elif cooldown_until > now_ts:
-            logger.info("[gate-1h] Entry blocked by cooldown (%ds remaining)", cooldown_until - now_ts)
-        elif in_position:
-            logger.info("[gate-1h] Entry blocked: already in_position")
-        elif NO_TRADE or OFFLINE:
-            logger.info("[gate-1h] would BUY (1h) but blocked by no_trade/offline gates")
-        # Compute entry/TP/SL
-        entry = float(price)
-        tp = entry * (1.0 + TP_PCT)
-        if USE_ATR_STOP:
-            try:
-                atr_curr = float(atr(bars_15, ATR_LEN).iloc[-1])
-            except Exception:
-                atr_curr = 0.0
-            sl = max(0.0, entry - ATR_STOP_MULT * atr_curr)
-        else:
-            sl = entry * (1.0 - SL_PCT)
-        equity = get_account_equity(api) if not OFFLINE else 100000.0
-        qty_base = calc_position_size(equity, entry, sl)
-        qty = max(0.0, float(qty_base * max(0.0, min(1.0, SIZE_1H_MULT))))
-        payload = {"symbol": SYMBOL, "entry": round(entry, 2), "tp": round(tp, 2), "sl": round(sl, 2), "qty": round(qty, 6), "price": round(price, 2), "sentiment": round(sentiment, 3), "status": "preview", "path": "1h"}
-        if (cooldown_until <= now_ts) and (not in_position):
-            if OFFLINE or NO_TRADE:
-                logger.info("[preview-1h] Would BUY(1h) qty=%.6f @ %.2f tp=%.2f sl=%.2f", qty, entry, tp, sl)
-                notify("would_submit", payload)
-                # Update state with intent + cooldown start (preview mode still sets cooldown)
-                state.update({
-                    "in_position": True,
-                    "last_entry": float(entry),
-                    "last_entry_ts": now_ts,
-                    "cooldown_until": now_ts + COOLDOWN_SEC,
-                    "last_qty": float(qty),
-                })
-                did_anything = True
-            else:
-                ok, oid, err = place_bracket(api, SYMBOL, qty, entry, tp, sl)
-                payload.update({"status": "submitted" if ok else f"error: {err}", "order_id": oid})
-                notify("submit", payload)
-                logger.info("[submit-1h] %s", payload["status"]) 
-                if ok:
-                    state.update({
-                        "in_position": True,
-                        "last_entry": float(entry),
-                        "last_entry_ts": now_ts,
-                        "cooldown_until": now_ts + COOLDOWN_SEC,
-                        "last_order_id": oid,
-                        "last_qty": float(qty),
-                    })
-                did_anything = True
-            decision = {"action": "buy_1h", "qty": float(qty), "entry": float(entry), "tp": float(tp), "sl": float(sl)}
-
-    # Exit condition: bearish cross — notify only if currently in a position
-    if cross_down:
-        if not state.get("in_position"):
-            logger.info("[close] skipped: not in_position")
-        elif OFFLINE or NO_TRADE:
-            logger.info("[preview] Would CLOSE open position due to bearish cross")
-            # Estimate PnL for preview close if we have last_entry/qty
-            last_entry = state.get("last_entry")
-            last_qty = state.get("last_qty")
-            pnl = 0.0
-            try:
-                if (last_entry is not None) and (last_qty is not None):
-                    pnl = (float(price) - float(last_entry)) * float(last_qty)
-            except Exception:
-                pnl = 0.0
-            notify("would_close", {
-                "symbol": SYMBOL,
-                "price": round(price, 2),  # exit
-                "entry": round(float(last_entry), 2) if last_entry is not None else None,
-                "qty": float(last_qty) if last_qty is not None else None,
-                "pnl_est": round(float(pnl), 2),
-                "sentiment": round(sentiment, 3),
-                "status": "preview",
-            })
-            # Preview: clear position and start cooldown
-            state.update({
-                "in_position": False,
-                "last_exit_ts": now_ts,
-                "cooldown_until": now_ts + COOLDOWN_SEC,
-                "pnl_today": float(state.get("pnl_today", 0.0)) + float(pnl),
-            })
-            did_anything = True
-        else:
-            oid = close_position_if_any(api, SYMBOL)
-            # Estimate realized PnL using current price vs last_entry for last_qty
-            last_entry = state.get("last_entry")
-            last_qty = state.get("last_qty")
-            pnl = 0.0
-            try:
-                if (last_entry is not None) and (last_qty is not None):
-                    pnl = (float(price) - float(last_entry)) * float(last_qty)
-            except Exception:
-                pnl = 0.0
-            notify("close", {
-                "symbol": SYMBOL,
-                "price": round(price, 2),  # exit
-                "entry": round(float(last_entry), 2) if last_entry is not None else None,
-                "qty": float(last_qty) if last_qty is not None else None,
-                "pnl_est": round(float(pnl), 2),
-                "sentiment": round(sentiment, 3),
-                "status": "submitted",
-                "order_id": oid,
-            })
-            logger.info("[close] submitted market close order: %s", oid)
-            state.update({
-                "in_position": False,
-                "last_exit_ts": now_ts,
-                "cooldown_until": now_ts + COOLDOWN_SEC,
-                "last_close_order_id": oid,
-                "pnl_today": float(state.get("pnl_today", 0.0)) + float(pnl),
-            })
-            did_anything = True
-
-        if not did_anything:
-            logger.info("No action taken.")
-            decision = {"action": "hold"}
     
-    # End of single-asset logic block - completion section follows
+    # Create a simple global state for heartbeat tracking (since we removed single-asset state)
+    state = {
+        "hb_runs": 0,
+        "last_run_ts": now_ts,
+        "last_heartbeat_ts": 0
+    }
+    
+    # Skip old single-asset code - removed to prevent UnboundLocalError
+    # The old single-asset code has been removed as we now use multi-asset processing exclusively
     
     # Heartbeat: per-run counter + optional liveness notification
     try:
@@ -2892,14 +2550,14 @@ def main() -> int:
         state["last_run_ts"] = now_ts
         if HEARTBEAT and NOTIFY and HEARTBEAT_EVERY_N > 0 and (hb_runs % HEARTBEAT_EVERY_N == 0):
             payload = {
-                "symbol": SYMBOL,
-                "price": round(price, 2),
-                "sentiment": round(sentiment, 3),
+                "symbol": "MULTI-ASSET",
+                "price": 0,  # Multi-asset mode doesn't have single price
+                "sentiment": 0,  # Multi-asset mode doesn't have single sentiment
                 "qty": 0,
                 "entry": None,
                 "tp": None,
                 "sl": None,
-                "status": f"alive run={hb_runs}",
+                "status": f"alive run={hb_runs} trades={len(executed_trades)}",
             }
             notify("heartbeat", payload)
             state["last_heartbeat_ts"] = now_ts
@@ -2907,9 +2565,11 @@ def main() -> int:
     except Exception as e:
         logger.warning(f"[heartbeat] failed: {e}")
 
-    # Persist state if we touched it
+    # Persist global state for heartbeat tracking
     try:
-        save_state(SYMBOL, state)
+        # Save global heartbeat state (not per-symbol since we're multi-asset)
+        global_state_file = os.path.join(STATE_DIR, "global_state.json")
+        write_json(global_state_file, state)
     except Exception:
         pass
 
