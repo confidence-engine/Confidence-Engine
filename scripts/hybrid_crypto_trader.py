@@ -13,12 +13,16 @@ import numpy as np
 import pandas as pd
 import httpx
 import torch
+from dotenv import load_dotenv
 
 # Ensure project root on sys.path for local imports when executed directly
 _THIS_DIR = Path(__file__).parent
 _PROJ_ROOT = _THIS_DIR.parent
 if str(_PROJ_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJ_ROOT))
+
+# Load environment variables from .env file
+load_dotenv(_PROJ_ROOT / ".env")
 
 try:
     from alpaca_trade_api.rest import REST  # type: ignore
