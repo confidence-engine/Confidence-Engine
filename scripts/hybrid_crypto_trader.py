@@ -540,8 +540,18 @@ class _MLP(torch.nn.Module):
     def __init__(self, in_dim: int):
         super().__init__()
         self.net = torch.nn.Sequential(
-            torch.nn.Linear(in_dim, 16),
+            torch.nn.Linear(in_dim, 64),
+            torch.nn.BatchNorm1d(64),
             torch.nn.ReLU(),
+            torch.nn.Dropout(0.2),
+            torch.nn.Linear(64, 32),
+            torch.nn.BatchNorm1d(32),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.2),
+            torch.nn.Linear(32, 16),
+            torch.nn.BatchNorm1d(16),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.2),
             torch.nn.Linear(16, 1),
         )
     def forward(self, x):
@@ -563,20 +573,60 @@ def _load_ml_gate(model_path: str, features_path: str):
 def _build_live_feature_vector(bars_15: pd.DataFrame, feature_names: list[str]) -> Optional[torch.Tensor]:
     try:
         df = bars_15.copy()
+
+        # Basic returns
         df["ret_1"] = df["close"].pct_change()
-        e12 = ema(df["close"], 12)
-        e26 = ema(df["close"], 26)
-        df["ema12_slope"] = e12.pct_change()
-        df["ema26_slope"] = e26.pct_change()
+
+        # RSI (Relative Strength Index)
+        delta = df["close"].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        df["rsi"] = 100 - (100 / (1 + rs))
+
+        # MACD (Moving Average Convergence Divergence)
+        df["ema12"] = ema(df["close"], 12)
+        df["ema26"] = ema(df["close"], 26)
+        df["macd"] = df["ema12"] - df["ema26"]
+        df["macd_signal"] = ema(df["macd"], 9)
+        df["macd_histogram"] = df["macd"] - df["macd_signal"]
+
+        # Bollinger Bands
+        df["sma20"] = df["close"].rolling(window=20).mean()
+        df["std20"] = df["close"].rolling(window=20).std()
+        df["bb_upper"] = df["sma20"] + (df["std20"] * 2)
+        df["bb_lower"] = df["sma20"] - (df["std20"] * 2)
+        df["bb_position"] = (df["close"] - df["bb_lower"]) / (df["bb_upper"] - df["bb_lower"])
+
+        # Momentum indicators
+        df["momentum_5"] = df["close"] / df["close"].shift(5) - 1
+        df["momentum_10"] = df["close"] / df["close"].shift(10) - 1
+
+        # Volatility measures
+        df["close_volatility"] = df["close"].pct_change().rolling(20).std()
+        df["high_low_range"] = (df.get("high", df["close"]) - df.get("low", df["close"])) / df["close"]
+
+        # Volume indicators
+        df["volume_sma"] = df["volume"].rolling(window=20).mean()
+        df["volume_ratio"] = df["volume"] / df["volume_sma"]
+
+        # Original features
+        df["ema12_slope"] = df["ema12"].pct_change()
+        df["ema26_slope"] = df["ema26"].pct_change()
         df["vol"] = df["close"].pct_change().rolling(20).std().fillna(0.0)
         df["vol_chg"] = df["volume"].pct_change().fillna(0.0)
-        cross_up = ((e12.shift(1) <= e26.shift(1)) & (e12 > e26)).astype(int)
-        df["cross_up"] = cross_up
+        df["cross_up"] = ((df["ema12"].shift(1) <= df["ema26"].shift(1)) & (df["ema12"] > df["ema26"]))
+        df["cross_up"] = df["cross_up"].astype(int)
+
         # Align to the last fully-formed feature row (like training: features drop last row)
         df = df.replace([float("inf"), float("-inf")], 0.0).fillna(0.0)
         # Use the penultimate row to mimic training alignment
         last_idx = -2 if len(df) >= 2 else -1
-        vec = [float(df.iloc[last_idx][name]) for name in feature_names]
+        try:
+            vec = [float(df.iloc[last_idx][name]) for name in feature_names]
+        except KeyError as e:
+            logger.warning(f"[ml_gate] Missing feature: {e}, available: {list(df.columns)}")
+            return None
         x = torch.tensor([vec], dtype=torch.float32)
         return x
     except Exception as e:
