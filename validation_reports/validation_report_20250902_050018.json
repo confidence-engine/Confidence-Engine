@@ -1,0 +1,140 @@
+{
+  "timestamp": "2025-09-02T05:00:18.798626",
+  "validation_phase": "Paper Trading (6-month)",
+  "threshold_analysis": {
+    "Very_Relaxed": {
+      "config": "ThresholdConfig(divergence_threshold=0.3, sentiment_cutoff=0.45, min_confidence=0.55, name='Very_Relaxed')",
+      "metrics": "SignalMetrics(signals_per_week=1.8666666666666667, avg_confidence=np.float64(0.7555000000000001), avg_divergence=np.float64(0.63775), strong_signals=4, weak_signals=0, win_rate=0.0, avg_pnl=0.0)",
+      "recommendation": "ACCEPTABLE - Minor adjustments may help"
+    },
+    "Relaxed": {
+      "config": "ThresholdConfig(divergence_threshold=0.4, sentiment_cutoff=0.5, min_confidence=0.6, name='Relaxed')",
+      "metrics": "SignalMetrics(signals_per_week=1.4000000000000001, avg_confidence=np.float64(0.8153333333333332), avg_divergence=np.float64(0.7028333333333333), strong_signals=4, weak_signals=0, win_rate=0.0, avg_pnl=0.0)",
+      "recommendation": "ACCEPTABLE - Minor adjustments may help"
+    },
+    "Current": {
+      "config": "ThresholdConfig(divergence_threshold=0.5, sentiment_cutoff=0.55, min_confidence=0.65, name='Current')",
+      "metrics": "SignalMetrics(signals_per_week=0.9333333333333333, avg_confidence=np.float64(0.84025), avg_divergence=np.float64(0.8145), strong_signals=4, weak_signals=0, win_rate=0.0, avg_pnl=0.0)",
+      "recommendation": "TOO_CONSERVATIVE - Lower thresholds needed"
+    },
+    "Conservative": {
+      "config": "ThresholdConfig(divergence_threshold=0.6, sentiment_cutoff=0.6, min_confidence=0.7, name='Conservative')",
+      "metrics": "SignalMetrics(signals_per_week=0.9333333333333333, avg_confidence=np.float64(0.84025), avg_divergence=np.float64(0.8145), strong_signals=4, weak_signals=0, win_rate=0.0, avg_pnl=0.0)",
+      "recommendation": "TOO_CONSERVATIVE - Lower thresholds needed"
+    },
+    "Very_Conservative": {
+      "config": "ThresholdConfig(divergence_threshold=0.7, sentiment_cutoff=0.65, min_confidence=0.75, name='Very_Conservative')",
+      "metrics": "SignalMetrics(signals_per_week=0.7000000000000001, avg_confidence=np.float64(0.8833333333333333), avg_divergence=np.float64(0.7666666666666666), strong_signals=3, weak_signals=0, win_rate=0.0, avg_pnl=0.0)",
+      "recommendation": "TOO_CONSERVATIVE - Lower thresholds needed"
+    }
+  },
+  "frequency_analysis": {
+    "daily_signals": {
+      "2025-08-11": 0
+    },
+    "weekly_patterns": {
+      "monday": 0,
+      "tuesday": 0,
+      "wednesday": 0,
+      "thursday": 0,
+      "friday": 0,
+      "saturday": 0,
+      "sunday": 0,
+      "most_active_day": 0,
+      "least_active_day": 0
+    },
+    "threshold_impact": {},
+    "optimal_frequency": {
+      "current_frequency": 0.0,
+      "target_frequency": 1.0,
+      "adjustment_needed": "increase",
+      "threshold_adjustment": "lower"
+    },
+    "avg_signals_per_day": 0.0,
+    "signal_frequency_trend": "INSUFFICIENT_DATA"
+  },
+  "quality_metrics": {
+    "confidence_distribution": {
+      "mean": 0.6389285714285713,
+      "std": 0.030040364002251303,
+      "percentiles": {
+        "25th": 0.615,
+        "50th": 0.65,
+        "75th": 0.6525000000000001,
+        "90th": 0.663
+      }
+    },
+    "divergence_strength": {
+      "mean": 0.5420909090909091,
+      "strong_signals": 5,
+      "moderate_signals": 4,
+      "weak_signals": 2
+    },
+    "signal_consistency": {
+      "weekly_consistency_score": 0,
+      "weeks_analyzed": 1,
+      "avg_signals_per_week": 0.0,
+      "signal_variance": 0.0
+    },
+    "validation_progress": {
+      "total_runs": 39,
+      "signals_generated": 0,
+      "validation_progress_pct": 11.666666666666666,
+      "days_running": 21,
+      "estimated_signals_at_completion": 0.0
+    }
+  },
+  "regime_analysis": {
+    "current_regime": {
+      "type": "trending",
+      "volatility": "medium",
+      "trend_strength": 0.6,
+      "detected_at": "2025-09-02T05:00:18.863715"
+    },
+    "regime_signal_effectiveness": {
+      "trending_markets": {
+        "signal_count": 15,
+        "avg_quality": 0.7
+      },
+      "ranging_markets": {
+        "signal_count": 8,
+        "avg_quality": 0.5
+      },
+      "volatile_markets": {
+        "signal_count": 22,
+        "avg_quality": 0.6
+      },
+      "overall_score": 0.63
+    },
+    "recommended_adjustments": {
+      "divergence_threshold": 0.4,
+      "sentiment_cutoff": 0.5,
+      "min_confidence": 0.6,
+      "reason": "Trending markets show clearer divergence signals"
+    },
+    "regime_history": {
+      "regime_transitions": 3,
+      "avg_regime_duration_days": 21,
+      "most_common_regime": "trending",
+      "signal_effectiveness_by_regime": {
+        "trending": 0.72,
+        "ranging": 0.48,
+        "volatile": 0.65
+      }
+    }
+  },
+  "recommendations": {
+    "immediate_actions": [
+      "LOWER_THRESHOLDS: Currently generating too few signals for validation"
+    ],
+    "threshold_adjustments": {
+      "divergence_threshold": 0.4,
+      "sentiment_cutoff": 0.48,
+      "min_confidence": 0.58
+    },
+    "validation_focus": [
+      "INCREASE_DATA_COLLECTION: Still in early validation phase"
+    ],
+    "next_review_date": "2025-09-16T05:00:18.864470"
+  }
+}
