@@ -5,6 +5,15 @@
 ### 2025-09-01 — Ops UX: log resolved model dir + stale-latest alert
 ### 2025-09-01 — start_hybrid_loop.sh fix: awk quoting
 
+### 2025-09-01 — Trade notional cap + docs
+
+- Added hard per-trade notional cap env `TB_MAX_NOTIONAL_PER_TRADE=1000` in `.env.example` near `TB_TRADER_MIN_NOTIONAL`.
+- Documentation updates:
+  - `README.md`: noted cap under "Hybrid trader robustness gates" with enforcement points in `scripts/hybrid_crypto_trader.py` (`calc_position_size()` and pre-submit clamp in `place_bracket()`).
+  - `docs/commands.md`: added unified verify/kill/restart snippet and referenced `TB_MAX_NOTIONAL_PER_TRADE` under Key env knobs.
+- Validation plan (safe): run a tiny Python snippet to clamp `qty` such that `qty*price ≤ cap` and print before/after.
+- Git policy: auto-committed docs/env only; no `.py` files.
+
 - Fixed quoting in `scripts/start_hybrid_loop.sh` inside the single-quoted nohup block by switching the inner `awk` program to use double quotes. This removed a `syntax error near unexpected token '('` at line 119.
 - Validation:
   - `bash -n scripts/start_hybrid_loop.sh` now passes.
@@ -2593,3 +2602,12 @@ python3 scripts/hybrid_crypto_trader.py
 
 **Acceptance:**
 - When one key fails or returns zero items, provider advances to the next until items are returned or keys exhausted.
+
+### 2025-09-01 — Hard per-trade notional cap + unified ops
+- Added env `TB_MAX_NOTIONAL_PER_TRADE` (suggested `1000`) to enforce a hard per-trade notional cap.
+- Enforced in two layers in `scripts/hybrid_crypto_trader.py`:
+  - `calc_position_size()` clamps `qty` so `qty*entry <= cap`.
+  - `place_bracket()` clamps again at submission as a safety net.
+- Set in `.env`: `TB_MAX_NOTIONAL_PER_TRADE=1000`.
+- Unified ops commands (see README.md and docs/commands.md): verify, kill, restart live loop and ML.
+- Docs policy: only artifacts/docs auto-committed; never `.py`.

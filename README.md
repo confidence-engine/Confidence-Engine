@@ -584,6 +584,10 @@ Notes:
 - Heartbeat notifications — optional liveness pings every N runs when notifications are enabled:
   - Env: `TB_TRADER_NOTIFY_HEARTBEAT`, `TB_HEARTBEAT_EVERY_N`.
 
+- Per‑trade notional cap — hard USD cap per order; quantity is clamped so `qty * entry_price ≤ cap`:
+  - Env: `TB_MAX_NOTIONAL_PER_TRADE` (default `1000`).
+  - Enforcement points: `calc_position_size()` and a safety‑net before submit in `place_bracket()` within `scripts/hybrid_crypto_trader.py`.
+
 ***
 
 ## Quick commands recap

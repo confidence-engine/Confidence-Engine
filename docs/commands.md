@@ -426,6 +426,22 @@ python3 -m pytest -q
   ps ax | egrep 'hybrid_crypto_trader.py|ml_retrainer.py' | egrep -v egrep
   ```
 
+- **Unified live ops: verify / kill / restart**
+  - Verify processes and tail logs (safe):
+  ```
+  ps ax | egrep 'hybrid_crypto_trader.py|ml_retrainer.py' | egrep -v egrep
+  tail -n 120 trader_loop.log
+  tail -n 50  state/trade_journal.csv
+  ```
+  - Kill live loop (watchdog may restart):
+  ```
+  pkill -f 'python3 scripts/hybrid_crypto_trader.py'
+  ```
+  - Restart via wrapper (preferred):
+  ```
+  bash scripts/start_hybrid_loop.sh
+  ```
+
 - **Stop/Pause**
   - Stop trader once (watchdog may restart):
   ```
@@ -436,5 +452,6 @@ python3 -m pytest -q
 - **Key env knobs**
   - Notifications: `TB_TRADER_NOTIFY`, `TB_TRADER_NOTIFY_HEARTBEAT`, `TB_HEARTBEAT_EVERY_N`, `TB_ENABLE_DISCORD`, `TB_NO_TELEGRAM`
   - Robustness: `TB_USE_ML_GATE`, `TB_ML_GATE_MIN_PROB`, `TB_USE_ATR_FILTER`, `TB_ATR_*`, `TB_USE_HTF_REGIME`, `TB_HTF_EMA_LEN`
+  - Sizing safety: `TB_TRADER_MIN_NOTIONAL`, `TB_MAX_NOTIONAL_PER_TRADE` (hard per-trade notional USD cap)
   - Health thresholds: `TB_HEALTH_MAX_LOG_AGE_MIN`, `TB_HEALTH_MAX_RUNS_AGE_HR`, `TB_HEALTH_MAX_PROMOTED_AGE_DAYS`, `TB_HEALTH_SELFHEAL_LOCK_MAX_MIN`
   - Start preflight: `TB_START_MAX_PROMOTED_AGE_DAYS`
