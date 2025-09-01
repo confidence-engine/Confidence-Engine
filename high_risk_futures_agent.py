@@ -1,22 +1,7 @@
 #!/usr/bin/env python3
 """
 High-Risk Futures Agent
-Se        # Strategy parameters
-        self.momentum_window = 12  # hours
-        self.volatility_window = 24  # hours
-        self.min_momentum_threshold = 0.02  # 2% momentum
-        self.max_volatility_threshold = 0.08    # 8% max volatility
-
-        # New: Market regime and correlation tracking
-        self.market_regime = 'unknown'
-        self.correlation_matrix = {}
-        self.trailing_stops = {}  # Track trailing stop levels
-
-        logger.info(f"🚀 {self.name} initialized")
-        logger.info(f"💰 Capital: ${self.capital}")
-        logger.info(f"⚡ Max Leverage: {self.max_leverage}x")
-        logger.info(f"🎯 Risk per Trade: {self.risk_per_trade*100}%")
-        logger.info(f"📊 Symbols: {', '.join(self.symbols)}") main agent - focused on leveraged futures/perpetuals trading
+Separate high-risk futures trading agent with enhanced features
 """
 
 import os
@@ -72,6 +57,21 @@ class HighRiskFuturesAgent:
         self.min_momentum_threshold = 0.02  # 2% momentum
         self.max_volatility_threshold = 0.08  # 8% max volatility
 
+        # New: Market regime and correlation tracking
+        self.market_regime = 'unknown'
+        self.correlation_matrix = {}  # Initialize as empty dict
+        self.trailing_stops = {}  # Track trailing stop levels
+
+        logger.info(f"🚀 {self.name} initialized")
+        logger.info(f"💰 Capital: ${self.capital}")
+        logger.info(f"⚡ Max Leverage: {self.max_leverage}x")
+        logger.info(f"🎯 Risk per Trade: {self.risk_per_trade*100}%")
+        logger.info(f"📊 Symbols: {', '.join(self.symbols)}")
+
+    def is_market_open(self) -> bool:
+        """Check if futures markets are open (crypto markets are 24/7)"""
+        return True  # Crypto futures are always open
+
     def detect_market_regime(self, symbol: str) -> str:
         """Detect if market is trending or ranging"""
         try:
@@ -90,10 +90,6 @@ class HighRiskFuturesAgent:
             # Calculate volatility (standard deviation of returns)
             returns = prices.pct_change().dropna()
             volatility = returns.std()
-
-            # Calculate ADX-like indicator for trend strength
-            high_prices = data['high']
-            low_prices = data['low']
 
             # Simple trend detection
             if trend_strength > 0.001 and volatility < 0.03:  # Strong trend, low volatility
@@ -187,8 +183,6 @@ class HighRiskFuturesAgent:
         except Exception as e:
             logger.warning(f"Error calculating dynamic leverage for {symbol}: {e}")
             return self.max_leverage
-        """Check if futures markets are open (crypto markets are 24/7)"""
-        return True  # Crypto futures are always open
 
     def calculate_momentum_signal(self, symbol: str) -> Dict:
         """Calculate momentum-based trading signal"""
