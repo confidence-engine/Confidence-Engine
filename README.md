@@ -4,19 +4,31 @@ Here is a draft for the README introduction that puts the Tracer Bullet philosop
 ***
 
 # Confidence Engine — Institutional-Grade Multi-Asset Divergence Engine
-> Looking for the concise version? See [README_CLEAN.md](README_CLEAN.md) | [Enhanced Features Summary](ENHANCED_HYBRID_SUMMARY.md)
+> Looking for the concise version? See [README_CLEAN.md](README_CLEAN.md) | [Enhanced Features Summary](ENHANCED_HYBRID_SUMMARY.md) | [Dual Agent System](DUAL_AGENT_README.md)
 
-## 🚀 Latest: Zero-Cost Industrial Enhancements Complete
+## 🚀 Latest: Dual-Agent System with Futures & Perpetuals Trading
 
-**NEW**: Industrial-grade reliability features implemented at **$0 cost** using only free Python libraries:
+**NEW**: Complete dual-agent architecture with independent risk management:
 
-- **🛡️ Circuit Breaker Pattern**: API failures no longer crash the system
-- **💾 SQLite State Management**: More reliable data storage with automatic JSON migration  
-- **⚡ Async Processing**: Parallel data fetching for improved performance
-- **📊 Performance Tracking**: Real-time uptime, trade count, and error monitoring
-- **🔧 Enhanced Error Handling**: Graceful degradation and continued operation
+- **🤖 Main Agent (Low-Risk)**: Your existing enhanced hybrid agent with 20+ crypto assets
+- **⚡ Futures Agent (High-Risk)**: New leveraged futures/perpetuals agent with 5x-25x leverage
+- **📊 Unified Monitoring**: Real-time dashboard tracking both agents
+- **🛡️ Independent Operation**: Each agent manages its own capital and risk
+- **📈 Free Paper Trading**: Test futures strategies without cost
 
-**Status**: All enhancements operational in production | **Cost**: $0 | **Libraries**: sqlite3, concurrent.futures, functools
+**Status**: Both agents operational | **Main Agent**: Live trading | **Futures Agent**: Paper trading ready | **Monitoring**: Real-time dashboard active
+
+## Our Mission: Exploit Emotional-Math Gaps with Perfect Discipline
+
+Financial markets are driven by human emotion as much as by fundamentals. Crowd fear, greed, and narrative bias often cause prices to diverge significantly from their true, statistical values — creating opportunities for disciplined, rational traders.
+
+**Confidence Engine is not just another sentiment bot. It is a purpose-built divergence engine, designed to detect the market's "lie" between story and price, and deliver actionable alpha signals in real time.**
+
+We ask the key question nonstop:
+
+> *"The news narrative is strongly positive (or negative), but why hasn't the price moved yet? Is the market underreacting or overreacting?"*
+
+By measuring and quantifying these divergences rigorously, filtering for relevance and confidence, and adapting thresholds dynamically, Confidence Engine provides **real-time, explainable**, and **action-ready** trading signals — all delivered with evidence and playbook guidance directly to your Telegram DM.
 
 ## Our Mission: Exploit Emotional-Math Gaps with Perfect Discipline
 
@@ -32,11 +44,11 @@ By measuring and quantifying these divergences rigorously, filtering for relevan
 
 ## Why Confidence Engine Is Now Institutional-Grade
 
-- **Multi-Asset Portfolio:** Advanced portfolio management across BTC/USD, ETH/USD, SOL/USD, and LINK/USD with correlation controls
-- **Kelly Optimal Sizing:** Dynamic position sizing using Kelly Criterion based on win probability and expected returns  
-- **Advanced Risk Management:** Portfolio VaR limits, individual position limits, and regime-based risk adjustments
-- **Market Regime Detection:** Bull/bear/sideways regime classification with volatility and momentum analysis
-- **Adaptive Learning:** Real-time parameter optimization with exploration windows and performance tracking
+- **Dual-Agent Architecture:** Independent main agent (low-risk spot trading across 20+ assets) and futures agent (high-risk leveraged trading with 5x-25x leverage) for diversified risk management
+- **Multi-Asset Portfolio:** Advanced portfolio management across BTC/USD, ETH/USD, SOL/USD, LINK/USD, and futures markets with correlation controls  
+- **Futures Trading Platforms:** Multiple free platforms including Binance Futures Testnet, Bybit Futures Demo, BitMEX Futures Testnet, Deribit Futures Test for comprehensive market coverage
+- **Advanced Risk Management:** Portfolio VaR limits, individual position limits, regime-based risk adjustments, and independent capital allocation ($10k for futures agent)
+- **Adaptive Learning:** Real-time parameter optimization with exploration windows and performance tracking for both agents
 - **Philosophy-first:** We shipped a fast, end‑to‑end prototype (V1) to validate our core edge early, avoiding premature complexity.
 - **Elegant simplicity:** We leverage two clean, high-quality signal pillars — Alpaca price data and Perplexity synthesized narrative — before adding noisy social feeds.
 - **Hybrid intelligence:** Combining quantitative “oracle” data and qualitative “psychologist” narrative to find true market inefficiencies.
