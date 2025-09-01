@@ -329,7 +329,504 @@ class AsyncProcessor:
 # Initialize async processor
 async_processor = AsyncProcessor(max_workers=3)
 
-# ========== END ZERO-COST ENHANCEMENTS ==========
+# ========== HEALTH MONITORING SYSTEM ==========
+
+class HealthMonitor:
+    """Comprehensive health monitoring for the trading system"""
+    def __init__(self):
+        self.checks = {}
+        self.alerts_sent = set()
+        self.last_health_check = time.time()
+        
+    def register_check(self, name: str, check_func, warning_threshold=None, critical_threshold=None):
+        """Register a health check"""
+        self.checks[name] = {
+            'function': check_func,
+            'warning_threshold': warning_threshold,
+            'critical_threshold': critical_threshold,
+            'last_result': None,
+            'last_check': None
+        }
+        
+    def run_health_checks(self):
+        """Run all registered health checks"""
+        results = {}
+        current_time = time.time()
+        
+        for name, check in self.checks.items():
+            try:
+                result = check['function']()
+                check['last_result'] = result
+                check['last_check'] = current_time
+                
+                # Determine status
+                status = 'healthy'
+                if check['critical_threshold'] is not None and result > check['critical_threshold']:
+                    status = 'critical'
+                elif check['warning_threshold'] is not None and result > check['warning_threshold']:
+                    status = 'warning'
+                    
+                results[name] = {
+                    'value': result,
+                    'status': status,
+                    'timestamp': current_time
+                }
+                
+                # Send alerts for critical issues
+                if status == 'critical' and name not in self.alerts_sent:
+                    self.send_health_alert(name, result, status)
+                    self.alerts_sent.add(name)
+                elif status == 'healthy' and name in self.alerts_sent:
+                    # Clear alert once healthy
+                    self.alerts_sent.discard(name)
+                    
+            except Exception as e:
+                logger.error(f"Health check {name} failed: {e}")
+                results[name] = {
+                    'value': None,
+                    'status': 'error',
+                    'error': str(e),
+                    'timestamp': current_time
+                }
+                
+        self.last_health_check = current_time
+        return results
+        
+    def send_health_alert(self, check_name: str, value, status: str):
+        """Send health alert via notifications"""
+        try:
+            message = f"🚨 HEALTH ALERT: {check_name}\nStatus: {status}\nValue: {value}\nTime: {datetime.now().strftime('%H:%M:%S')}"
+            
+            # Try to send via existing notification channels
+            if hasattr(send_telegram, '__call__'):
+                try:
+                    send_telegram(message)
+                except Exception:
+                    pass
+                    
+            logger.error(f"HEALTH ALERT: {check_name} = {value} ({status})")
+        except Exception as e:
+            logger.error(f"Failed to send health alert: {e}")
+            
+    def get_system_health_summary(self):
+        """Get overall system health summary"""
+        if not self.checks:
+            return {'status': 'no_checks', 'message': 'No health checks configured'}
+            
+        latest_results = {}
+        critical_count = 0
+        warning_count = 0
+        healthy_count = 0
+        error_count = 0
+        
+        for name, check in self.checks.items():
+            if check['last_result'] is not None:
+                # Re-evaluate status
+                result = check['last_result']
+                status = 'healthy'
+                if check['critical_threshold'] is not None and result > check['critical_threshold']:
+                    status = 'critical'
+                    critical_count += 1
+                elif check['warning_threshold'] is not None and result > check['warning_threshold']:
+                    status = 'warning'
+                    warning_count += 1
+                else:
+                    healthy_count += 1
+                    
+                latest_results[name] = {'value': result, 'status': status}
+            else:
+                error_count += 1
+                latest_results[name] = {'value': None, 'status': 'error'}
+        
+        # Determine overall status
+        if critical_count > 0:
+            overall_status = 'critical'
+        elif warning_count > 0:
+            overall_status = 'warning'
+        elif error_count > 0:
+            overall_status = 'degraded'
+        else:
+            overall_status = 'healthy'
+            
+        return {
+            'status': overall_status,
+            'checks': latest_results,
+            'summary': {
+                'critical': critical_count,
+                'warning': warning_count,
+                'healthy': healthy_count,
+                'error': error_count
+            },
+            'last_check': self.last_health_check
+        }
+
+# Initialize health monitor and register checks
+health_monitor = HealthMonitor()
+
+# Register system health checks
+def check_database_connection():
+    """Check if SQLite database is accessible"""
+    try:
+        with sqlite3.connect(trading_db.db_path) as conn:
+            conn.execute("SELECT 1").fetchone()
+        return 0  # Healthy
+    except Exception:
+        return 1  # Critical
+
+def check_performance_tracker():
+    """Check performance tracker responsiveness"""
+    try:
+        stats = performance_tracker.get_stats()
+        error_rate = stats['error_count'] / max(1, stats['trade_count'] + stats['error_count'])
+        return error_rate * 100  # Return error rate as percentage
+    except Exception:
+        return 100  # Critical
+
+def check_memory_usage():
+    """Check memory usage (basic estimate)"""
+    import gc
+    try:
+        objects = len(gc.get_objects())
+        # Rough estimate: warn at 50k objects, critical at 100k
+        return objects / 1000  # Return objects in thousands
+    except Exception:
+        return 0
+
+def check_api_connectivity():
+    """Check if we can connect to Alpaca API"""
+    try:
+        if OFFLINE:
+            return 0  # Skip in offline mode
+        api = _rest()
+        if api:
+            account = api.get_account()
+            return 0 if account else 1
+        return 1
+    except Exception:
+        return 1
+
+# Register all health checks
+health_monitor.register_check('database', check_database_connection, critical_threshold=0.5)
+health_monitor.register_check('performance', check_performance_tracker, warning_threshold=10, critical_threshold=25)
+health_monitor.register_check('memory', check_memory_usage, warning_threshold=50, critical_threshold=100)
+health_monitor.register_check('api_connectivity', check_api_connectivity, critical_threshold=0.5)
+
+# ========== CONFIGURATION MANAGEMENT SYSTEM ==========
+
+class ConfigManager:
+    """Advanced configuration management with validation and hot reloading"""
+    def __init__(self):
+        self.config_cache = {}
+        self.validators = {}
+        self.change_callbacks = {}
+        self.last_reload = time.time()
+        
+    def register_validator(self, key: str, validator_func):
+        """Register a validator function for a config key"""
+        self.validators[key] = validator_func
+        
+    def register_change_callback(self, key: str, callback_func):
+        """Register a callback for when a config value changes"""
+        self.change_callbacks[key] = callback_func
+        
+    def get_config(self, key: str, default=None, reload_if_stale=True):
+        """Get configuration value with optional validation and hot reload"""
+        if reload_if_stale and time.time() - self.last_reload > 60:  # Reload every minute
+            self.reload_config()
+            
+        # Try environment variable first
+        env_value = os.getenv(key, default)
+        
+        # Apply validator if registered
+        if key in self.validators:
+            try:
+                env_value = self.validators[key](env_value)
+            except Exception as e:
+                logger.warning(f"Config validation failed for {key}: {e}, using default")
+                env_value = default
+                
+        # Check if value changed and call callback
+        if key in self.config_cache and self.config_cache[key] != env_value:
+            if key in self.change_callbacks:
+                try:
+                    self.change_callbacks[key](self.config_cache[key], env_value)
+                except Exception as e:
+                    logger.error(f"Config change callback failed for {key}: {e}")
+                    
+        self.config_cache[key] = env_value
+        return env_value
+        
+    def reload_config(self):
+        """Force reload configuration from environment"""
+        logger.debug("Reloading configuration from environment")
+        self.last_reload = time.time()
+        
+        # Reload .env file if it exists
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(override=True)
+        except Exception as e:
+            logger.debug(f"Could not reload .env file: {e}")
+            
+    def get_config_summary(self):
+        """Get summary of all configuration values"""
+        summary = {}
+        
+        # Key configuration values to monitor
+        important_keys = [
+            'TB_NO_TRADE', 'TB_OFFLINE', 'TB_MULTI_ASSET', 'TB_USE_ENHANCED_RISK',
+            'TB_AUTOCOMMIT_PUSH', 'TB_TRADER_NOTIFY_HEARTBEAT', 'TB_HEARTBEAT_EVERY_N',
+            'TB_RETRY_ATTEMPTS', 'SYMBOL', 'TF_FAST', 'TF_SLOW'
+        ]
+        
+        for key in important_keys:
+            summary[key] = os.getenv(key, 'NOT_SET')
+            
+        return summary
+
+# Configuration validators
+def validate_boolean(value):
+    """Validate boolean configuration values"""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ('1', 'true', 'yes', 'on')
+    return bool(value)
+
+def validate_positive_int(value):
+    """Validate positive integer configuration values"""
+    if value is None:
+        return None
+    val = int(value)
+    if val < 0:
+        raise ValueError(f"Value must be positive, got {val}")
+    return val
+
+def validate_timeframe(value):
+    """Validate timeframe strings"""
+    if value is None:
+        return None
+    valid_timeframes = ['1min', '5min', '15min', '1hour', '1day']
+    if value not in valid_timeframes:
+        raise ValueError(f"Invalid timeframe {value}, must be one of {valid_timeframes}")
+    return value
+
+# Initialize configuration manager
+config_manager = ConfigManager()
+
+# Register validators
+config_manager.register_validator('TB_NO_TRADE', validate_boolean)
+config_manager.register_validator('TB_OFFLINE', validate_boolean)
+config_manager.register_validator('TB_MULTI_ASSET', validate_boolean)
+config_manager.register_validator('TB_USE_ENHANCED_RISK', validate_boolean)
+config_manager.register_validator('TB_HEARTBEAT_EVERY_N', validate_positive_int)
+config_manager.register_validator('TB_RETRY_ATTEMPTS', validate_positive_int)
+config_manager.register_validator('TF_FAST', validate_timeframe)
+config_manager.register_validator('TF_SLOW', validate_timeframe)
+
+# Register change callbacks
+def on_no_trade_change(old_value, new_value):
+    logger.info(f"Trading mode changed: NO_TRADE {old_value} -> {new_value}")
+
+def on_offline_change(old_value, new_value):
+    logger.info(f"Offline mode changed: OFFLINE {old_value} -> {new_value}")
+
+config_manager.register_change_callback('TB_NO_TRADE', on_no_trade_change)
+config_manager.register_change_callback('TB_OFFLINE', on_offline_change)
+
+# ========== ADVANCED ASYNC FEATURES ==========
+
+import queue
+import threading
+from typing import Callable, Any
+
+class AsyncTaskQueue:
+    """Advanced async task queue for background processing"""
+    def __init__(self, max_workers=2):
+        self.task_queue = queue.Queue()
+        self.result_queue = queue.Queue()
+        self.workers = []
+        self.max_workers = max_workers
+        self.shutdown_event = threading.Event()
+        self.start_workers()
+        
+    def start_workers(self):
+        """Start worker threads"""
+        for i in range(self.max_workers):
+            worker = threading.Thread(target=self._worker, name=f"AsyncWorker-{i}")
+            worker.daemon = True
+            worker.start()
+            self.workers.append(worker)
+            
+    def _worker(self):
+        """Worker thread function"""
+        while not self.shutdown_event.is_set():
+            try:
+                task = self.task_queue.get(timeout=1)
+                if task is None:  # Shutdown signal
+                    break
+                    
+                task_id, func, args, kwargs = task
+                try:
+                    result = func(*args, **kwargs)
+                    self.result_queue.put((task_id, 'success', result))
+                except Exception as e:
+                    self.result_queue.put((task_id, 'error', str(e)))
+                finally:
+                    self.task_queue.task_done()
+                    
+            except queue.Empty:
+                continue
+            except Exception as e:
+                logger.error(f"Worker error: {e}")
+                
+    def submit_task(self, task_id: str, func: Callable, *args, **kwargs):
+        """Submit a task for background processing"""
+        self.task_queue.put((task_id, func, args, kwargs))
+        
+    def get_results(self, timeout=0.1):
+        """Get completed task results"""
+        results = {}
+        try:
+            while True:
+                task_id, status, result = self.result_queue.get(timeout=timeout)
+                results[task_id] = {'status': status, 'result': result}
+        except queue.Empty:
+            pass
+        return results
+        
+    def shutdown(self):
+        """Shutdown the task queue"""
+        self.shutdown_event.set()
+        # Signal workers to stop
+        for _ in self.workers:
+            self.task_queue.put(None)
+
+class CacheManager:
+    """Simple cache manager for expensive operations"""
+    def __init__(self, default_ttl=300):  # 5 minutes default TTL
+        self.cache = {}
+        self.default_ttl = default_ttl
+        
+    def get(self, key: str):
+        """Get cached value if not expired"""
+        if key in self.cache:
+            value, expiry = self.cache[key]
+            if time.time() < expiry:
+                return value
+            else:
+                del self.cache[key]
+        return None
+        
+    def set(self, key: str, value: Any, ttl: int = None):
+        """Set cached value with TTL"""
+        if ttl is None:
+            ttl = self.default_ttl
+        expiry = time.time() + ttl
+        self.cache[key] = (value, expiry)
+        
+    def clear_expired(self):
+        """Clear expired cache entries"""
+        current_time = time.time()
+        expired_keys = [k for k, (_, expiry) in self.cache.items() if current_time >= expiry]
+        for key in expired_keys:
+            del self.cache[key]
+        return len(expired_keys)
+
+class AsyncEnhancedProcessor(AsyncProcessor):
+    """Enhanced async processor with queuing and caching"""
+    def __init__(self, max_workers=3):
+        super().__init__(max_workers)
+        self.task_queue = AsyncTaskQueue(max_workers=2)
+        self.cache = CacheManager(default_ttl=180)  # 3 minute cache
+        
+    def fetch_cached_sentiment(self, symbol: str):
+        """Fetch sentiment with caching"""
+        cache_key = f"sentiment_{symbol}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            logger.debug(f"Using cached sentiment for {symbol}")
+            return cached
+            
+        # Fetch fresh sentiment
+        sentiment = self.fetch_sentiment_for_symbol(symbol)
+        if sentiment is not None:
+            self.cache.set(cache_key, sentiment, ttl=120)  # 2 minute cache
+        return sentiment
+        
+    def fetch_cached_bars(self, symbol: str, timeframe: str, lookback: int):
+        """Fetch bars with caching"""
+        cache_key = f"bars_{symbol}_{timeframe}_{lookback}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            logger.debug(f"Using cached bars for {symbol} {timeframe}")
+            return cached
+            
+        # Fetch fresh bars
+        bars = fetch_bars(symbol, timeframe, lookback=lookback)
+        if bars is not None and len(bars) > 0:
+            self.cache.set(cache_key, bars, ttl=60)  # 1 minute cache for bars
+        return bars
+        
+    def submit_background_analysis(self, symbol: str, bars_15m, bars_1h):
+        """Submit technical analysis for background processing"""
+        task_id = f"analysis_{symbol}_{int(time.time())}"
+        self.task_queue.submit_task(task_id, self._background_analysis, symbol, bars_15m, bars_1h)
+        return task_id
+        
+    def _background_analysis(self, symbol: str, bars_15m, bars_1h):
+        """Perform technical analysis in background"""
+        try:
+            # Calculate additional indicators in background
+            indicators = {
+                'rsi_14': self._calculate_rsi(bars_15m['close'], 14),
+                'bollinger_bands': self._calculate_bollinger_bands(bars_15m['close']),
+                'volume_sma': bars_15m['volume'].rolling(window=20).mean().iloc[-1],
+                'price_change_1h': (bars_1h['close'].iloc[-1] - bars_1h['close'].iloc[-2]) / bars_1h['close'].iloc[-2] * 100
+            }
+            return indicators
+        except Exception as e:
+            logger.error(f"Background analysis failed for {symbol}: {e}")
+            return {}
+            
+    def _calculate_rsi(self, prices, period=14):
+        """Calculate RSI"""
+        try:
+            delta = prices.diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+            rs = gain / loss
+            rsi = 100 - (100 / (1 + rs))
+            return rsi.iloc[-1] if len(rsi) > 0 else 50
+        except Exception:
+            return 50
+            
+    def _calculate_bollinger_bands(self, prices, period=20, std_dev=2):
+        """Calculate Bollinger Bands"""
+        try:
+            sma = prices.rolling(window=period).mean()
+            std = prices.rolling(window=period).std()
+            upper = sma + (std * std_dev)
+            lower = sma - (std * std_dev)
+            current_price = prices.iloc[-1]
+            current_upper = upper.iloc[-1]
+            current_lower = lower.iloc[-1]
+            
+            # Return position within bands (0 = at lower band, 1 = at upper band)
+            position = (current_price - current_lower) / (current_upper - current_lower)
+            return max(0, min(1, position))
+        except Exception:
+            return 0.5
+            
+    def cleanup(self):
+        """Cleanup resources"""
+        self.cache.clear_expired()
+        self.task_queue.shutdown()
+
+# Initialize enhanced async processor
+enhanced_async_processor = AsyncEnhancedProcessor(max_workers=3)
+
+# ========== END ADVANCED ASYNC FEATURES ==========
 
 # Import enhanced components
 try:
@@ -641,6 +1138,10 @@ def estimate_win_probability(sentiment, regime_str):
     """Estimate win probability based on sentiment and regime"""
     base_prob = 0.55
     
+    # Handle None sentiment gracefully
+    if sentiment is None:
+        sentiment = 0.5  # Neutral default
+    
     # Adjust for sentiment (stronger sentiment = higher confidence)
     sentiment_adj = (sentiment - 0.5) * 0.1
     base_prob += sentiment_adj
@@ -737,6 +1238,10 @@ def calculate_atr(bars, period=14):
 
 def build_ml_features(bars_15, bars_1h, sentiment):
     """Build feature vector for ML model"""
+    # Handle None sentiment gracefully
+    if sentiment is None:
+        sentiment = 0.5
+    
     # This is a simplified version - you can expand this
     features = []
     
@@ -1528,6 +2033,15 @@ def main() -> int:
     # Initialize performance tracking
     performance_tracker.heartbeat()
     
+    # Run health checks
+    health_results = health_monitor.run_health_checks()
+    health_summary = health_monitor.get_system_health_summary()
+    logger.info("System health: %s (critical=%d warning=%d healthy=%d)", 
+                health_summary['status'], 
+                health_summary['summary']['critical'],
+                health_summary['summary']['warning'], 
+                health_summary['summary']['healthy'])
+    
     # Initialize enhanced components
     components = initialize_enhanced_components()
     
@@ -1539,10 +2053,15 @@ def main() -> int:
     _run_id = _nowstamp()
     logger.info("[run] start run_id=%s assets=%s", _run_id, enabled_assets)
     
-    # Log performance stats
+    # Log performance stats and configuration
     stats = performance_tracker.get_stats()
+    config_summary = config_manager.get_config_summary()
     logger.info("Performance stats: uptime=%.1fh trades=%d errors=%d", 
                 stats["uptime_hours"], stats["trade_count"], stats["error_count"])
+    logger.info("Config summary: NO_TRADE=%s OFFLINE=%s MULTI_ASSET=%s", 
+                config_summary.get('TB_NO_TRADE', 'NOT_SET'),
+                config_summary.get('TB_OFFLINE', 'NOT_SET'), 
+                config_summary.get('TB_MULTI_ASSET', 'NOT_SET'))
     
     # Log ML model info if available
     try:
@@ -1648,6 +2167,9 @@ def main() -> int:
             # Check basic entry conditions
             state = asset_states[symbol]
             last_entry_ts = state.get("last_entry_time", 0)
+            # Handle None values from SQLite
+            if last_entry_ts is None:
+                last_entry_ts = 0
             cooldown_ok = (time.time() - last_entry_ts) > COOLDOWN_SEC
             
             # Entry logic
@@ -1662,6 +2184,11 @@ def main() -> int:
                 entry_reason = "1H EMA cross up + trend up + positive sentiment"
             
             if entry_signal:
+                # Ensure sentiment is not None before calculations
+                if sentiment is None:
+                    sentiment = 0.5  # Neutral default
+                    logger.warning(f"Sentiment was None for {symbol}, using neutral default")
+                
                 # Calculate position size using enhanced methods
                 position_size_usd = calculate_enhanced_position_size(
                     components, symbol, bars_15, bars_1h, sentiment, current_equity
