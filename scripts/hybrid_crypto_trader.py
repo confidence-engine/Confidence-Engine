@@ -1543,16 +1543,28 @@ def main() -> int:
             logger.warning("Failed to update adaptive strategy: %s", e)
     
     logger.info("Enhanced multi-asset trading cycle complete: %d trades executed", len(executed_trades))
-    return 0
-
-    # Sentiment
-    # In OFFLINE mode, do not fetch from Alpaca; use mock headlines
-    if OFFLINE:
-        headlines: List[str] = [
-            "Bitcoin consolidates after sharp move; traders eye EMA cross",
-            "ETF flows steady as BTC holds key support",
-            "Macro stable ahead of Fed speakers; risk tone neutral to positive",
-        ]
+    
+    # For multi-asset mode, skip single-asset sentiment logic and go to completion
+    multi_asset_mode = os.getenv("TB_MULTI_ASSET", "0") == "1"
+    if multi_asset_mode and len(executed_trades) >= 0:  # Multi-asset processing complete
+        # Set decision for completion logging
+        decision = {"action": "multi_asset_complete", "trades": len(executed_trades)}
+        # Jump to heartbeat and autocommit section at line ~1914
+        goto_completion = True
+    else:
+        goto_completion = False
+    
+    if not goto_completion:
+        # Continue with single-asset sentiment analysis logic
+        
+        # Sentiment
+        # In OFFLINE mode, do not fetch from Alpaca; use mock headlines
+        if OFFLINE:
+            headlines: List[str] = [
+                "Bitcoin consolidates after sharp move; traders eye EMA cross",
+                "ETF flows steady as BTC holds key support",
+                "Macro stable ahead of Fed speakers; risk tone neutral to positive",
+            ]
     else:
         try:
             api_news = _rest()
@@ -1906,9 +1918,12 @@ def main() -> int:
             })
             did_anything = True
 
-    if not did_anything:
-        logger.info("No action taken.")
-        decision = {"action": "hold"}
+        if not did_anything:
+            logger.info("No action taken.")
+            decision = {"action": "hold"}
+    
+    # End of single-asset logic block - completion section follows
+    
     # Heartbeat: per-run counter + optional liveness notification
     try:
         hb_runs = int(state.get("hb_runs", 0)) + 1
