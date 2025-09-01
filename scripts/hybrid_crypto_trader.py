@@ -628,11 +628,29 @@ def calc_position_size(equity: float, entry: float, stop: float) -> float:
     risk_amt = equity * MAX_PORTFOLIO_RISK
     per_unit_risk = max(entry - stop, 1e-9)
     qty = risk_amt / per_unit_risk
+    # Enforce optional hard notional cap per trade
+    try:
+        cap_notional = float(os.getenv("TB_MAX_NOTIONAL_PER_TRADE", "0"))
+    except Exception:
+        cap_notional = 0.0
+    if cap_notional > 0:
+        max_qty = cap_notional / max(entry, 1e-9)
+        qty = min(qty, max_qty)
     return max(0.0, float(qty))
 
 
 def place_bracket(api: REST, symbol: str, qty: float, entry: float, tp: float, sl: float) -> Tuple[bool, Optional[str], Optional[str]]:
     try:
+        # Enforce optional hard notional cap per trade at submission time as a safety net
+        try:
+            cap_notional = float(os.getenv("TB_MAX_NOTIONAL_PER_TRADE", "0"))
+        except Exception:
+            cap_notional = 0.0
+        if cap_notional > 0 and entry > 0:
+            try:
+                qty = min(float(qty), cap_notional / float(entry))
+            except Exception:
+                pass
         def _submit():
             return api.submit_order(
                 symbol=_normalize_symbol(symbol),
