@@ -30,6 +30,17 @@ from scripts.discord_sender import send_discord_digest_to
 from telegram_bot import send_message as send_telegram
 from scripts.retry_utils import retry_call, RETRY_STATUS_CODES
 
+# Import enhanced components
+try:
+    from advanced_risk_manager import AdvancedRiskManager, KellyPositionSizer
+    from market_regime_detector import MarketRegimeDetector
+    from ensemble_ml_models import TradingEnsemble
+    from adaptive_strategy import AdaptiveStrategy
+    ENHANCED_COMPONENTS_AVAILABLE = True
+except ImportError as e:
+    print(f"Enhanced components not available: {e}")
+    ENHANCED_COMPONENTS_AVAILABLE = False
+
 # ==========================
 # Logging
 # ==========================
@@ -170,7 +181,20 @@ EMA_1H_SLOW = int(os.getenv("TB_1H_EMA_SLOW", "26"))
 DEBOUNCE_1H_N = int(os.getenv("TB_1H_DEBOUNCE_N", "1"))
 SIZE_1H_MULT = float(os.getenv("TB_1H_SIZE_MULT", "0.5"))  # fraction of normal size
 
+# Multi-asset support
 SYMBOL = os.getenv("SYMBOL", settings.symbol or "BTC/USD")
+MULTI_ASSET_MODE = os.getenv("TB_MULTI_ASSET", "0") == "1"
+ASSET_LIST = os.getenv("TB_ASSET_LIST", "BTC/USD,ETH/USD,SOL/USD,LINK/USD").split(",") if MULTI_ASSET_MODE else [SYMBOL]
+
+# Alpaca-supported crypto pairs only (verified compatibility)
+SUPPORTED_ASSETS = {
+    "BTC/USD": {"min_size": 0.0001, "enabled": True},
+    "ETH/USD": {"min_size": 0.001, "enabled": True}, 
+    "SOL/USD": {"min_size": 0.01, "enabled": True},
+    "LINK/USD": {"min_size": 0.1, "enabled": True},
+    # Note: ADA/USD is NOT supported by Alpaca paper trading
+}
+
 TF_FAST = "15Min"
 TF_SLOW = "1Hour"
 
@@ -179,6 +203,18 @@ MAX_PORTFOLIO_RISK = float(os.getenv("TB_MAX_RISK_FRAC", "0.01"))   # 1%
 TP_PCT = float(os.getenv("TB_TP_PCT", "0.05"))                      # +5%
 SL_PCT = float(os.getenv("TB_SL_PCT", "0.02"))                      # -2%
 DAILY_LOSS_CAP_PCT = float(os.getenv("TB_DAILY_LOSS_CAP_PCT", "0.03"))  # 3% of reference equity
+
+# Enhanced Risk Management
+USE_ENHANCED_RISK = os.getenv("TB_USE_ENHANCED_RISK", "1") == "1" and ENHANCED_COMPONENTS_AVAILABLE
+USE_KELLY_SIZING = os.getenv("TB_USE_KELLY_SIZING", "1") == "1" and ENHANCED_COMPONENTS_AVAILABLE
+USE_REGIME_DETECTION = os.getenv("TB_USE_REGIME_DETECTION", "1") == "1" and ENHANCED_COMPONENTS_AVAILABLE
+USE_ENSEMBLE_ML = os.getenv("TB_USE_ENSEMBLE_ML", "1") == "1" and ENHANCED_COMPONENTS_AVAILABLE
+USE_ADAPTIVE_STRATEGY = os.getenv("TB_USE_ADAPTIVE_STRATEGY", "1") == "1" and ENHANCED_COMPONENTS_AVAILABLE
+
+# Portfolio Management
+MAX_POSITIONS = int(os.getenv("TB_MAX_POSITIONS", "4"))
+MAX_CORRELATION = float(os.getenv("TB_MAX_CORRELATION", "0.7"))
+PORTFOLIO_VAR_LIMIT = float(os.getenv("TB_PORTFOLIO_VAR_LIMIT", "0.02"))
 
 # Optional ATR-based stop sizing (replaces fixed SL_PCT when enabled)
 USE_ATR_STOP = os.getenv("TB_USE_ATR_STOP", "0") == "1"
@@ -192,6 +228,239 @@ PPLX_TIMEOUT = float(os.getenv("TB_PPLX_TIMEOUT", "12"))
 COOLDOWN_SEC = int(os.getenv("TB_TRADER_COOLDOWN_SEC", "3600"))
 STATE_DIR = Path("state")
 RUNS_DIR = Path("runs")
+
+# ==========================
+# Enhanced Components Initialization
+# ==========================
+
+def initialize_enhanced_components():
+    """Initialize enhanced trading components"""
+    components = {}
+    
+    if not ENHANCED_COMPONENTS_AVAILABLE:
+        logger.info("Enhanced components not available, using basic trading")
+        return components
+    
+    try:
+        # Initialize Advanced Risk Manager
+        if USE_ENHANCED_RISK:
+            components['risk_manager'] = AdvancedRiskManager()
+            # Update limits
+            components['risk_manager'].risk_limits.portfolio_var_limit = PORTFOLIO_VAR_LIMIT
+            components['risk_manager'].risk_limits.max_correlation = MAX_CORRELATION
+            logger.info("✅ Advanced Risk Manager initialized")
+        
+        # Initialize Kelly Position Sizer
+        if USE_KELLY_SIZING:
+            components['kelly_sizer'] = KellyPositionSizer()
+            logger.info("✅ Kelly Position Sizer initialized")
+        
+        # Initialize Market Regime Detector
+        if USE_REGIME_DETECTION:
+            components['regime_detector'] = MarketRegimeDetector()
+            logger.info("✅ Market Regime Detector initialized")
+        
+        # Initialize Ensemble ML Models
+        if USE_ENSEMBLE_ML:
+            try:
+                components['ml_ensemble'] = TradingEnsemble()
+                # Try to load a trained model if available
+                model_path = "eval_runs/ml/latest/ensemble_model.pt"
+                if os.path.exists(model_path):
+                    components['ml_ensemble'].load_model(model_path)
+                    logger.info("✅ Ensemble ML Models loaded from %s", model_path)
+                else:
+                    logger.info("✅ Ensemble ML Models initialized (no pretrained model)")
+            except Exception as e:
+                logger.warning("Failed to initialize ML ensemble: %s", e)
+        
+        # Initialize Adaptive Strategy
+        if USE_ADAPTIVE_STRATEGY:
+            components['adaptive_strategy'] = AdaptiveStrategy()
+            logger.info("✅ Adaptive Strategy initialized")
+            
+    except Exception as e:
+        logger.error("Failed to initialize enhanced components: %s", e)
+    
+    return components
+
+# ==========================
+# Multi-Asset Trading Functions
+# ==========================
+
+def get_enabled_assets():
+    """Get list of enabled assets for trading"""
+    if MULTI_ASSET_MODE:
+        # Filter to only supported assets
+        enabled = []
+        for asset in ASSET_LIST:
+            asset = asset.strip()
+            if asset in SUPPORTED_ASSETS and SUPPORTED_ASSETS[asset]["enabled"]:
+                enabled.append(asset)
+        return enabled
+    else:
+        # Single asset mode
+        if SYMBOL in SUPPORTED_ASSETS and SUPPORTED_ASSETS[SYMBOL]["enabled"]:
+            return [SYMBOL]
+        else:
+            logger.warning("Asset %s not in supported list, using anyway", SYMBOL)
+            return [SYMBOL]
+
+def calculate_enhanced_position_size(components, symbol, bars_15, bars_1h, sentiment, current_equity):
+    """Calculate position size using enhanced methods"""
+    base_size = current_equity * MAX_PORTFOLIO_RISK
+    
+    # Use Kelly Criterion if available
+    if 'kelly_sizer' in components and 'regime_detector' in components:
+        try:
+            # Get current regime
+            regime = components['regime_detector'].classify_regime({symbol: bars_1h})
+            regime_str = components['regime_detector'].get_regime_string(regime)
+            
+            # Estimate win probability and win/loss ratio based on sentiment and regime
+            win_prob = estimate_win_probability(sentiment, regime_str)
+            win_loss_ratio = estimate_win_loss_ratio(regime_str)
+            
+            # Calculate Kelly size
+            kelly_size = components['kelly_sizer'].calculate_kelly_size(
+                win_prob, win_loss_ratio, current_equity, regime_str
+            )
+            
+            logger.info("[%s] Kelly sizing: win_prob=%.3f, win_loss=%.2f, kelly_size=%.2f", 
+                       symbol, win_prob, win_loss_ratio, kelly_size)
+            
+            return min(kelly_size, base_size * 2)  # Cap at 2x base size for safety
+            
+        except Exception as e:
+            logger.warning("Kelly sizing failed for %s: %s", symbol, e)
+    
+    return base_size
+
+def estimate_win_probability(sentiment, regime_str):
+    """Estimate win probability based on sentiment and regime"""
+    base_prob = 0.55
+    
+    # Adjust for sentiment (stronger sentiment = higher confidence)
+    sentiment_adj = (sentiment - 0.5) * 0.1
+    base_prob += sentiment_adj
+    
+    # Adjust for regime
+    if 'trending' in regime_str.lower():
+        base_prob += 0.05
+    elif 'volatile' in regime_str.lower():
+        base_prob -= 0.05
+    
+    return np.clip(base_prob, 0.4, 0.75)
+
+def estimate_win_loss_ratio(regime_str):
+    """Estimate win/loss ratio based on regime"""
+    base_ratio = 2.0
+    
+    if 'volatile' in regime_str.lower():
+        base_ratio *= 0.8  # Lower ratio in volatile markets
+    elif 'trending' in regime_str.lower():
+        base_ratio *= 1.2  # Higher ratio in trending markets
+    
+    return base_ratio
+
+def should_trade_asset(components, symbol, bars_15, bars_1h, sentiment, positions):
+    """Enhanced decision logic for whether to trade an asset"""
+    
+    # Basic checks first
+    if len(bars_15) < 50 or len(bars_1h) < 60:
+        return False, "Insufficient data"
+    
+    # Check if we already have a position
+    if symbol in positions:
+        return False, "Already have position"
+    
+    # Portfolio limit check
+    if len(positions) >= MAX_POSITIONS:
+        return False, "Max positions reached"
+    
+    # Enhanced checks if components available
+    if 'risk_manager' in components:
+        try:
+            # Get current prices for correlation check
+            current_prices = {s: bars_1h['close'].iloc[-1] for s in positions.keys()}
+            current_prices[symbol] = bars_1h['close'].iloc[-1]
+            
+            # Check portfolio limits
+            limits_check = components['risk_manager'].check_portfolio_limits(
+                positions, current_prices, (symbol, 1.0)  # Dummy size for check
+            )
+            
+            if not all(limits_check.values()):
+                failed_checks = [k for k, v in limits_check.items() if not v]
+                return False, f"Portfolio limits failed: {failed_checks}"
+                
+        except Exception as e:
+            logger.warning("Portfolio limits check failed: %s", e)
+    
+    # ML ensemble check if available
+    if 'ml_ensemble' in components and USE_ML_GATE:
+        try:
+            # Build feature vector (simplified)
+            features = build_ml_features(bars_15, bars_1h, sentiment)
+            
+            # Get ML prediction
+            with torch.no_grad():
+                prediction = components['ml_ensemble'](features.unsqueeze(0))
+                confidence = torch.sigmoid(prediction).item()
+            
+            ml_threshold = float(os.getenv("TB_ML_GATE_MIN_PROB", "0.6"))
+            if confidence < ml_threshold:
+                return False, f"ML confidence too low: {confidence:.3f} < {ml_threshold}"
+                
+            logger.info("[%s] ML confidence: %.3f ✅", symbol, confidence)
+            
+        except Exception as e:
+            logger.warning("ML prediction failed for %s: %s", symbol, e)
+    
+    return True, "All checks passed"
+
+def calculate_atr(bars, period=14):
+    """Calculate Average True Range"""
+    high = bars['high'].values
+    low = bars['low'].values
+    close = bars['close'].values
+    
+    # True Range calculation
+    tr = np.maximum(high - low, 
+                   np.maximum(abs(high - np.roll(close, 1)), 
+                             abs(low - np.roll(close, 1))))
+    
+    # ATR is the moving average of True Range
+    atr = pd.Series(tr).rolling(window=period).mean().iloc[-1]
+    return atr if not np.isnan(atr) else 0.01
+
+def build_ml_features(bars_15, bars_1h, sentiment):
+    """Build feature vector for ML model"""
+    # This is a simplified version - you can expand this
+    features = []
+    
+    # Price-based features
+    close_15 = bars_15['close'].values
+    close_1h = bars_1h['close'].values
+    
+    # Returns
+    returns_15 = np.diff(np.log(close_15[-20:]))  # Last 20 15min returns
+    returns_1h = np.diff(np.log(close_1h[-10:]))  # Last 10 hourly returns
+    
+    # Simple statistics
+    features.extend([
+        np.mean(returns_15), np.std(returns_15),
+        np.mean(returns_1h), np.std(returns_1h),
+        sentiment,
+        close_15[-1] / close_15[-20] - 1,  # 20-period return
+        close_1h[-1] / close_1h[-10] - 1,  # 10-period return
+    ])
+    
+    # Pad to expected size (37 features as in the enhanced agent)
+    while len(features) < 37:
+        features.append(0.0)
+    
+    return torch.tensor(features[:37], dtype=torch.float32)
 
 # ==========================
 # Helpers
@@ -952,53 +1221,329 @@ def notify(event: str, payload: Dict[str, Any]) -> None:
 # ==========================
 
 def main() -> int:
-    logger.info("Starting Hybrid EMA+Sentiment Trader (safe=%s, no_trade=%s)", OFFLINE, NO_TRADE)
-    # Assign a run_id early for consistent logging regardless of TB_AUDIT
+    logger.info("Starting Enhanced Multi-Asset Hybrid Trader (safe=%s, no_trade=%s)", OFFLINE, NO_TRADE)
+    
+    # Initialize enhanced components
+    components = initialize_enhanced_components()
+    
+    # Get enabled assets
+    enabled_assets = get_enabled_assets()
+    logger.info("Trading assets: %s", enabled_assets)
+    
+    # Assign a run_id early for consistent logging
     _run_id = _nowstamp()
-    logger.info("[run] start run_id=%s symbol=%s", _run_id, SYMBOL)
-    # Log resolved ML model directory for reproducibility and grep-ability
+    logger.info("[run] start run_id=%s assets=%s", _run_id, enabled_assets)
+    
+    # Log ML model info if available
     try:
         if USE_ML_GATE and ML_MODEL_PATH:
             _resolved_model_dir = os.path.dirname(os.path.realpath(ML_MODEL_PATH))
             logger.info("[ml_gate] using model_dir=%s", _resolved_model_dir)
     except Exception:
         pass
-    # Attempt to auto-apply promoted parameters (opt-in)
+    
+    # Auto-apply promoted parameters
     maybe_auto_apply_params()
     api = _rest() if not OFFLINE else None
-    # Load and reconcile state
-    state = load_state(SYMBOL)
-    if not OFFLINE:
-        state = reconcile_position_state(api, SYMBOL, state)
+    
+    # Get current equity
+    current_equity = get_account_equity(api) if not OFFLINE else 100000.0
+    logger.info("Current equity: $%.2f", current_equity)
+    
+    # Load states for all assets and reconcile positions
+    asset_states = {}
+    current_positions = {}
+    
+    for symbol in enabled_assets:
+        state = load_state(symbol)
+        if not OFFLINE:
+            state = reconcile_position_state(api, symbol, state)
+        asset_states[symbol] = state
+        
+        # Track current positions
+        if state.get("position_side") == "long":
+            current_positions[symbol] = {
+                'side': 'long',
+                'qty': state.get("position_qty", 0),
+                'entry_price': state.get("position_entry_price", 0),
+                'timestamp': state.get("last_entry_time", "")
+            }
+    
+    logger.info("Current positions: %s", list(current_positions.keys()))
+    
     # Daily PnL book-keeping
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    if state.get("pnl_date") != today:
-        # set equity reference at start of day
-        eq_ref = get_account_equity(api) if not OFFLINE else 100000.0
-        state.update({"pnl_date": today, "pnl_today": 0.0, "equity_ref": float(eq_ref)})
-
-    logger.info("[progress] Fetching bars...")
-    # Fetch bars
-    bars_15 = fetch_bars(SYMBOL, TF_FAST, lookback=200)
-    bars_1h = fetch_bars(SYMBOL, TF_SLOW, lookback=200)
-    if len(bars_15) < 50 or len(bars_1h) < 60:
-        logger.warning("Insufficient bars fetched: 15m=%d 1h=%d", len(bars_15), len(bars_1h))
-        return 1
-
-    ema12 = ema(bars_15["close"], 12)
-    ema26 = ema(bars_15["close"], 26)
-    ema50h = ema(bars_1h["close"], 50)
-    # 1h signal EMAs
-    ema1h_fast = ema(bars_1h["close"], EMA_1H_FAST)
-    ema1h_slow = ema(bars_1h["close"], EMA_1H_SLOW)
-    cross_up = detect_cross_up(ema12, ema26)
-    cross_down = detect_cross_down(ema12, ema26)
-    cross_up_1h = detect_cross_up(ema1h_fast, ema1h_slow)
-    cross_down_1h = detect_cross_down(ema1h_fast, ema1h_slow)
-    trend_up = bool(bars_1h["close"].iloc[-1] > ema50h.iloc[-1])
-
-    logger.info("[progress] Computing indicators...")
-    price = float(bars_15["close"].iloc[-1])
+    total_pnl_today = sum(state.get("pnl_today", 0) for state in asset_states.values())
+    
+    # Check daily loss limit
+    daily_loss_limit = current_equity * DAILY_LOSS_CAP_PCT
+    if total_pnl_today < -daily_loss_limit:
+        logger.warning("Daily loss limit reached: $%.2f < -$%.2f", total_pnl_today, daily_loss_limit)
+        return 0
+    
+    # Process each asset
+    trading_decisions = []
+    
+    for symbol in enabled_assets:
+        try:
+            logger.info("[progress] Processing %s...", symbol)
+            
+            # Fetch bars
+            bars_15 = fetch_bars(symbol, TF_FAST, lookback=200)
+            bars_1h = fetch_bars(symbol, TF_SLOW, lookback=200)
+            
+            if len(bars_15) < 50 or len(bars_1h) < 60:
+                logger.warning("Insufficient bars for %s: 15m=%d 1h=%d", symbol, len(bars_15), len(bars_1h))
+                continue
+            
+            # Calculate indicators
+            ema12 = ema(bars_15["close"], 12)
+            ema26 = ema(bars_15["close"], 26)
+            ema50h = ema(bars_1h["close"], 50)
+            ema1h_fast = ema(bars_1h["close"], EMA_1H_FAST)
+            ema1h_slow = ema(bars_1h["close"], EMA_1H_SLOW)
+            
+            cross_up = detect_cross_up(ema12, ema26)
+            cross_down = detect_cross_down(ema12, ema26)
+            cross_up_1h = detect_cross_up(ema1h_fast, ema1h_slow)
+            cross_down_1h = detect_cross_down(ema1h_fast, ema1h_slow)
+            trend_up = bool(bars_1h["close"].iloc[-1] > ema50h.iloc[-1])
+            
+            price = float(bars_15["close"].iloc[-1])
+            
+            # Get sentiment
+            if OFFLINE:
+                headlines = [f"{symbol} consolidates after recent move; traders watch key levels"]
+                sentiment = 0.6  # Slightly bullish default
+            else:
+                try:
+                    api_news = _rest()
+                    news_resp = api_news.get_news(_normalize_symbol(symbol), limit=10)
+                    headlines = [item.headline for item in news_resp]
+                    sentiment, _ = sentiment_via_perplexity(headlines)
+                except Exception as e:
+                    logger.warning("Failed to get sentiment for %s: %s", symbol, e)
+                    headlines = []
+                    sentiment = 0.5
+            
+            # Enhanced trading decision
+            can_trade, reason = should_trade_asset(components, symbol, bars_15, bars_1h, sentiment, current_positions)
+            
+            if not can_trade:
+                logger.info("[%s] Cannot trade: %s", symbol, reason)
+                continue
+            
+            # Check basic entry conditions
+            state = asset_states[symbol]
+            last_entry_ts = state.get("last_entry_time", 0)
+            cooldown_ok = (time.time() - last_entry_ts) > COOLDOWN_SEC
+            
+            # Entry logic
+            entry_signal = False
+            entry_reason = ""
+            
+            if cross_up and trend_up and sentiment > SENTIMENT_THRESHOLD and cooldown_ok:
+                entry_signal = True
+                entry_reason = "EMA cross up + trend up + positive sentiment"
+            elif cross_up_1h and trend_up and sentiment > SENTIMENT_THRESHOLD and cooldown_ok:
+                entry_signal = True
+                entry_reason = "1H EMA cross up + trend up + positive sentiment"
+            
+            if entry_signal:
+                # Calculate position size using enhanced methods
+                position_size_usd = calculate_enhanced_position_size(
+                    components, symbol, bars_15, bars_1h, sentiment, current_equity
+                )
+                
+                qty = position_size_usd / price
+                min_size = SUPPORTED_ASSETS.get(symbol, {}).get("min_size", 0.001)
+                
+                if qty >= min_size:
+                    # Calculate stop loss and take profit
+                    if USE_ATR_STOP:
+                        atr = calculate_atr(bars_15)
+                        stop_loss = price - (atr * ATR_STOP_MULT)
+                    else:
+                        stop_loss = price * (1 - SL_PCT)
+                    
+                    take_profit = price * (1 + TP_PCT)
+                    
+                    decision = {
+                        'symbol': symbol,
+                        'action': 'BUY',
+                        'qty': qty,
+                        'price': price,
+                        'stop_loss': stop_loss,
+                        'take_profit': take_profit,
+                        'reason': entry_reason,
+                        'sentiment': sentiment,
+                        'size_usd': position_size_usd
+                    }
+                    trading_decisions.append(decision)
+                    
+                    logger.info("[%s] ENTRY SIGNAL: %s (qty=%.4f, $%.2f)", 
+                               symbol, entry_reason, qty, position_size_usd)
+                else:
+                    logger.info("[%s] Position size too small: %.6f < %.6f", symbol, qty, min_size)
+            
+            # Check exit conditions for existing positions
+            if symbol in current_positions:
+                position = current_positions[symbol]
+                entry_price = position['entry_price']
+                current_pnl_pct = (price - entry_price) / entry_price
+                
+                should_exit = False
+                exit_reason = ""
+                
+                # Exit conditions
+                if cross_down:
+                    should_exit = True
+                    exit_reason = "EMA cross down"
+                elif cross_down_1h:
+                    should_exit = True
+                    exit_reason = "1H EMA cross down"
+                elif current_pnl_pct <= -SL_PCT:
+                    should_exit = True
+                    exit_reason = "Stop loss hit"
+                elif current_pnl_pct >= TP_PCT:
+                    should_exit = True
+                    exit_reason = "Take profit hit"
+                elif sentiment < 0.3:
+                    should_exit = True
+                    exit_reason = "Negative sentiment"
+                
+                if should_exit:
+                    decision = {
+                        'symbol': symbol,
+                        'action': 'SELL',
+                        'qty': position['qty'],
+                        'price': price,
+                        'reason': exit_reason,
+                        'pnl_pct': current_pnl_pct
+                    }
+                    trading_decisions.append(decision)
+                    
+                    logger.info("[%s] EXIT SIGNAL: %s (PnL: %.2f%%)", 
+                               symbol, exit_reason, current_pnl_pct * 100)
+        
+        except Exception as e:
+            logger.error("Error processing %s: %s", symbol, e)
+            continue
+    
+    # Execute trading decisions
+    executed_trades = []
+    for decision in trading_decisions:
+        try:
+            symbol = decision['symbol']
+            
+            if decision['action'] == 'BUY':
+                if not NO_TRADE and api:
+                    success, order_id, error = place_bracket(
+                        api, symbol, decision['qty'], decision['price'],
+                        decision['take_profit'], decision['stop_loss']
+                    )
+                    
+                    if success:
+                        # Update state
+                        state = asset_states[symbol]
+                        state.update({
+                            "position_side": "long",
+                            "position_qty": decision['qty'],
+                            "position_entry_price": decision['price'],
+                            "last_entry_time": time.time(),
+                            "order_id": order_id
+                        })
+                        save_state(symbol, state)
+                        
+                        executed_trades.append(decision)
+                        logger.info("✅ Executed BUY for %s: %.4f @ $%.2f", 
+                                   symbol, decision['qty'], decision['price'])
+                    else:
+                        logger.error("❌ Failed to execute BUY for %s: %s", symbol, error)
+                else:
+                    logger.info("🔒 Simulated BUY for %s: %.4f @ $%.2f", 
+                               symbol, decision['qty'], decision['price'])
+                    executed_trades.append(decision)
+            
+            elif decision['action'] == 'SELL':
+                if not NO_TRADE and api:
+                    order_id = close_position_if_any(api, symbol)
+                    
+                    if order_id:
+                        # Update state
+                        state = asset_states[symbol]
+                        pnl_usd = (decision['price'] - state.get('position_entry_price', 0)) * decision['qty']
+                        state.update({
+                            "position_side": None,
+                            "position_qty": 0,
+                            "position_entry_price": 0,
+                            "pnl_today": state.get("pnl_today", 0) + pnl_usd,
+                            "last_exit_time": time.time()
+                        })
+                        save_state(symbol, state)
+                        
+                        executed_trades.append(decision)
+                        logger.info("✅ Executed SELL for %s: PnL $%.2f (%.2f%%)", 
+                                   symbol, pnl_usd, decision['pnl_pct'] * 100)
+                    else:
+                        logger.error("❌ Failed to execute SELL for %s", symbol)
+                else:
+                    logger.info("🔒 Simulated SELL for %s: PnL %.2f%%", 
+                               symbol, decision['pnl_pct'] * 100)
+                    executed_trades.append(decision)
+        
+        except Exception as e:
+            logger.error("Failed to execute trade for %s: %s", decision['symbol'], e)
+    
+    # Send notifications
+    if executed_trades and NOTIFY:
+        try:
+            message = f"Enhanced Multi-Asset Trader Update:\n"
+            message += f"Processed {len(enabled_assets)} assets\n"
+            message += f"Executed {len(executed_trades)} trades\n\n"
+            
+            for trade in executed_trades:
+                if trade['action'] == 'BUY':
+                    message += f"🟢 BUY {trade['symbol']}: {trade['qty']:.4f} @ ${trade['price']:.2f}\n"
+                    message += f"   Reason: {trade['reason']}\n"
+                    message += f"   Sentiment: {trade['sentiment']:.2f}\n\n"
+                else:
+                    message += f"🔴 SELL {trade['symbol']}: PnL {trade['pnl_pct']*100:.2f}%\n"
+                    message += f"   Reason: {trade['reason']}\n\n"
+            
+            # Send notifications
+            if not NO_TELEGRAM:
+                send_telegram(message)
+            
+            if ENABLE_DISCORD:
+                # Send to Discord (simplified)
+                embed = {
+                    "title": "Enhanced Multi-Asset Trader",
+                    "description": message,
+                    "color": 0x00ff00 if executed_trades else 0x808080
+                }
+                webhook = os.getenv("DISCORD_TRADER_WEBHOOK_URL", "") or os.getenv("DISCORD_WEBHOOK_URL", "")
+                if webhook:
+                    send_discord_embed(webhook, [embed])
+            
+        except Exception as e:
+            logger.error("Failed to send notifications: %s", e)
+    
+    # Update adaptive strategy if available
+    if 'adaptive_strategy' in components and executed_trades:
+        try:
+            for trade in executed_trades:
+                if trade['action'] == 'SELL' and 'pnl_pct' in trade:
+                    components['adaptive_strategy'].update_performance({
+                        'symbol': trade['symbol'],
+                        'pnl_pct': trade['pnl_pct'],
+                        'timestamp': datetime.now()
+                    })
+        except Exception as e:
+            logger.warning("Failed to update adaptive strategy: %s", e)
+    
+    logger.info("Enhanced multi-asset trading cycle complete: %d trades executed", len(executed_trades))
+    return 0
 
     # Sentiment
     # In OFFLINE mode, do not fetch from Alpaca; use mock headlines
