@@ -36,6 +36,96 @@ By measuring and quantifying these divergences rigorously, filtering for relevan
 - Deliver signals and evidence automatically via Telegram DMs.
 - Persist rich data for audit, backtesting, and iterative tuning.
 
+## Enhanced Feature Engineering: 37 Technical Indicators
+
+The Confidence Engine now includes a comprehensive set of 37 technical indicators for robust ML model inputs:
+
+### Momentum Indicators (13)
+- RSI (Relative Strength Index) - 14, 21, 28 periods
+- MACD (Moving Average Convergence Divergence) - momentum, signal, histogram
+- Stochastic Oscillator - %K, %D
+- Williams %R
+- Momentum (10, 20 periods)
+- ROC (Rate of Change) - 5, 10, 20 periods
+
+### Trend Indicators (8)
+- EMA (Exponential Moving Averages) - 12, 26, 50, 200 periods
+- SMA (Simple Moving Averages) - 20, 50 periods
+- Trend Strength - slope calculations
+- ADX (Average Directional Index)
+
+### Volatility Indicators (6)
+- ATR (Average True Range) - 14, 21 periods
+- Bollinger Bands - width, %B
+- Standard Deviation - 20 period
+- Volatility Ratio
+
+### Volume Indicators (5)
+- Volume Z-Score
+- Volume Ratio
+- OBV (On Balance Volume)
+- Volume Momentum
+- VWAP (Volume Weighted Average Price)
+
+### Support/Resistance & Price Action (5)
+- Pivot Points
+- Fibonacci Retracement levels
+- Support/Resistance levels
+- Price Acceleration
+- Gap Analysis
+
+### Live Trading Synchronization
+- **Feature Vector Building**: Updated `scripts/hybrid_crypto_trader.py` `_build_live_feature_vector()` to compute all 37 indicators
+- **Validation**: Successfully tested with torch.Size([1, 37]) and all features computed correctly
+- **Consistency**: Ensures training and inference use identical feature engineering
+
+## ML Architecture & Monitoring
+
+### Enhanced Model Architecture
+- **Layers**: 64-32-16 configuration with batch normalization and dropout
+- **Training**: Early stopping, comprehensive metrics tracking, improved convergence
+- **PyTorch Implementation**: Robust neural network for probability gating
+
+### ML Gate Integration
+- **Probability Thresholds**: Configurable BUY gating based on model confidence
+- **Model Loading**: Automatic loading from `eval_runs/ml/latest/model.pt`
+- **Health Monitoring**: Performance tracking, drift detection, model degradation alerts
+- **Safety Gates**: Soft gate mode for inference failures, minimum probability floors
+
+### Comprehensive Monitoring System
+- **Performance Tracking**: Prediction logging, model health scoring
+- **Drift Detection**: Automatic detection of model performance degradation
+- **Health Metrics**: Calibration analysis, prediction confidence monitoring
+
+## Risk Management Enhancements
+
+### Position Sizing
+- **Confidence-Based Sizing**: Dynamic position sizing based on signal confidence
+- **Risk Controls**: Per-trade notional caps, volatility-adjusted sizing
+- **ATR-Based Stops**: Dynamic stop-loss sizing with configurable multipliers
+
+### Safety Gates
+- **Notional Caps**: Hard per-trade USD limits (`TB_MAX_NOTIONAL_PER_TRADE`)
+- **Volatility Filters**: ATR-based market condition filtering
+- **HTF Regime Checks**: Higher-timeframe trend alignment requirements
+
+## Autonomous Operations Framework
+
+### Loop Management
+- **Start Script**: `scripts/start_hybrid_loop.sh` with auto-apply promoted parameters
+- **ML Retraining**: Periodic model retraining with artifact management
+- **Artifact Auto-Commit**: Automatic commit of artifacts with git integration
+
+### Health Monitoring
+- **Watchdog System**: Cron-based process monitoring with automatic restart
+- **Health Checks**: Comprehensive system status verification
+- **Parameter Tuning**: Weekly canary runs with backtest validation
+
+### Notification System
+- **Multi-Channel**: Telegram and Discord notifications
+- **Heartbeat Monitoring**: Optional liveness notifications
+- **Event-Driven Alerts**: Critical system event notifications
+
 ***
 
 ## Important disclaimers

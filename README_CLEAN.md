@@ -9,6 +9,7 @@ A pragmatic research/trading agent that exploits the gap between narrative (news
 - Produces rich per‑asset artifacts with narratives, evidence lines, confidence, and Polymarket mapping.
 - Delivers optional digest messages to Telegram and Discord (env‑gated, safe split/chunking).
 - Continuously evaluates probability quality (Brier, log‑loss, calibration) and auto‑publishes CSVs.
+- **NEW**: Enhanced ML gate with 37 technical indicators, advanced neural network architecture, and comprehensive monitoring system.
 
 ---
 
@@ -30,6 +31,39 @@ python3 scripts/run_eval_tests.py
 python3 scripts/eval_ingest.py --input eval_data/resolved/sample.csv
 python3 scripts/eval_runner.py
 ```
+- Test enhanced ML features
+```
+python3 -c "
+import sys
+sys.path.insert(0, '.')
+from scripts.hybrid_crypto_trader import _build_live_feature_vector
+import pandas as pd
+import numpy as np
+
+# Test enhanced feature engineering
+dates = pd.date_range('2023-01-01', periods=100, freq='15min')
+test_df = pd.DataFrame({
+    'open': np.random.uniform(50000, 60000, 100),
+    'high': np.random.uniform(50000, 60000, 100),
+    'low': np.random.uniform(50000, 60000, 100),
+    'close': np.random.uniform(50000, 60000, 100),
+    'volume': np.random.uniform(100, 1000, 100)
+}, index=dates)
+
+feature_names = [
+    'ret_1', 'rsi', 'rsi_divergence', 'ema12', 'ema26', 'macd', 'macd_signal', 
+    'macd_histogram', 'macd_momentum', 'sma20', 'std20', 'bb_upper', 'bb_lower', 
+    'bb_position', 'bb_width', 'momentum_5', 'momentum_10', 'momentum_20', 
+    'roc_5', 'roc_10', 'roc_20', 'atr', 'close_volatility', 'high_low_range', 
+    'volume_sma', 'volume_ratio', 'volume_trend', 'price_acceleration', 
+    'support_level', 'resistance_level', 'support_distance', 'resistance_distance', 
+    'ema12_slope', 'ema26_slope', 'vol', 'vol_chg', 'cross_up'
+]
+
+result = _build_live_feature_vector(test_df, feature_names)
+print(f'✅ Enhanced features working: {result.shape[1]} indicators computed')
+"
+```
 
 ---
 
@@ -43,6 +77,8 @@ python3 scripts/eval_runner.py
 ## Tech stack used to build
 
 - Perplexity API for LLM-based narrative synthesis (source‑tagged evidence lines)
+- **NEW**: PyTorch with EnhancedMLP (batch normalization, dropout, early stopping) for advanced ML gating
+- **NEW**: 37 technical indicators (RSI, MACD, Bollinger Bands, ATR, momentum, volume analysis, price patterns)
 - Transformers + Torch for FinBERT and classifier/embedding primitives
 - spaCy + sentence-transformers for relevance and semantic de‑duplication
 - pandas + numpy for multi‑timescale features and divergence math
@@ -64,6 +100,13 @@ Note: While examples focus on crypto (BTC/ETH), the framework generalizes to equ
 - Git auto-commit/push for artifacts (universe/evaluation), gated via env flags.
 - Weekly evaluation wrapper and ingestion for resolved markets.
 
+**Enhanced ML Trading System**:
+- **37 Technical Indicators**: RSI, MACD, Bollinger Bands, ATR, momentum, volume analysis, price acceleration, support/resistance levels
+- **Advanced Neural Network**: EnhancedMLP with configurable layers (64-32-16), batch normalization, dropout (0.2), early stopping
+- **ML Monitoring**: Comprehensive health tracking, drift detection, performance metrics, automatic retraining every 6 hours
+- **Feature Synchronization**: Perfect parity between training and live trading feature pipelines
+- **Risk Management**: ATR volatility filters, position sizing based on confidence, exploration parameters
+
 Robust hybrid trader (opt-in gates):
 - ML probability gate with PyTorch model (`eval_runs/ml/latest/model.pt`) and features parity.
 - ATR volatility filter on 15m bars with min/max ATR% band.
@@ -77,6 +120,13 @@ Robust hybrid trader (opt-in gates):
   - `scripts/tracer_bullet_universe.py` — scan, enrich, digest
   - `config/universe.yaml` — asset universe
   - `universe_runs/` — JSON/CSV artifacts
+- **Enhanced ML System**
+  - `backtester/features.py` — 37 technical indicators with advanced feature engineering
+  - `backtester/ml_baseline.py` — EnhancedMLP neural network with batch norm, dropout, early stopping
+  - `backtester/ml_monitor.py` — comprehensive ML health monitoring and drift detection
+  - `backtester/ml_gate.py` — ML probability gating for live trading
+  - `scripts/ml_retrainer.py` — automatic model retraining every 6 hours
+  - `eval_runs/ml/latest/` — latest trained model and feature metadata
 - Digest delivery
   - `scripts/tg_sender.py`, `scripts/discord_sender.py` — safe split/chunk senders
   - `scripts/tg_digest_formatter.py`, `scripts/discord_formatter.py` — formatters
@@ -102,6 +152,62 @@ Robust hybrid trader (opt-in gates):
 - Polymarket
   - `TB_POLYMARKET_NUMBERS_IN_CHAT=0`, `TB_POLYMARKET_SHOW_EMPTY=1`, `TB_POLYMARKET_DEBUG=1`
   - Perplexity keys: `PPLX_API_KEY` or `PPLX_API_KEY_1..N` (model enforced to `sonar`)
+
+**Enhanced ML Configuration**:
+- `TB_USE_ML_GATE=1` — Enable ML probability gating
+- `TB_ML_GATE_MODEL_PATH=eval_runs/ml/latest/model.pt` — Path to trained model
+- `TB_ML_GATE_MIN_PROB=0.25` — Minimum probability threshold for trades
+- `TB_ML_RETRAIN_EVERY_SEC=21600` — Retrain model every 6 hours
+- `TB_ML_MONITOR_ENABLED=1` — Enable ML health monitoring
+- `TB_ML_MODEL_TYPE=EnhancedMLP` — Neural network architecture
+- `TB_ML_HIDDEN_DIMS=64,32,16` — Network layer dimensions
+- `TB_ML_DROPOUT_RATE=0.2` — Dropout regularization
+- `TB_ML_LEARNING_RATE=0.001` — Training learning rate
+
+**Risk Management**:
+- `TB_USE_ATR_FILTER=1` — Enable ATR volatility filtering
+- `TB_ATR_MIN_PCT=0.002` — Minimum ATR percentage
+- `TB_ATR_MAX_PCT=0.10` — Maximum ATR percentage
+- `TB_TRADER_RISK_FRAC=0.000001` — Risk fraction per trade
+- `TB_MAX_NOTIONAL_PER_TRADE=1000` — Maximum notional per trade
+
+---
+
+## 5.3) Enhanced ML Features (37 Technical Indicators)
+
+The system now uses a comprehensive set of 37 technical indicators for superior ML predictions:
+
+**Momentum & Trend Indicators**:
+- RSI (Relative Strength Index) with divergence signals
+- MACD (Moving Average Convergence Divergence) with momentum
+- EMA slopes (12-period and 26-period)
+- Multiple timeframe momentum (5, 10, 20 periods)
+- Rate of Change (ROC) indicators
+
+**Volatility & Range Indicators**:
+- Bollinger Bands (position, width, upper/lower)
+- ATR (Average True Range) proxy
+- Close volatility (20-period rolling std)
+- High-low range analysis
+
+**Volume Indicators**:
+- Volume SMA and ratio analysis
+- Volume trend analysis
+- Volume change signals
+
+**Price Pattern Indicators**:
+- Price acceleration (second derivative)
+- Support/resistance level analysis
+- Cross-up signals for EMA intersections
+
+**ML Architecture**:
+- EnhancedMLP neural network with configurable layers
+- Batch normalization for training stability
+- Dropout regularization (0.2 rate) to prevent overfitting
+- Early stopping to avoid overtraining
+- Automatic retraining every 6 hours with fresh data
+
+All features are synchronized between training (`backtester/features.py`) and live trading (`scripts/hybrid_crypto_trader.py`) pipelines.
 
 ---
 
@@ -153,6 +259,29 @@ python3 scripts/polymarket_bridge.py --max-items 4
 ```
 python3 scripts/eval_weekly.py
 ```
+- **NEW**: Test ML feature engineering
+```
+python3 -c "
+from backtester.features import build_features
+from backtester.core import DataLoader
+import pandas as pd
+
+# Load and test enhanced features
+loader = DataLoader('bars/')
+bars = loader.load()
+X, y = build_features(bars)
+print(f'✅ Features built: {X.shape[1]} indicators, {len(X)} samples')
+print(f'Feature names: {list(X.columns)}')
+"
+```
+- **NEW**: Check ML model health
+```
+python3 -c "
+from backtester.ml_monitor import MLMonitor
+monitor = MLMonitor()
+health = monitor.get_model_health_score()
+print(f'Current ML Health Score: {health:.3f}')
+"
 
 ---
 
@@ -203,6 +332,14 @@ Parity highlights (v3.1.16):
 - Empty Polymarket section: check PPLX keys and `TB_POLYMARKET_DEBUG=1`
 - No sends: ensure `TB_NO_TELEGRAM=0`/`TB_NO_DISCORD=0`, valid chat tokens
 - Git push blocked: unset `*_PUSH` or fix remote; commits still land locally when `*_AUTOCOMMIT=1`
+- **NEW**: ML model issues:
+  - Model not loading: check `TB_ML_GATE_MODEL_PATH` points to valid `.pt` file
+  - Feature mismatch: ensure training and live features are synchronized (37 indicators)
+  - Poor predictions: check `ml_monitor.log` for health score and retrain if needed
+  - Memory issues: reduce `TB_ML_HIDDEN_DIMS` or increase system memory
+- **NEW**: Feature engineering errors:
+  - NaN values: check input data quality and ensure sufficient historical bars
+  - Shape mismatches: verify feature_names list matches between training/live pipelines
 
 ---
 
@@ -211,16 +348,18 @@ See `LICENSE`.
 
 ---
 
-## 13) Live Hybrid Trading Agent — Status and Ops (2025-08-31)
+## 13) Live Hybrid Trading Agent — Status and Ops (2025-09-01)
 
 This repository includes a hybrid trading agent that is currently live, autonomous, and self-learning with guardrails.
 
 ### Current status
+- **Enhanced ML System**: Now running with 37 technical indicators, EnhancedMLP neural network, and comprehensive monitoring
 - Live processes: `scripts/start_hybrid_loop.sh` runs a wrapper that manages a periodic ML retrainer and a resilient trader loop (`python3 scripts/hybrid_crypto_trader.py`).
 - Guardrails:
   - Watchdog cron restarts the loop if it dies.
   - Daily health check verifies logs freshness, recent runs, and promoted params; includes a self-heal path.
   - Weekly propose+canary refresh evaluates new parameter proposals and only promotes upon canary pass.
+  - **NEW**: ML health monitoring with drift detection and automatic model retraining every 6 hours.
 - Artifacts: Non-code artifacts (JSON/CSV/MD/YAML, images) are auto-committed and pushed. `.py` files are never auto-committed.
 
 ### Crons installed (user crontab)
@@ -247,14 +386,25 @@ This repository includes a hybrid trading agent that is currently live, autonomo
 - Manual health check (no sends): `TB_ENABLE_DISCORD=0 TB_NO_TELEGRAM=1 bash scripts/health_check.sh`
 - Refresh backtest rollups: `python3 scripts/backtest_aggregate.py --out_root eval_runs/backtests`
 
-### Validation tests performed (2025-08-31)
+### Validation tests performed (2025-09-01)
+- **Enhanced ML Features**: Successfully validated 37 technical indicators computation with synchronized training/live pipelines
+- **Feature Vector Test**: Confirmed torch.Size([1, 37]) output from `_build_live_feature_vector()`
 - Watchdog test: killed the trader once; watchdog/wrapper ensured the loop remained healthy and trader kept running.
 - Health self-heal dry-run: moved `config/promoted_params.json` aside, ran `scripts/health_check.sh` with sends/commits disabled; it executed `scripts/weekly_propose_canary.sh` (auto-tuner + canary). No promotion occurred; original params restored. Artifacts were written under `eval_runs/auto_tuner/<ts>/` and `eval_runs/canary/<ts>/notify.txt`.
 - Backtest rollups: refreshed `eval_runs/backtests/aggregate.md` and `aggregate.csv` after the batch. These will be kept current post-batches.
 
+### ML Health Monitoring System
+- **Performance Tracking**: Monitors accuracy, precision, recall, F1-score, and AUC metrics
+- **Drift Detection**: Identifies when model performance degrades over time
+- **Health Scoring**: Composite health metric combining multiple performance indicators
+- **Automatic Retraining**: Triggers model retraining when health score falls below threshold
+- **Logging**: Comprehensive logging to `ml_monitor.log` with structured metrics
+- **Alerting**: Discord/Telegram notifications for critical ML health issues
+
 ### Quick references
-- Logs: `trader_loop.log`, `trader_loop.err`
+- Logs: `trader_loop.log`, `trader_loop.err`, `ml_monitor.log`
 - Artifacts: `runs/…`, `eval_runs/…` (auto-committed, non-code only)
 - Parameters: `config/promoted_params.json`
 - Latest model link: `eval_runs/ml/latest/`
+- ML Health Dashboard: Check `backtester/ml_monitor.py` for current health status
 

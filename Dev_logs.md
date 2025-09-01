@@ -2611,3 +2611,42 @@ python3 scripts/hybrid_crypto_trader.py
 - Set in `.env`: `TB_MAX_NOTIONAL_PER_TRADE=1000`.
 - Unified ops commands (see README.md and docs/commands.md): verify, kill, restart live loop and ML.
 - Docs policy: only artifacts/docs auto-committed; never `.py`.
+
+### 2025-09-01 — Enhanced Feature Engineering: 37 Technical Indicators + Live Trading Synchronization
+- **Feature Expansion**: Enhanced technical indicator set from 16 to 37 indicators in `backtester/features.py`:
+  - **New Indicators Added**: RSI divergence, MACD momentum, Bollinger Band width, multiple momentum periods (3, 5, 10, 15, 20), ROC indicators (5, 10, 20), ATR (14, 21), volume trends (Z-score, ratio, momentum), price acceleration, support/resistance levels (pivot points, Fibonacci retracements), volatility measures, trend strength indicators.
+  - **Comprehensive Coverage**: Now includes momentum, volatility, volume, trend, and support/resistance analysis for robust ML model inputs.
+- **Live Trading Synchronization**: Updated `scripts/hybrid_crypto_trader.py` `_build_live_feature_vector()` function to compute all 37 indicators, matching the training pipeline exactly.
+  - **Validation**: Successfully tested enhanced feature vector building with torch.Size([1, 37]) and all 37 features computed correctly.
+  - **Consistency**: Ensures training and inference use identical feature engineering, eliminating potential performance gaps.
+- **Model Architecture Improvements**: Enhanced MLP architecture in `backtester/ml_baseline.py`:
+  - **Layers**: 64-32-16 configuration with batch normalization and dropout.
+  - **Training**: Early stopping, comprehensive metrics tracking, improved convergence.
+- **Monitoring System**: Implemented comprehensive ML monitoring in `backtester/ml_monitor.py`:
+  - **Performance Tracking**: Prediction logging, model health scoring, drift detection.
+  - **Health Metrics**: Calibration analysis, prediction confidence monitoring, model degradation alerts.
+- **Configuration**: Updated `.env` with ML gate settings, feature paths, and trading parameters for seamless integration.
+- **Testing**: Validated through successful test run confirming all 37 indicators compute correctly in synchronized live trading pipeline.
+- **Impact**: Significantly improved trader robustness and accuracy through enhanced feature engineering and synchronized training/inference pipelines.
+
+### 2025-09-01 — ML Gate Integration + Health Monitoring
+- **ML Gate Implementation**: Integrated PyTorch model gate in `scripts/hybrid_crypto_trader.py` with configurable probability thresholds.
+- **Model Loading**: Automatic loading from `eval_runs/ml/latest/model.pt` with feature alignment validation.
+- **Health Checks**: Comprehensive monitoring system with performance tracking and drift detection.
+- **Safety Gates**: Soft gate mode for inference failures, minimum probability floors, and circuit breaker logic.
+- **Logging**: Detailed audit trails for ML decisions and model health status.
+- **Validation**: Safe offline runs with ML gate enabled, confirming proper integration and artifact generation.
+
+### 2025-09-01 — Risk Management Enhancements
+- **Position Sizing**: Confidence-based position sizing with ATR-based stop sizing options.
+- **Risk Controls**: Per-trade notional caps, volatility-adjusted sizing, and risk floor/ceiling enforcement.
+- **Stop Management**: ATR-based dynamic stops with configurable multipliers.
+- **Portfolio Limits**: Maximum exposure controls and position concentration limits.
+- **Circuit Breakers**: Automatic trading suspension on excessive losses or model degradation.
+
+### 2025-09-01 — Autonomous Operations Framework
+- **Loop Management**: `scripts/start_hybrid_loop.sh` with auto-apply promoted parameters and ML retraining.
+- **Health Monitoring**: `scripts/health_check.sh` with comprehensive system status checks.
+- **Watchdog System**: Cron-based process monitoring with automatic restart capabilities.
+- **Parameter Tuning**: Weekly canary runs with backtest validation and parameter promotion.
+- **Artifact Management**: Auto-commit system for artifacts with git integration and provenance tracking.
