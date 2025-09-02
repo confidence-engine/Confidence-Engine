@@ -1,147 +1,8 @@
-# Knowledge Wiki — Project Confidence Engine
+# Roadmap (Milestone-Based) — Project Tracer Bullet
 
-A comprehensive knowledge base for the dual-agent trading system, covering architecture, operations, and development insights.
+A living, milestone-driven plan from V1 tracer bullet to small live capital, emphasizing reliability, explainability, and leak-free validation.
 
-Updated: September 2, 2025
-
----
-
-## 🚀 Dual-Agent Architecture (Latest Development)
-
-### System Overview
-- **Main Agent (Low-Risk)**: Enhanced hybrid crypto trader with 18+ assets, ML gates, and adaptive strategies
-- **Futures Agent (High-Risk)**: Leveraged futures/perpetuals agent with momentum trading and smart leverage
-- **Shared Infrastructure**: Common data sources, monitoring, and notification systems
-- **Independent Operation**: Separate capital allocation and risk management
-
-### Current Status (September 2, 2025)
-- **✅ Both Agents Running**: Main agent and futures agent operational
-- **✅ Multi-Platform Support**: Binance Futures (primary), Bybit (backup)
-- **✅ Real-time Monitoring**: Discord/Telegram notifications with heartbeat
-- **✅ Smart Features**: Market regime detection, correlation filtering, trailing stops
-- **✅ Paper Trading**: Both agents running in paper mode with real market data
-
-### Agent Specifications
-
-#### Main Agent (Low-Risk)
-- **Assets**: BTC/USD, ETH/USD, SOL/USD, LINK/USD, LTC/USD, BCH/USD, UNI/USD, AAVE/USD, AVAX/USD, DOT/USD, MKR/USD, COMP/USD, YFI/USD, CRV/USD, SNX/USD, SUSHI/USD, XTZ/USD, GRT/USD
-- **Strategy**: ML-gated technical analysis with adaptive thresholds
-- **Risk**: Conservative with Kelly sizing and portfolio VaR limits
-- **Execution**: Alpaca paper trading with real-time signals
-- **Features**: ATR filters, market regime detection, ensemble ML
-
-#### Futures Agent (High-Risk)
-- **Assets**: BTCUSDT, ETHUSDT, SOLUSDT, ADAUSDT, DOTUSDT, LINKUSDT, AVAXUSDT, MATICUSDT, UNIUSDT, AAVEUSDT
-- **Strategy**: Momentum-based with 6-hour windows and smart leverage
-- **Risk**: 5% per trade, 20% daily loss limit, 25x max leverage
-- **Execution**: Binance Futures (primary), Bybit (backup)
-- **Features**: Trailing stops, profit targets, correlation filtering, platform switching
-
-## Ops & Reliability — Recent Findings (v3.1.6–v3.1.7)
-
-- **Post-enrichment auto-commit/push**
-  - After `scripts/tracer_bullet_universe.py` calls `enrich_artifact()` (injects `evidence_line` and `polymarket` array into the saved universe JSON), the file changes are now automatically staged, committed, and pushed when:
-    - `TB_UNIVERSE_GIT_AUTOCOMMIT=1` and optionally `TB_UNIVERSE_GIT_PUSH=1`.
-  - Prevents the enriched universe JSON from lingering as modified in your working tree.
-
-- **Discord gating strictly enforced**
-  - `TB_NO_DISCORD=1` now prevents any Discord sends even if webhook is configured.
-  - Send conditions in `scripts/tracer_bullet_universe.py`:
-    - Telegram: requires `TB_NO_TELEGRAM=0` and TG creds.
-    - Discord: requires `TB_NO_DISCORD=0`, `TB_ENABLE_DISCORD=1`, and webhook.
-
-- **Auto-commit/push defaults**
-  - `scripts/scan_universe.py` already commits and pushes artifacts by default:
-    - `TB_UNIVERSE_GIT_AUTOCOMMIT=1` (default)
-    - `TB_UNIVERSE_GIT_PUSH=1` (default)
-  - `TB_UNIVERSE_GIT_PUSH_DEFAULT=1` can force push if push was unset.
-
-- **Safe-run profile**
-  - For dry runs without external sends, set: `TB_NO_TELEGRAM=1`, `TB_NO_DISCORD=1`.
-  - Artifacts will still be committed/pushed if AUTOCOMMIT/PUSH are on.
-
----
-
-## Artifact Schema Enrichment (Universe)
-
-- The saved universe JSON is enriched with:
-  - Per-asset `evidence_line` (full narrative string; artifacts retain numbers, chat output strips numbers).
-  - Top-level `polymarket` array with mapped markets and numeric fields (probabilities, liquidity, dates, etc.).
-- `metrics.csv` includes `evidence_line` when present.
-- Backward compatibility preserved; tests validate enrichment and legacy loading.
-
----
-
-## Digest Delivery Rules (Telegram/Discord)
-
-- Telegram human digest (optional):
-  - Respects `TB_HUMAN_DIGEST` and `TB_NO_TELEGRAM`.
-  - Auto-splits long messages to fit Telegram limits (preserving order/content).
-  - Supports crypto-only mode via `TB_DIGEST_TELEGRAM_CRYPTO_ONLY=1`.
-  - Surfaces BTC/ETH + top-K alts controlled by `TB_DIGEST_TOP_ALTS` (`ALL` or `-1` includes all).
-
-- Discord full digest:
-  - All sections/assets rendered as embeds with chunking as needed.
-  - Respects `TB_NO_DISCORD`, `TB_ENABLE_DISCORD`, and webhook presence.
-
----
-
-## Polymarket (PPLX) Provider — Key Notes
-
-- Source is strictly Perplexity Pro API (`pplx`); native code removed for prod path.
-- Enforces model `sonar` and strict JSON extraction (first balanced array fallback).
-- API key rotation supported: `PPLX_API_KEY_1..N`, then `PPLX_API_KEY`.
-- Filters and flags:
-  - `TB_POLYMARKET_ASSETS`, `TB_POLYMARKET_LIMIT`, `TB_POLYMARKET_TODAY_ACTIVE_ONLY`,
-    `TB_POLYMARKET_REQUIRE_LIQUIDITY`, `TB_POLYMARKET_MIN_LIQUIDITY`,
-    `TB_POLYMARKET_TITLE_KEYWORDS`, `TB_POLYMARKET_SHOW_EMPTY`.
-- Bridge caps via `TB_POLYMARKET_MAX_ITEMS` and enforces sort/limit before return.
-- Internal probability estimator included; calibration uses alignment, participation, readiness, signal strength.
-- Debugging with `TB_POLYMARKET_DEBUG=1` prints prompt/key/attempt/choices and calibration components.
-
----
-
-## Environment Flags — Quick Reference
-
-- Sending
-  - `TB_HUMAN_DIGEST=1` — enable human digest rendering
-  - `TB_NO_TELEGRAM=0` — allow Telegram (requires creds)
-  - `TB_NO_DISCORD=0`, `TB_ENABLE_DISCORD=1` — allow Discord (requires webhook)
-
-- Digest surfacing
-  - `TB_DIGEST_TOP_ALTS=ALL` | `-1` | `K`
-  - `TB_DIGEST_TELEGRAM_CRYPTO_ONLY=1`
-  - `TB_DIGEST_EXPLAIN_HIGH_RISK_ACTION=1`
-
-- Universe artifacts
-  - `TB_UNIVERSE_GIT_AUTOCOMMIT=1`, `TB_UNIVERSE_GIT_PUSH=1`, `TB_UNIVERSE_GIT_PUSH_DEFAULT=0/1`
-
-- Polymarket PPLX
-  - `TB_ENABLE_POLYMARKET=1`, `TB_POLYMARKET_SOURCE=pplx`
-  - `TB_POLYMARKET_MAX_ITEMS`, `TB_POLYMARKET_LIMIT`, `TB_POLYMARKET_TODAY_ACTIVE_ONLY`
-  - `TB_POLYMARKET_REQUIRE_LIQUIDITY`, `TB_POLYMARKET_MIN_LIQUIDITY`
-  - `TB_POLYMARKET_DEBUG`, `TB_POLYMARKET_PPLX_RETRIES`, `TB_POLYMARKET_PPLX_PROMPT`
-
----
-
-## Git: Verify Local vs Remote Sync
-
-Run inside repo:
-
-```
-git fetch origin
-git status -sb     # shows ahead/behind vs origin/main
-git rev-parse HEAD && git rev-parse origin/main
-git log --oneline origin/main..HEAD -n 10    # local-only commits
-git log --oneline HEAD..origin/main -n 10    # remote-only commits
-```
-
-In sync when:
-- `HEAD` hash equals `origin/main` hash
-- `git status -sb` shows no `[ahead/behind]`
-- Both `git log` ranges above print nothing
-
----
+Last updated: 2025-08-08.
 
 ## Guiding Objectives
 
@@ -420,200 +281,256 @@ Sources
 
 ----------------
 
-# File-by-file summaries
+Great—locking in Option 1. I’ll deliver the “everything-first” bundle now: final file map, data contracts, thresholds, module responsibilities, and paste-ready wiki stubs. Once you skim and say “Start,” I’ll move into step-by-step implementation in small, runnable chunks.
 
+Below is your complete bundle to review and paste into the repo/wiki.
+
+# 1) Final File Map (V1.0 → V1.4)
+
+repo/
+- README.md (already updated)
+- roadmap.md (milestones + acceptance)
+- dev_log.md (daily; update EOD)
+- wiki/ (GitHub Wiki or docs/ if preferred)
+  - Architecture.md
+  - Data-Contracts.md
+  - Prompt-Engineering.md
+  - Analysis-Design.md
+  - Runbooks.md
+  - Testing-TDD.md
+  - Decisions.md
+  - Roadmap.md
+- .env.example
+- requirements.txt
 - tracer_bullet.py
-  - Orchestrates full run: fetches headlines (Alpaca + Perplexity rotation + CoinDesk if enabled), dedupes, semantic relevance gating, robust FinBERT sentiment on relevant-only headlines, narrative built from accepted headlines with confidence heuristic, narrative decay, price/volume scores, divergence and action with adaptive trigger, exports (JSON, bars CSV, accepted TXT), auto-commit, console preview.
-  - Key features: robust sentiment aggregation (MAD outlier drop + trimmed mean), adaptive divergence trigger, provenance tagging, conservative confidence fallback when narrative missing but accepted exists.
+- agent.py (V1.2+)
+- src/
+  - config.py
+  - adapters/
+    - narrative_base.py
+    - narrative_local.py
+    - narrative_perplexity.py (V1.4 stub; active in V2)
+  - data/
+    - alpaca_fetcher.py
+    - yfinance_fetcher.py (V3)
+  - nlp/
+    - sentiment_finbert.py
+    - keyword_extractor.py (V2)
+  - analysis/
+    - price_momentum.py
+    - narrative_momentum.py
+    - divergence.py
+  - execution/
+    - trade_executor.py
+    - risk.py
+  - db/
+    - db_manager.py
+    - schema.sql
+  - notifier/
+    - telegram_notifier.py
+  - utils/
+    - logging_setup.py
+    - retry.py
+    - time_utils.py
 
-- finbert.py
-  - FinBERT sentiment scoring.
-  - sentiment_score: legacy mean.
-  - sentiment_robust: per-headline pos-neg scores in [-1,1], MAD outlier drop, 10% trimmed mean. Returns (aggregate, kept_scores, dropped_outliers).
+# 2) .env.example (paste-ready)
 
-- sentiment_utils.py
-  - Robust stats helpers: trimmed_mean, mad, drop_outliers (MAD z-score).
+ALPACA_API_KEY_ID=
+ALPACA_API_SECRET_KEY=
+ALPACA_BASE_URL=https://paper-api.alpaca.markets
+ALPACA_DATA_URL=https://data.alpaca.markets
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+ENV=dev
+PROMPT_VERSION=prompt_v0.1
+VERSION_TAG=v1.0.0
+SYMBOL=BTCUSD
+LOOKBACK_MINUTES=120
+HEADLINES_LIMIT=10
+DIVERGENCE_THRESHOLD=1.0
+CONFIDENCE_CUTOFF=0.6
+COOLDOWN_MINUTES=15
+NARRATIVE_HALFLIFE_MIN=90
 
-- narrative_dev.py
-  - Relevance gating and narrative construction.
-  - BTC_TOPIC enriched for BTC.
-  - filter_relevant: accepted/rejected with scores.
-  - make_from_headlines: narrative from accepted-only; confidence 0.55 (1 headline), 0.65 (2+); neutral momentum (blend with FinBERT downstream).
+# 3) requirements.txt (V1-ready; paste-ready)
 
-- pplx_fetcher.py
-  - Perplexity Pro API client (sonar-pro chat completions).
-  - fetch_pplx_headlines_with_rotation: rotates multiple API keys; returns (titles, items, err). Strict JSON response parsing.
+pandas
+numpy
+requests
+python-dotenv
+pydantic
+alpaca-trade-api
+transformers
+torch
+spacy
+python-telegram-bot
+APScheduler
 
-- coindesk_rss.py
-  - CoinDesk RSS fetch with retry/backoff; returns titles.
+# 4) Data Contracts (paste into Wiki/Data-Contracts.md)
 
-- dedupe_utils.py
-  - Normalize + dedupe titles; preserves original text.
+Narrative JSON (v0.1)
+- narrative_summary: string (<=512 chars)
+- narrative_momentum_score: float in [-1, +1]
+- confidence: float in 
+- salient_entities: list[str] (<=5)
+- anchor_quotes: list[str] (<=3)
+- metadata (optional):
+  - source_sample: list[str] (<=5)
+  - model_name: string
+  - created_at: ISO-8601
 
-- provenance.py
-  - Tag origins for accepted headlines: perplexity, alpaca, coindesk, unknown.
+Validation policy
+- Enforce ranges and required keys.
+- One “repair” attempt (fix common JSON issues).
+- If still invalid → drop and log; never trade on invalid parses.
 
-- narrative_analysis_extras.py
-  - adaptive_trigger: adjust divergence trigger by volume Z; clamp to [0.6, 1.5].
+SQLite schema (initial)
+- signals(id, ts, symbol, narrative_score, price_score, divergence, confidence, action, reason_code, json_blob, version_tag)
+- trades(id, signal_id, ts, side, qty, fill_price, status, pnl_15m, pnl_60m)
+- prompts(id, ts, symbol, prompt_hash, model_name, tokens_in, tokens_out, latency_ms)
 
-- export.py
-  - export_run_json: runs/<id>.json
-  - save_bars_csv: bars/<id>.csv
-  - save_accepted_txt: runs/<id>_accepted.txt with [source] relevance | headline
+Telegram message spec (style analysis)
+- Title: [Signal] {SYMBOL} — {Bias/Strength}
+- Story: {summary}. Confidence: {confidence}
+- Narrative vs. Tape: Narrative {narr}, Price {price} → Divergence {div}
+- TA: RSI {rsi}, MA(10>50) {up/down}, MACD hist {+/−}, Vol Z {z}
+- Decision: {buy/sell/hold} {qty} (paper). Reason: {reason}
+- Trace: signal_id={id}, version={version_tag}
 
-- config.py
-  - .env loader and settings.
-  - Supports PPLX_API_KEY_1..N or PPLX_API_KEYS (comma) or single PPLX_API_KEY.
-  - Toggles: USE_COINDESK, PPLX_ENABLED; thresholds, lookbacks.
+# 5) Prompt Template (paste into Wiki/Prompt-Engineering.md)
 
-- debug_sources.py
-  - Dev utility: print counts/samples from Alpaca, Perplexity (rotation), CoinDesk.
+Prompt header (prompt_v0.1)
+- Respond with JSON only. No prose, no markdown. Use keys: narrative_summary (string, <=512 chars), narrative_momentum_score (float in [-1,1]), confidence (float in ), salient_entities (list of <=5 strings), anchor_quotes (list of <=3 short strings), metadata (object with optional source_sample (list[str], <=5), model_name (string), created_at (ISO-8601)).
+- If uncertain, lower confidence rather than guessing.
+- Escape quotes, ensure valid JSON, and include all keys even if empty lists.
 
-- test_pplx_auth.py
-  - Dev utility: 200/401 checks for each Perplexity key.
+Failure/repair notes
+- Typical errors: trailing commas, unescaped quotes, missing keys, wrong types.
+- Parser will attempt one repair; otherwise reject.
 
-- inspect_env_pplx.py
-  - Dev utility: raw env string inspection for PPLX_API_KEYS.
------------------
-# How it works
+# 6) Analysis Design (paste into Wiki/Analysis-Design.md)
 
-## Data ingestion
-- Alpaca latest_headlines(symbol, limit)
-- Perplexity Pro API via sonar-pro with key rotation (PPLX_API_KEY_1..N or PPLX_API_KEYS)
-- CoinDesk RSS (USE_COINDESK toggle)
-- Deduplication across sources
+Narrative Score (v0.1)
+- Linear blend: Score = 0.6*LLM_polarity + 0.4*FinBERT_sentiment
+- Time decay: exponential with half-life H=90min applied since last headline timestamp
+- Confidence: from LLM, clamped 
 
-## Relevance gating
-- Semantic similarity to enriched BTC topic
-- RELEVANCE_THRESHOLD 0.40–0.45
-- Keyword fallback if 0 accepted
+Price Score (v0.1)
+- Indicators:
+  - RSI(14) → scaled to [-1, +1]
+  - MA slope: short(10) vs medium(50), normalized
+  - MACD histogram: sign/strength normalized
+  - Volume z-score: credibility multiplier
+- Combine: weighted average (start equal weights) × credibility from volume
 
-## Sentiment + narrative
-- FinBERT robust sentiment (relevant-only): MAD outlier drop + 10% trimmed mean
-- Narrative from accepted headlines; confidence by count; composite signal blends LLM (neutral baseline) and FinBERT; decay by staleness
+Divergence & Triggers (initial)
+- divergence = z(narrative_score) − z(price_score)
+- Entry (V1, long-only):
+  - |divergence| > 1.0
+  - confidence > 0.6
+  - volume z-score > −0.5
+  - cooldown >= 15m per symbol
+- Reason codes: NARR_LEADS_PRICE, LOW_CONFIDENCE, WEAK_VOLUME, COOLDOWN_ACTIVE, INVALID_PARSE
 
-## Price/volume and divergence
-- Price score from bars; Volume Z
-- Divergence = decayed narrative − price score
-- Adaptive trigger based on volume (lower when high participation, higher when low)
+# 7) Roadmap acceptance slices for V1 (paste into roadmap.md if missing)
 
-## Decision and outputs
-- BUY/HOLD with confidence cutoff, divergence trigger, volume floor
-- Exports JSON, accepted TXT, bars CSV; auto-commit
-- Console preview: provenance, top-5 relevance (debug), beginner-friendly summary
+V1.0 — Preview (no orders)
+- One symbol (BTCUSD), fetch bars+headlines, narrative JSON (dev), compute TA, divergence, preview decision, Telegram message.
+- Acceptance: clean preview with valid JSON → decision and message.
 
---------------------------
+V1.1 — Paper orders
+- Enable Alpaca paper trade; cooldown; max positions; persist to SQLite.
+- Acceptance: at least one paper trade with full context stored and linked to alert.
 
-# Runbook – daily use
+V1.2 — Scheduler & resilience
+- APScheduler run loop; retries/backoff; TA-only degrade; circuit breaker for narrative failures.
+- Acceptance: unattended run for hours without crashes; alerts on failures.
 
-## Pre-run
-- Ensure .env has Perplexity keys (PPLX_API_KEY_1..N or PPLX_API_KEYS) and PPLX_ENABLED=true
-- USE_COINDESK=true recommended
-- Start with RELEVANCE_THRESHOLD=0.42
+V1.3 — Event-lite & explainability
+- Headline-delta trigger; reason codes standardized; refined message format.
+- Acceptance: fewer, better signals; audit-grade messages.
 
-## Run
-- python3 tracer_bullet.py
+V1.4 — Hardening
+- Unit tests (parser, indicators, divergence, DB IO); config-driven thresholds; version_tag in signals.
+- Acceptance: tests pass; reproducible runs.
 
-## Validate
-- Console shows:
-  - Accepted (source, score) with ~3–8 items
-  - Decision Preview with adaptive trigger and robust FinBERT kept/dropped
-- Artifacts:
-  - runs/<id>.json
-  - runs/<id>_accepted.txt
-  - bars/<id>.csv
-- Auto-commit pushes runs/ and bars/
+# 8) ADRs (paste into Wiki/Decisions.md)
 
-## Tuning
-- If accepted < 2 repeatedly:
-  - Set RELEVANCE_THRESHOLD=0.40
-  - Check [Relevance top-5] output
-- Verify Perplexity returns titles (debug_sources.py) and keys 200 (test_pplx_auth.py)
+ADR-001 — First Symbol
+- Decision: BTCUSD (24/7 flow)
+- Alternatives: TSLA (market hours)
+- Consequences: continuous loop testing, more micro-noise
 
-## Per-source weighting and Perplexity recency
+ADR-002 — Tracer Feature Set
+- Decision: Option B (LLM+FinBERT, RSI/MA/MACD/vol z)
+- Rationale: better precision without delaying tracer
 
-- Weighted relevance:
-  - Each headline’s semantic relevance is multiplied by a source weight:
-    - Perplexity: 1.10
-    - CoinDesk: 1.05
-    - Alpaca: 1.00
-  - JSON payload -> relevance_details.accepted[].raw_relevance and weighted_relevance
-- Perplexity recency:
-  - web_search_options.search_recency_filter = "day" (past 24h)
-  - Ensures fresher results and reduces stale headlines
+ADR-003 — Narrative Scoring
+- Decision: Linear blend + exponential decay (H=90min)
+- Rationale: transparent and testable first pass
 
-## Telegram integration
-- Set .env:
-  - TELEGRAM_BOT_TOKEN=...
-  - TELEGRAM_CHAT_ID=...
-  - TELEGRAM_PARSE_MODE=Markdown (or HTML)
-- Run:
-  - python3 tracer_bullet.py (auto-sends at end)
-  - or python3 export_to_telegram.py (send latest run)
-- Evidence in message:
-  - Top-3 accepted headlines by weighted relevance with sources
-  - Alpha summary and next steps
+ADR-004 — Initial Thresholds
+- Decision: |div|>1.0, conf>0.6, vol_z>−0.5, cooldown=15m, long-only
 
-## Outputs
-- Alpha-first:
-  - alpha_summary: narrative vs price gap, confidence, volume tone, one-line signal label
-  - alpha_next_steps: actionable playbook (entry gating, alerts, risk, invalidation)
-- Evidence:
-  - relevance_details (accepted/rejected): headline, raw_relevance, weighted_relevance, source
-  - pplx_provenance: Perplexity items (title/source/url)
-- Artifacts:
-  - runs/<id>.json, runs/<id>_accepted.txt (source + weighted relevance), bars/<id>.csv
-- Delivery:
-  - Console + Telegram push
-## Perplexity recency
-- pplx_fetcher sets web_search_options.search_recency_filter="day"
-- Adjust hours via PPLX_HOURS in .env for prompt time hint; recency filter remains "day"
+ADR-005 — Notifications
+- Decision: Telegram “style analysis” via python-telegram-bot
 
-- narrative_dev.py
-  - filter_relevant_weighted: returns accepted/rejected with (headline, raw_score, weighted_score, source)
-- pplx_fetcher.py
-  - Enforces recency="day"; returns titles + items (title, source, url)
-- alpha_summary.py
-  - Trader-facing alpha_summary and alpha_next_steps for console/Telegram/JSON
-- telegram_bot.py / export_to_telegram.py
-  - Bot wrapper and latest-run sender
+# 9) Runbooks (paste into Wiki/Runbooks.md)
 
-# Runbook
+Telegram setup
+- Create bot with @BotFather; get token.
+- Start chat with bot; get chat_id via getUpdates or helper snippet.
+- Add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to .env.
+- Test send_message.
 
-## Regular run
-- Run: `python3 tracer_bullet.py`
-- Artifacts:
-  - runs/<id>.json (full payload incl. alpha_* and relevance_details)
-  - runs/<id>_accepted.txt (source + weighted relevance + headline)
-  - bars/<id>.csv (recent bars snapshot)
+Perplexity key rotation (V2+)
+- PERPLEXITY_KEYS=key1,key2,key3 in .env
+- Round-robin on 429/5xx; exponential backoff; alert after N failures.
 
-## Telegram DM (optional)
-- .env:
-  - TELEGRAM_BOT_TOKEN=...
-  - TELEGRAM_CHAT_ID=... (numeric DM id; negative for groups/channels)
-  - TELEGRAM_PARSE_MODE=Markdown (or HTML)
-- End-of-run push is automatic (integrated in tracer_bullet.py).
-- Send latest run manually: `python3 export_to_telegram.py`
+Alpaca paper sanity checks
+- Verify account endpoint, clock status, and test a tiny market order/cancel in paper.
 
-## Troubleshooting
-- If getUpdates returns empty, send “hi” to the bot and retry.
-- If posting to a channel, bot must be Admin.
+Failure recovery
+- Parser invalid: skip trade, log sample, add test case.
+- Narrative down: TA-only mode (reduced risk) or pause entries.
+- Market data down: pause trading; send alert.
 
-# Configuration Guide
+# 10) Test Plan (paste into Wiki/Testing-TDD.md)
 
-## Relevance
-- Threshold: settings.relevance_threshold (weighted score threshold).
-- Per-source weights (default):
-  - perplexity: 1.10
-  - coindesk: 1.05
-  - alpaca: 1.00
+Parser tests
+- Accept valid payloads; repair minor JSON errors; reject missing keys/range violations; no-trade on invalid.
 
-## Perplexity
-- Day recency enforced in pplx_fetcher (web_search_options.search_recency_filter="day").
-- Multiple API keys supported for rotation.
+Indicator tests
+- RSI/MA/MACD fixed fixtures with expected outputs.
+- Volume z-score deterministic on sample series.
 
-## Telegram
-- TELEGRAM_BOT_TOKEN from BotFather.
-- TELEGRAM_CHAT_ID (numeric):
-  - DM: positive id from getUpdates.
-  - Group/Channel: negative id (often -100...).
+Divergence logic
+- Synthetic cases around thresholds; cooldown enforcement.
+
+DB integrity
+- Schema boot; insert/retrieve; idempotent inserts by signal_id.
+
+Backtesting guardrails (V3+)
+- Event-ordered replay; lagged features; walk-forward splits; cohort metrics.
+
+# 11) Initial thresholds and params (final confirmation)
+
+- DIVERGENCE_THRESHOLD=1.0
+- CONFIDENCE_CUTOFF=0.6
+- COOLDOWN_MINUTES=15
+- NARRATIVE_HALFLIFE_MIN=90
+- Long-only in V1
+
+# 12) Immediate next step after this bundle
+
+Once this is reviewed, say “Start,” and I’ll begin implementation with V1.0 in small, runnable chunks in this order:
+1) requirements.txt + .env.example + src/config.py
+2) src/data/alpaca_fetcher.py (bars+headlines) + sanity check
+3) src/adapters/narrative_local.py + Pydantic model + parser tests (fixtures)
+4) src/nlp/sentiment_finbert.py (FinBERT scoring)
+5) src/analysis/price_momentum.py + src/analysis/narrative_momentum.py + src/analysis/divergence.py
+6) tracer_bullet.py orchestration (preview mode); console + Telegram message
+7) src/db/schema.sql + src/db/db_manager.py (wire after preview looks sane)
+8) src/execution/trade_executor.py + src/execution/risk.py (V1.1)
+9) agent.py + APScheduler (V1.2)
+
