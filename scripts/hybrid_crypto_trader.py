@@ -1236,15 +1236,14 @@ def estimate_win_loss_ratio(regime_str):
     return base_ratio
 
 def should_trade_asset(components, symbol, bars_15, bars_1h, sentiment, positions):
-    """Enhanced decision logic for whether to trade an asset"""
+    """Enhanced decision logic for whether to trade an asset (for ENTRY only)"""
     
     # Basic checks first
     if len(bars_15) < 50 or len(bars_1h) < 60:
         return False, "Insufficient data"
     
-    # Check if we already have a position
-    if symbol in positions:
-        return False, "Already have position"
+    # Note: We no longer reject symbols with existing positions here
+    # Exit conditions are checked separately before entry logic
     
     # Portfolio limit check
     if len(positions) >= MAX_POSITIONS:
@@ -2238,112 +2237,7 @@ def main() -> int:
             # Enhanced trading decision
             can_trade, reason = should_trade_asset(components, symbol, bars_15, bars_1h, sentiment, current_positions)
             
-            if not can_trade:
-                logger.info("[%s] Cannot trade: %s", symbol, reason)
-                continue
-            
-            # Check basic entry conditions
-            state = asset_states[symbol]
-            last_entry_ts = state.get("last_entry_time", 0)
-            # Handle None values from SQLite
-            if last_entry_ts is None:
-                last_entry_ts = 0
-            cooldown_ok = (time.time() - last_entry_ts) > COOLDOWN_SEC
-            
-            # Entry logic
-            entry_signal = False
-            entry_reason = ""
-            
-            if cross_up and trend_up and sentiment > SENTIMENT_THRESHOLD and cooldown_ok:
-                entry_signal = True
-                entry_reason = "EMA cross up + trend up + positive sentiment"
-            elif cross_up_1h and trend_up and sentiment > SENTIMENT_THRESHOLD and cooldown_ok:
-                entry_signal = True
-                entry_reason = "1H EMA cross up + trend up + positive sentiment"
-            
-            if entry_signal:
-                # Ensure sentiment is not None before calculations
-                if sentiment is None:
-                    sentiment = 0.5  # Neutral default
-                    logger.warning(f"Sentiment was None for {symbol}, using neutral default")
-                
-                # Calculate confidence and divergence for validation
-                # Basic confidence calculation (can be enhanced)
-                confidence = min(0.9, 0.5 + abs(sentiment - 0.5) + (0.1 if trend_up else 0))
-                divergence = abs(sentiment - 0.5) * 2  # Simple divergence proxy
-                
-                # Log signal for validation tracking
-                if VALIDATION_TOOLS_AVAILABLE and (VALIDATION_MODE or LOG_ALL_SIGNALS):
-                    signal_data = {
-                        'timestamp': datetime.now(timezone.utc).isoformat(),
-                        'symbol': symbol,
-                        'signal_type': 'entry',
-                        'entry_reason': entry_reason,
-                        'sentiment': sentiment,
-                        'confidence': confidence,
-                        'divergence': divergence,
-                        'price': price,
-                        'cross_up': cross_up,
-                        'cross_up_1h': cross_up_1h,
-                        'trend_up': trend_up,
-                        'cooldown_ok': cooldown_ok,
-                        'will_trade': False,  # Will be updated below
-                        'validation_mode': VALIDATION_MODE
-                    }
-                    
-                    # Log signal to validation system
-                    try:
-                        if 'validation_analyzer' in components:
-                            # Store for later analysis
-                            components['validation_analyzer'].log_signal(signal_data)
-                    except Exception as e:
-                        logger.warning("Failed to log validation signal: %s", e)
-                
-                # Calculate position size using enhanced methods
-                position_size_usd = calculate_enhanced_position_size(
-                    components, symbol, bars_15, bars_1h, sentiment, current_equity
-                )
-                
-                qty = position_size_usd / price
-                min_size = SUPPORTED_ASSETS.get(symbol, {}).get("min_size", 0.001)
-                
-                if qty >= min_size:
-                    # Calculate stop loss and take profit
-                    if USE_ATR_STOP:
-                        atr = calculate_atr(bars_15)
-                        stop_loss = price - (atr * ATR_STOP_MULT)
-                    else:
-                        stop_loss = price * (1 - SL_PCT)
-                    
-                    take_profit = price * (1 + TP_PCT)
-                    
-                    decision = {
-                        'symbol': symbol,
-                        'action': 'BUY',
-                        'qty': qty,
-                        'price': price,
-                        'stop_loss': stop_loss,
-                        'take_profit': take_profit,
-                        'reason': entry_reason,
-                        'sentiment': sentiment,
-                        'size_usd': position_size_usd
-                    }
-                    trading_decisions.append(decision)
-                    
-                    # Update validation signal to indicate trade will execute
-                    if VALIDATION_TOOLS_AVAILABLE and (VALIDATION_MODE or LOG_ALL_SIGNALS):
-                        signal_data['will_trade'] = True
-                        signal_data['qty'] = qty
-                        signal_data['size_usd'] = position_size_usd
-                        signal_data['stop_loss'] = stop_loss
-                        signal_data['take_profit'] = take_profit
-                    
-                    logger.info("[%s] ENTRY SIGNAL: %s (qty=%.4f, $%.2f)", 
-                               symbol, entry_reason, qty, position_size_usd)
-                else:
-                    logger.info("[%s] Position size too small: %.6f < %.6f", symbol, qty, min_size)
-            
-            # Check exit conditions for existing positions
+            # Check exit conditions for existing positions FIRST (before entry logic)
             if symbol in current_positions:
                 position = current_positions[symbol]
                 entry_price = position['entry_price']
@@ -2382,6 +2276,11 @@ def main() -> int:
                     
                     logger.info("[%s] EXIT SIGNAL: %s (PnL: %.2f%%)", 
                                symbol, exit_reason, current_pnl_pct * 100)
+                    continue  # Skip entry logic for this symbol
+            
+            if not can_trade:
+                logger.info("[%s] Cannot trade: %s", symbol, reason)
+                continue
         
         except Exception as e:
             logger.error("Error processing %s: %s", symbol, e)
@@ -2439,9 +2338,35 @@ def main() -> int:
             
             elif decision['action'] == 'SELL':
                 if not NO_TRADE and api:
+                    # Attempt to close position
                     order_id = close_position_if_any(api, symbol)
                     
+                    # Check if position was actually closed (more robust than just checking order_id)
+                    position_closed = False
                     if order_id:
+                        position_closed = True
+                        logger.info("✅ Order submitted to close %s: %s", symbol, order_id)
+                    else:
+                        # Even if no order_id, check if position was closed by verifying current positions
+                        try:
+                            current_pos = None
+                            for p in api.list_positions():
+                                if getattr(p, "symbol", "") == _normalize_symbol(symbol):
+                                    current_pos = p
+                                    break
+                            
+                            if current_pos is None or abs(float(getattr(current_pos, 'qty', 0))) <= 0:
+                                position_closed = True
+                                logger.info("✅ Position %s appears to be closed (no order_id but position gone)", symbol)
+                            else:
+                                logger.warning("❌ Position %s still exists after close attempt: qty=%.4f", 
+                                             symbol, float(getattr(current_pos, 'qty', 0)))
+                        except Exception as e:
+                            logger.warning("❌ Could not verify position closure for %s: %s", symbol, e)
+                            # Assume it worked if we can't verify
+                            position_closed = True
+                    
+                    if position_closed:
                         # Update state
                         state = asset_states[symbol]
                         pnl_usd = (decision['price'] - state.get('position_entry_price', 0)) * decision['qty']
@@ -2452,6 +2377,8 @@ def main() -> int:
                             "pnl_today": state.get("pnl_today", 0) + pnl_usd,
                             "last_exit_time": time.time()
                         })
+                        # Save state to both SQLite and JSON for now
+                        trading_db.save_position_state(symbol, state)
                         save_state(symbol, state)
                         
                         executed_trades.append(decision)
