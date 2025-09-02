@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import logging
 import asyncio
+import traceback
 
 # Load environment variables
 try:
@@ -96,8 +97,15 @@ class HighRiskFuturesAgent:
 
     def notify(self, event: str, payload: Dict) -> None:
         """Send notifications for trades and heartbeat events"""
+        logger.info(f"📢 NOTIFY called for event: {event}")
+        logger.info(f"📢 enable_notifications: {self.enable_notifications}, NOTIFICATIONS_AVAILABLE: {NOTIFICATIONS_AVAILABLE}")
+        
         if not self.enable_notifications or not NOTIFICATIONS_AVAILABLE:
+            logger.warning(f"📢 NOTIFICATION BLOCKED - enable_notifications: {self.enable_notifications}, NOTIFICATIONS_AVAILABLE: {NOTIFICATIONS_AVAILABLE}")
             return
+
+        logger.info(f"📢 enable_discord: {self.enable_discord}, discord_webhook length: {len(self.discord_webhook) if self.discord_webhook else 0}")
+        logger.info(f"📢 no_telegram: {self.no_telegram}")
 
         symbol = payload.get("symbol", "")
         status = payload.get("status", "")
@@ -164,6 +172,7 @@ class HighRiskFuturesAgent:
 
         # Send Discord notification
         if self.enable_discord and self.discord_webhook:
+            logger.info(f"📢 Sending Discord notification for {event}")
             try:
                 send_discord_digest_to(self.discord_webhook, [embed])
                 logger.info(f"📢 Discord notification sent for {event}")
@@ -172,6 +181,7 @@ class HighRiskFuturesAgent:
 
         # Send Telegram notification
         if not self.no_telegram and send_telegram:
+            logger.info(f"📢 Sending Telegram notification for {event}")
             try:
                 send_telegram(tg_msg)
                 logger.info(f"📱 Telegram notification sent for {event}")
@@ -649,8 +659,14 @@ class HighRiskFuturesAgent:
 
         # Increment run count and check heartbeat
         self.run_count += 1
+        logger.info(f"📊 Run count: {self.run_count}, Heartbeat every: {self.heartbeat_every_n}")
+        logger.info(f"💓 Heartbeat enabled: {self.enable_heartbeat}, Notifications enabled: {self.enable_notifications}")
+        
         if self.enable_heartbeat and self.run_count % self.heartbeat_every_n == 0:
+            logger.info(f"💓 HEARTBEAT CONDITION MET - Sending heartbeat for run {self.run_count}")
             self.notify("heartbeat", {"status": "active"})
+        else:
+            logger.info(f"💓 Heartbeat condition not met: {self.enable_heartbeat} and {self.run_count % self.heartbeat_every_n == 0}")
 
         # Update market regime and correlations
         self.update_market_context()
@@ -696,21 +712,26 @@ class HighRiskFuturesAgent:
         except Exception as e:
             logger.warning(f"Error updating market context: {e}")
 
-    async def run_continuous(self, interval_seconds: int = 300):
-        """Run continuous trading loop"""
-        logger.info(f"🚀 Starting continuous futures trading (interval: {interval_seconds}s)")
+    def run_continuous_sync(self, interval_seconds: int = 300):
+        """Run continuous trading loop synchronously (for nohup compatibility)"""
+        logger.info(f"🚀 Starting continuous futures trading (sync mode, interval: {interval_seconds}s)")
 
+        cycle_count = 0
         while True:
             try:
+                cycle_count += 1
+                logger.info(f"🔄 Starting cycle {cycle_count} of continuous loop")
                 self.run_trading_cycle()
-                await asyncio.sleep(interval_seconds)
+                logger.info(f"✅ Completed cycle {cycle_count}, sleeping for {interval_seconds}s")
+                time.sleep(interval_seconds)
 
             except KeyboardInterrupt:
                 logger.info("🛑 Stopping continuous trading...")
                 break
             except Exception as e:
-                logger.error(f"Error in trading cycle: {e}")
-                await asyncio.sleep(60)  # Wait before retry
+                logger.error(f"Error in trading cycle {cycle_count}: {e}")
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                time.sleep(60)  # Wait before retry
 
 def main():
     """Main function"""
@@ -761,6 +782,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.continuous:
-        asyncio.run(HighRiskFuturesAgent().run_continuous(args.interval))
+        logger.info("Using synchronous continuous loop for better nohup compatibility")
+        HighRiskFuturesAgent().run_continuous_sync(args.interval)
     else:
         main()
