@@ -117,12 +117,51 @@ class HighRiskFuturesAgent:
         logger.info(f"💓 Heartbeat: {'Enabled' if self.enable_heartbeat else 'Disabled'} (every {self.heartbeat_every_n} runs)")
 
     def check_internet_connectivity(self) -> bool:
-        """Check if internet connectivity is available"""
+        """Check if internet connectivity is available with multiple fallback methods"""
         try:
             import requests
-            # Try to reach a reliable endpoint
-            response = requests.get('https://httpbin.org/status/200', timeout=10)
-            return response.status_code == 200
+            import socket
+            
+            # Method 1: Try multiple reliable endpoints
+            endpoints = [
+                'https://httpbin.org/status/200',
+                'https://api.binance.com/api/v3/ping',
+                'https://www.google.com',
+                'https://httpbin.org/get'
+            ]
+            
+            for endpoint in endpoints:
+                try:
+                    logger.info(f"🌐 Testing connectivity to: {endpoint}")
+                    response = requests.get(endpoint, timeout=5)
+                    if response.status_code in [200, 301, 302]:
+                        logger.info(f"✅ Internet connectivity confirmed via {endpoint}")
+                        return True
+                except Exception as e:
+                    logger.warning(f"❌ Failed to reach {endpoint}: {e}")
+                    continue
+            
+            # Method 2: Try socket connection to common ports
+            try:
+                logger.info("🌐 Testing socket connectivity...")
+                socket.create_connection(("8.8.8.8", 53), timeout=3)  # Google DNS
+                logger.info("✅ Internet connectivity confirmed via socket")
+                return True
+            except Exception as e:
+                logger.warning(f"❌ Socket connectivity test failed: {e}")
+            
+            # Method 3: Try to resolve a domain
+            try:
+                logger.info("🌐 Testing DNS resolution...")
+                socket.gethostbyname("google.com")
+                logger.info("✅ DNS resolution successful")
+                return True
+            except Exception as e:
+                logger.warning(f"❌ DNS resolution failed: {e}")
+            
+            logger.warning("🌐 All connectivity tests failed")
+            return False
+            
         except Exception as e:
             logger.warning(f"🌐 Internet connectivity check failed: {e}")
             return False
@@ -577,19 +616,56 @@ class HighRiskFuturesAgent:
 
     def check_positions(self):
         """Check and manage open positions with advanced exit timing"""
+        logger.info(f"🔍 Checking {len(self.positions)} tracked positions...")
+
+        # First, get actual platform positions to ensure we're in sync
+        try:
+            platform_status = get_futures_status()
+            if 'error' not in platform_status:
+                platform_positions = platform_status.get('positions', [])
+                logger.info(f"📊 Platform has {len(platform_positions)} actual positions")
+
+                # Sync any missing positions
+                for pos in platform_positions:
+                    symbol = pos.get('symbol', '').replace('USDT', '') + 'USDT'
+                    if symbol not in self.positions and symbol in self.symbols:
+                        logger.info(f"🔄 Found unsynced position: {symbol}, syncing...")
+                        self.positions[symbol] = {
+                            'side': pos.get('side', 'buy'),
+                            'entry_price': float(pos.get('entry_price', 0)),
+                            'quantity': float(pos.get('quantity', 0)),
+                            'leverage': int(pos.get('leverage', 1)),
+                            'platform': pos.get('platform', self.current_platform),
+                            'timestamp': datetime.now(timezone.utc).isoformat(),
+                            'signal': {'signal': 'synced', 'strength': 0, 'reason': 'platform_sync'},
+                            'highest_price': float(pos.get('entry_price', 0)),
+                            'lowest_price': float(pos.get('entry_price', 0)),
+                            'trailing_stop_pct': 0.05,
+                            'profit_target_pct': 0.08
+                        }
+                        logger.info(f"✅ Synced position: {symbol} {pos.get('side')} x{pos.get('quantity')}")
+        except Exception as e:
+            logger.warning(f"Error syncing platform positions: {e}")
+
+        # Now check all tracked positions
         for symbol, position in list(self.positions.items()):
             try:
+                logger.info(f"📊 Checking position: {symbol} ({position.get('side', 'buy')})")
+
                 # Get current price
                 data = enhanced_futures_bars(symbol, '1h', 1)
                 if data is None or len(data) == 0:
+                    logger.warning(f"❌ No price data for {symbol}, skipping...")
                     continue
 
                 current_price = data['close'].iloc[-1]
                 if current_price is None:
+                    logger.warning(f"❌ Invalid price for {symbol}, skipping...")
                     continue
 
                 entry_price = position.get('entry_price', 0)
                 if entry_price is None or entry_price == 0:
+                    logger.warning(f"❌ Invalid entry price for {symbol}, skipping...")
                     continue
 
                 side = position.get('side', 'buy')
@@ -601,6 +677,8 @@ class HighRiskFuturesAgent:
                 else:
                     pnl_pct = (entry_price - current_price) / entry_price
 
+                logger.info(f"📈 {symbol}: Entry=${entry_price:.2f}, Current=${current_price:.2f}, P&L={pnl_pct:.2%}")
+
                 # Update trailing stop levels
                 self.update_trailing_stops(symbol, current_price, position)
 
@@ -608,7 +686,10 @@ class HighRiskFuturesAgent:
                 exit_reason = self.should_exit_position(symbol, current_price, pnl_pct, position)
 
                 if exit_reason:
+                    logger.info(f"🚨 Exit condition met for {symbol}: {exit_reason}")
                     self.close_position(symbol, exit_reason)
+                else:
+                    logger.info(f"✅ {symbol} position OK, no exit condition met")
 
             except Exception as e:
                 logger.warning(f"Error checking position for {symbol}: {e}")
@@ -644,24 +725,34 @@ class HighRiskFuturesAgent:
             profit_target_pct = position.get('profit_target_pct', 0.08)
             trailing_stop_pct = position.get('trailing_stop_pct', 0.05)
 
+            logger.info(f"🔍 Checking exit conditions for {symbol}: P&L={pnl_pct:.2%}, Target={profit_target_pct:.1%}, Stop={-0.03:.1%}")
+
             # 1. Profit target hit
             if pnl_pct >= profit_target_pct:
+                logger.info(f"🎯 {symbol} hit profit target: {pnl_pct:.2%} >= {profit_target_pct:.1%}")
                 return 'profit_target'
 
             # 2. Stop loss hit (fixed percentage from entry)
-            if pnl_pct <= -0.03:  # 3% stop loss
+            stop_loss_threshold = -0.05  # 5% stop loss (increased from 3% for leverage)
+            if pnl_pct <= stop_loss_threshold:
+                logger.info(f"🛑 {symbol} hit stop loss: {pnl_pct:.2%} <= {stop_loss_threshold:.1%}")
                 return 'stop_loss'
 
             # 3. Trailing stop hit
             if 'trailing_stop_price' in position:
                 trailing_stop_price = position['trailing_stop_price']
+                logger.info(f"🎣 {symbol} trailing stop: Current=${current_price:.2f}, Stop=${trailing_stop_price:.2f}")
                 if side == 'buy' and current_price <= trailing_stop_price:
+                    logger.info(f"🎣 {symbol} trailing stop hit (long): ${current_price:.2f} <= ${trailing_stop_price:.2f}")
                     return 'trailing_stop'
                 elif side == 'sell' and current_price >= trailing_stop_price:
+                    logger.info(f"🎣 {symbol} trailing stop hit (short): ${current_price:.2f} >= ${trailing_stop_price:.2f}")
                     return 'trailing_stop'
 
             # 4. Maximum loss limit (10% from entry)
-            if pnl_pct <= -0.10:
+            max_loss_threshold = -0.10
+            if pnl_pct <= max_loss_threshold:
+                logger.info(f"💀 {symbol} hit max loss limit: {pnl_pct:.2%} <= {max_loss_threshold:.1%}")
                 return 'max_loss_limit'
 
             # 5. Time-based exit (if position is too old)
@@ -672,6 +763,7 @@ class HighRiskFuturesAgent:
             current_time = datetime.now().replace(tzinfo=None)
             position_age_hours = (current_time - position_timestamp).total_seconds() / 3600
             if position_age_hours > 24:  # Close after 24 hours
+                logger.info(f"⏰ {symbol} hit time limit: {position_age_hours:.1f}h > 24h")
                 return 'time_limit'
 
             # 6. Volatility-based exit (if volatility spikes)
@@ -679,11 +771,14 @@ class HighRiskFuturesAgent:
                 data = enhanced_futures_bars(symbol, '1h', 6)  # Last 6 hours
                 if data is not None and len(data) >= 6:
                     recent_volatility = data['close'].pct_change().std()
-                    if recent_volatility > 0.08:  # High volatility
+                    volatility_threshold = 0.08
+                    if recent_volatility > volatility_threshold:
+                        logger.info(f"🌊 {symbol} high volatility exit: {recent_volatility:.4f} > {volatility_threshold}")
                         return 'high_volatility'
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Error checking volatility for {symbol}: {e}")
 
+            logger.info(f"✅ {symbol} no exit condition met, holding position")
             return None  # No exit condition met
 
         except Exception as e:
@@ -691,8 +786,9 @@ class HighRiskFuturesAgent:
             return None
 
     def close_position(self, symbol: str, reason: str):
-        """Close a position"""
+        """Close a position on the platform and update tracking"""
         if symbol not in self.positions:
+            logger.warning(f"⚠️ Position {symbol} not found in tracking, cannot close")
             return
 
         position = self.positions[symbol]
@@ -710,9 +806,10 @@ class HighRiskFuturesAgent:
             entry_price = position.get('entry_price', 0) or 0
             quantity = position.get('quantity', 0) or 0
             leverage = position.get('leverage', 1) or 1
+            side = position.get('side', 'buy')
 
             # Calculate final P&L
-            if position['side'] == 'buy':
+            if side == 'buy':
                 pnl_pct = (exit_price - entry_price) / entry_price if entry_price > 0 else 0
             else:
                 pnl_pct = (entry_price - exit_price) / exit_price if exit_price > 0 else 0
@@ -720,9 +817,32 @@ class HighRiskFuturesAgent:
             pnl_amount = pnl_pct * quantity * leverage
             self.daily_pnl += pnl_amount
 
-            logger.info(f"🔄 Closed {symbol} position: {reason}")
+            logger.info(f"🔄 Closing {symbol} position: {reason}")
             logger.info(f"   Entry: ${entry_price:.2f} | Exit: ${exit_price:.2f}")
             logger.info(f"   P&L: ${pnl_amount:.2f} ({pnl_pct:.2%})")
+
+            # Actually close the position on the platform
+            try:
+                # Determine the opposite side for closing
+                close_side = 'sell' if side == 'buy' else 'buy'
+
+                # Place a market order to close the position
+                close_result = execute_futures_trade(symbol, close_side, {
+                    'position_value': abs(quantity),  # Use absolute quantity
+                    'leverage_used': leverage,
+                    'platform': self.current_platform
+                })
+
+                if 'error' in close_result:
+                    logger.error(f"❌ Failed to close {symbol} position on platform: {close_result['error']}")
+                    # Still remove from tracking even if platform close failed
+                    logger.warning(f"⚠️ Removing {symbol} from tracking despite platform close failure")
+                else:
+                    logger.info(f"✅ Successfully closed {symbol} position on platform")
+
+            except Exception as e:
+                logger.error(f"❌ Exception closing {symbol} position on platform: {e}")
+                logger.warning(f"⚠️ Removing {symbol} from tracking despite platform close failure")
 
             # Send close notification
             self.notify("close", {
@@ -736,7 +856,7 @@ class HighRiskFuturesAgent:
                 "reason": reason
             })
 
-            # Record exit
+            # Record exit in trade log
             exit_record = {
                 'timestamp': datetime.now(timezone.utc).isoformat(),
                 'symbol': symbol,
@@ -749,11 +869,16 @@ class HighRiskFuturesAgent:
             }
             self.trade_log.append(exit_record)
 
-            # Remove position
+            # Remove position from tracking
             del self.positions[symbol]
+            logger.info(f"🗑️ Removed {symbol} from position tracking")
 
         except Exception as e:
             logger.error(f"Error closing position for {symbol}: {e}")
+            # Still try to remove from tracking even if there was an error
+            if symbol in self.positions:
+                del self.positions[symbol]
+                logger.warning(f"🗑️ Force-removed {symbol} from tracking due to error")
 
     def get_status(self) -> Dict:
         """Get agent status with enhanced information"""
@@ -798,8 +923,8 @@ class HighRiskFuturesAgent:
         else:
             logger.info(f"💓 Heartbeat condition not met: {self.enable_heartbeat} and {self.run_count % self.heartbeat_every_n == 0}")
 
-        # Sync existing positions on first run
-        if self.run_count == 1:
+        # Sync existing positions on first run AND periodically to stay in sync
+        if self.run_count == 1 or self.run_count % 5 == 0:  # Sync every 5 runs
             logger.info("🔄 Syncing existing positions from platform...")
             self.sync_existing_positions()
 
@@ -858,15 +983,31 @@ class HighRiskFuturesAgent:
         logger.info(f"🚀 Starting continuous futures trading (sync mode, interval: {interval_seconds}s)")
 
         cycle_count = 0
+        consecutive_failures = 0
+        max_consecutive_failures = 5
+        
         while True:
             try:
                 cycle_count += 1
                 
                 # Check internet connectivity before starting cycle
-                if not self.check_internet_connectivity():
-                    logger.warning("🌐 No internet connectivity, waiting 60s before retry...")
+                has_internet = self.check_internet_connectivity()
+                
+                if not has_internet:
+                    consecutive_failures += 1
+                    logger.warning(f"🌐 No internet connectivity (failure {consecutive_failures}/{max_consecutive_failures}), waiting 60s before retry...")
+                    
+                    if consecutive_failures >= max_consecutive_failures:
+                        logger.warning("🌐 Too many consecutive connectivity failures, entering offline mode")
+                        logger.warning("🌐 Will continue with limited functionality (no new trades, position monitoring only)")
+                        # Continue with limited functionality
+                        break
+                    
                     time.sleep(60)
                     continue
+                
+                # Reset failure counter on successful connectivity
+                consecutive_failures = 0
                 
                 logger.info(f"🔄 Starting cycle {cycle_count} of continuous loop")
                 self.run_trading_cycle()
