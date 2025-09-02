@@ -5,7 +5,7 @@ Perplexity-backed Polymarket provider
 
 Env:
 - PPLX_API_KEY (required when actually calling API)
-- PPLX_MODEL (default: sonar-pro)
+- PPLX_MODEL (default: sonar)
 - PPLX_TIMEOUT (default: 20)
 - TB_POLYMARKET_ASSETS (e.g., "BTC,ETH,SOL")
 - TB_POLYMARKET_LIMIT (optional)

@@ -14,7 +14,7 @@ def test_single_key(api_key, key_number):
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "sonar-pro",
+        "model": "sonar",
         "messages": [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": "Say hello"}

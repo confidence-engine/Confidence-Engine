@@ -1615,7 +1615,7 @@ def sentiment_via_perplexity(headlines: list[str]) -> Tuple[float, Optional[str]
         f"Headlines:\n{joined}"
     )
     payload = {
-        "model": "sonar-pro",
+        "model": "sonar",
         "messages": [
             {"role": "system", "content": system_msg},
             {"role": "user", "content": user_msg},

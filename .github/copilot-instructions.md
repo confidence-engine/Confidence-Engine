@@ -52,7 +52,7 @@ This is a hybrid crypto trading agent that detects divergences between market na
 
 ### External APIs
 - **Alpaca**: Trading/orders via `alpaca.py`; bars/news via `rest.py`.
-- **Perplexity**: Sentiment synthesis via `sonar-pro` model; strict JSON parsing, key rotation.
+- **Perplexity**: Sentiment synthesis via `sonar` model; strict JSON parsing, key rotation.
 - **Telegram**: DMs via `telegram_bot.py`; bot token + chat_id in `.env`.
 - **Discord**: Embeds via `send_discord_embed()`; webhook URLs in `.env`.
 
