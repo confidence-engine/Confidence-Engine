@@ -1,15 +1,28 @@
-# Confidence Engine — Agile Divergence Engine
+# Confidence Engine — Dual-Agent Trading System
 
 A pragmatic research/trading agent that exploits the gap between narrative (news) and tape (price) with discipline, explainability, and continuous evaluation.
+
+**Current Status (September 2, 2025)**: Dual-agent system operational with both low-risk and high-risk trading agents running simultaneously.
 
 ---
 
 ## 1) What it does
-- Detects divergences between structured news momentum and multi‑timescale price action.
-- Produces rich per‑asset artifacts with narratives, evidence lines, confidence, and Polymarket mapping.
-- Delivers optional digest messages to Telegram and Discord (env‑gated, safe split/chunking).
-- Continuously evaluates probability quality (Brier, log‑loss, calibration) and auto‑publishes CSVs.
-- **NEW**: Enhanced ML gate with 37 technical indicators, advanced neural network architecture, and comprehensive monitoring system.
+- **Dual-Agent Architecture**: Independent main agent (low-risk spot trading) and futures agent (high-risk leveraged trading)
+- Detects divergences between structured news momentum and multi‑timescale price action
+- Produces rich per‑asset artifacts with narratives, evidence lines, confidence, and Polymarket mapping
+- Delivers optional digest messages to Telegram and Discord (env‑gated, safe split/chunking)
+- Continuously evaluates probability quality (Brier, log‑loss, calibration) and auto‑publishes CSVs
+- **Enhanced Features**: ML gates with 37 technical indicators, market regime detection, correlation filtering, smart leverage
+
+---
+
+## 2) Current Live Configuration
+- **Main Agent**: 18 crypto assets with ML gates, ATR filters, and adaptive thresholds
+- **Futures Agent**: 10 crypto futures with momentum trading and 25x leverage
+- **Data Sources**: Multi-source (Yahoo, Binance, CoinGecko) with automatic failover
+- **Risk Management**: Independent capital allocation, VaR limits, and circuit breakers
+- **Notifications**: Real-time Discord/Telegram with heartbeat monitoring
+- **Auto-Commit**: Enhanced system for artifacts and evaluation data
 
 ---
 

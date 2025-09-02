@@ -3,10 +3,17 @@
 ## Overview
 You now have **two independent trading agents** running side-by-side:
 
-1. **🤖 Main Agent (Low-Risk)** - Your existing enhanced hybrid agent
-2. **⚡ Futures Agent (High-Risk)** - New leveraged futures/perpetuals agent
+1. **🤖 Main Agent (Low-Risk)** - Enhanced hybrid agent with ML gates and adaptive strategies
+2. **⚡ Futures Agent (High-Risk)** - Leveraged futures/perpetuals agent with momentum trading
 
 This architecture gives you the best of both worlds: **stable, proven performance** from your main agent plus **high-upside potential** from leveraged futures trading.
+
+## 🚀 Current Status (September 2, 2025)
+- **✅ Both Agents Running**: Main agent and futures agent operational
+- **✅ Independent Operation**: Separate capital allocation and risk management
+- **✅ Real-time Monitoring**: Discord/Telegram notifications active
+- **✅ Multi-Platform Support**: Binance Futures (primary), Bybit (backup)
+- **✅ Smart Features**: Market regime detection, correlation filtering, trailing stops
 
 ## Architecture
 

@@ -10,6 +10,14 @@ This platform provides **free futures and perpetuals trading** capabilities for 
 - **Paper Trading Mode** (free testing without real money)
 - **Professional Tools** (advanced order types, position management)
 
+## 🚀 Current Status (September 2, 2025)
+- **✅ High-Risk Futures Agent**: Running live with momentum trading
+- **✅ Multi-Platform Support**: Binance (primary), Bybit (backup)
+- **✅ Smart Leverage**: Dynamic leverage based on volatility and market regime
+- **✅ Risk Management**: 5% risk per trade, 20% daily loss limit
+- **✅ Position Management**: Trailing stops, profit targets, correlation filtering
+- **✅ Notifications**: Real-time Discord/Telegram alerts
+
 ## Supported Platforms
 
 ### 1. Binance Futures Testnet

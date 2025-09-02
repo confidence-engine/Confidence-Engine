@@ -23,11 +23,33 @@ Roadmap snapshot: milestone-based (no calendar dates).
 - V3.1 — Multi-Asset Foundations: DONE
 - V3.3 — Evidence Lines + Polymarket (read-only): DONE
 - V3.4 — Evaluation Pipeline: IN PROGRESS (runner/metrics shipped; accumulating observations)
+- V4.0 — Dual-Agent Architecture: ✅ COMPLETED (September 2, 2025)
+- V4.1 — Futures Trading Integration: ✅ COMPLETED (September 2, 2025)
 - V4.2 — Backtesting & Governance: NOT DONE
 - V4.3 — Reliability Ops Hardening: IN PROGRESS (nightly hit‑rate self‑checks wired, broadened non‑.py auto‑commit)
 - V5 — 24/7 Cloud Agent: NOT DONE
-- V6 — Paper Execution & Risk: NOT DONE
+- V6 — Paper Execution & Risk: ✅ COMPLETED (Both agents running in paper mode)
 - V7 — Live Capital: NOT DONE
+
+## Now → Near → Next
+
+- **Now — v4.3 Reliability Ops Hardening** (IN PROGRESS)
+  - Nightly self‑checks: asset hit‑rate trend append + regression compare, with env tunables
+  - Auto‑commit scope broadened (stage all; unstage *.py) to ensure `runs/*.json` and `universe_runs/metrics.csv` are pushed
+  - Plot hit‑rate trend to PNG (`eval_runs/hit_rate_trend.png`) for quick visual progress; soft‑fail if CSV missing
+  - Workflow logs: print staged files; verify no `*.py` staged; warn on regressions without failing run
+  - Unified self‑checks: schema/digest validations, degraded‑run markers, circuit breakers
+  - Acceptance: 3‑day burn‑in; <1% degraded runs; zero crashes; staged‑file logs show no `.py` committed
+
+- **Near — v4.2 Backtesting & Governance**
+  - Event-ordered replay of bars + headlines; point-in-time features only
+  - Walk-forward validation; rolling IS/OOS; publish selected thresholds
+  - Cohort analytics; monthly governance cadence
+
+- **Next — v5 24/7 Cloud Agent**
+  - GH Actions cadence, secrets mgmt, monitored rollback
+  - Containerized deployment with health monitoring
+  - Automated scaling and failover capabilities
 
 ## Now → Near → Next
 

@@ -10,6 +10,13 @@ This system automatically commits and pushes all non-script files while strictly
 - Python, shell, and other script files
 - Sensitive system files
 
+## 🚀 Current Status (September 2, 2025)
+- **✅ Enhanced Auto-Commit**: Active and running with both agents
+- **✅ Artifact Management**: Automatically commits runs/, bars/, logs/, eval_runs/
+- **✅ Security**: Never commits .py files, .env files, or sensitive data
+- **✅ Git Integration**: Seamless integration with repository management
+- **✅ Error Handling**: Robust error handling and recovery mechanisms
+
 ## Files Auto-Committed
 ✅ Documentation (`.md`, `.txt`, `.rst`)
 ✅ Data files (`.json`, `.csv`, `.txt`)

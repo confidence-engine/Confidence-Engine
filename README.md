@@ -10,13 +10,20 @@ Here is a draft for the README introduction that puts the Tracer Bullet philosop
 
 **NEW**: Complete dual-agent architecture with independent risk management:
 
-- **🤖 Main Agent (Low-Risk)**: Your existing enhanced hybrid agent with 20+ crypto assets
-- **⚡ Futures Agent (High-Risk)**: New leveraged futures/perpetuals agent with 5x-25x leverage
+- **🤖 Main Agent (Low-Risk)**: Enhanced hybrid agent with 20+ crypto assets, ML gates, and adaptive strategies
+- **⚡ Futures Agent (High-Risk)**: New leveraged futures/perpetuals agent with 5x-25x leverage and momentum trading
 - **📊 Unified Monitoring**: Real-time dashboard tracking both agents
 - **🛡️ Independent Operation**: Each agent manages its own capital and risk
 - **📈 Free Paper Trading**: Test futures strategies without cost
 
 **Status**: Both agents operational | **Main Agent**: Live trading | **Futures Agent**: Paper trading ready | **Monitoring**: Real-time dashboard active
+
+### Current Live Configuration (September 2, 2025)
+- **Main Agent**: Running with 18 crypto assets, ML gates, ATR filters, and adaptive thresholds
+- **Futures Agent**: Running with 10 symbols, smart leverage, correlation filtering, and trailing stops
+- **Platforms**: Binance Futures (primary), Bybit (backup) with per-platform limits
+- **Risk Management**: Independent capital allocation, VaR limits, and circuit breakers
+- **Notifications**: Discord and Telegram with heartbeat monitoring
 
 ## Our Mission: Exploit Emotional-Math Gaps with Perfect Discipline
 

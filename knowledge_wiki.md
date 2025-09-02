@@ -1,10 +1,41 @@
-# Roadmap (Milestone-Based) — Project Tracer Bullet
+# Knowledge Wiki — Project Confidence Engine
 
-A living, milestone-driven plan from V1 tracer bullet to small live capital, emphasizing reliability, explainability, and leak-free validation.
+A comprehensive knowledge base for the dual-agent trading system, covering architecture, operations, and development insights.
 
-Maintained under milestone-only policy (no calendar dates).
+Updated: September 2, 2025
 
 ---
+
+## 🚀 Dual-Agent Architecture (Latest Development)
+
+### System Overview
+- **Main Agent (Low-Risk)**: Enhanced hybrid crypto trader with 18+ assets, ML gates, and adaptive strategies
+- **Futures Agent (High-Risk)**: Leveraged futures/perpetuals agent with momentum trading and smart leverage
+- **Shared Infrastructure**: Common data sources, monitoring, and notification systems
+- **Independent Operation**: Separate capital allocation and risk management
+
+### Current Status (September 2, 2025)
+- **✅ Both Agents Running**: Main agent and futures agent operational
+- **✅ Multi-Platform Support**: Binance Futures (primary), Bybit (backup)
+- **✅ Real-time Monitoring**: Discord/Telegram notifications with heartbeat
+- **✅ Smart Features**: Market regime detection, correlation filtering, trailing stops
+- **✅ Paper Trading**: Both agents running in paper mode with real market data
+
+### Agent Specifications
+
+#### Main Agent (Low-Risk)
+- **Assets**: BTC/USD, ETH/USD, SOL/USD, LINK/USD, LTC/USD, BCH/USD, UNI/USD, AAVE/USD, AVAX/USD, DOT/USD, MKR/USD, COMP/USD, YFI/USD, CRV/USD, SNX/USD, SUSHI/USD, XTZ/USD, GRT/USD
+- **Strategy**: ML-gated technical analysis with adaptive thresholds
+- **Risk**: Conservative with Kelly sizing and portfolio VaR limits
+- **Execution**: Alpaca paper trading with real-time signals
+- **Features**: ATR filters, market regime detection, ensemble ML
+
+#### Futures Agent (High-Risk)
+- **Assets**: BTCUSDT, ETHUSDT, SOLUSDT, ADAUSDT, DOTUSDT, LINKUSDT, AVAXUSDT, MATICUSDT, UNIUSDT, AAVEUSDT
+- **Strategy**: Momentum-based with 6-hour windows and smart leverage
+- **Risk**: 5% per trade, 20% daily loss limit, 25x max leverage
+- **Execution**: Binance Futures (primary), Bybit (backup)
+- **Features**: Trailing stops, profit targets, correlation filtering, platform switching
 
 ## Ops & Reliability — Recent Findings (v3.1.6–v3.1.7)
 

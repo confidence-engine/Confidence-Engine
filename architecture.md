@@ -1,22 +1,39 @@
 # Project Tracer Bullet — Architecture
 
-## Current Baseline (V1.0a)
-- Flat files in project root:
-  - config.py — loads .env settings
-  - alpaca.py — data fetch (crypto bars, headlines)
-  - finbert.py — sentiment scoring (FinBERT)
-  - price.py — RSI/MACD/MA-slope composite
-  - narrative_dev.py — narrative stub + BTC relevance (semantic/keyword)
-  - narrative_analysis.py — blend + time decay
-  - divergence.py — divergence + reason codes
-  - explain.py — human-readable labels for scores
-  - time_utils.py — time helpers
-  - db.py — SQLite persistence
-  - schema.sql — DB schema
-  - tracer_bullet.py — orchestrator (fetch → analyze → persist → print)
-  - view_runs.py — list and inspect saved runs
-  - notifier.py — Telegram send (optional)
-  - export.py — JSON export and bar snapshot persistence
+## Current Architecture (V4.3 - September 2, 2025)
+
+### Dual-Agent System
+- **Main Agent (Low-Risk)**: Enhanced hybrid crypto trader with ML gates and adaptive strategies
+- **Futures Agent (High-Risk)**: Leveraged futures/perpetuals agent with momentum trading
+- **Shared Infrastructure**: Common data sources, monitoring, and notification systems
+- **Independent Operation**: Separate capital allocation, risk management, and execution
+
+### Main Agent Components
+- `scripts/hybrid_crypto_trader.py` — Main orchestrator with ML gates and adaptive thresholds
+- `config.py` — Environment configuration and settings management
+- `alpaca.py` — Multi-source data fetch (Alpaca, Yahoo, Binance, CoinGecko)
+- `multi_source_data_provider.py` — Unified data provider with failover
+- `sentiment_utils.py` — Robust sentiment analysis with outlier removal
+- `divergence.py` — Divergence computation with adaptive thresholds
+- `enhanced_risk_manager.py` — Advanced risk management with Kelly sizing
+- `market_regime_detector.py` — Real-time market regime classification
+- `adaptive_strategy.py` — Parameter optimization and exploration
+- `autocommit_enhanced.py` — Enhanced auto-commit system for artifacts
+
+### Futures Agent Components
+- `high_risk_futures_agent.py` — Futures trading orchestrator
+- `futures_integration.py` — Futures platform integration layer
+- `futures_trading_platform.py` — Multi-platform futures trading support
+- `futures_paper_trading_demo.py` — Paper trading demonstrations
+- `dual_agent.sh` — Dual-agent management script
+
+### Data Flow (Enhanced)
+1) **Data Ingestion**: Multi-source data fetch (Alpaca, Yahoo, Binance, CoinGecko, Perplexity)
+2) **Signal Processing**: ML gates, ATR filters, adaptive thresholds, market regime detection
+3) **Risk Management**: Kelly sizing, portfolio VaR, correlation controls, position limits
+4) **Execution**: Independent execution for spot (Alpaca) and futures (Binance/Bybit)
+5) **Monitoring**: Real-time notifications, heartbeat monitoring, performance tracking
+6) **Persistence**: SQLite, JSON artifacts, CSV data, auto-commit to git
 
 ## Data Flow
 1) Fetch bars/headlines (`alpaca.py`)
