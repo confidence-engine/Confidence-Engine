@@ -1055,10 +1055,19 @@ class HighRiskFuturesAgent:
             platform_positions = status.get('positions', [])
             synced_count = 0
             
+            # Log what we found on the platform
+            logger.info(f"🔍 Found {len(platform_positions)} positions on platform to sync")
+            
             for pos in platform_positions:
                 symbol = pos.get('symbol', '').replace('USDT', '') + 'USDT'  # Normalize symbol
+                
+                # Debug logging
+                in_symbols = symbol in self.symbols
+                in_positions = symbol not in self.positions
+                logger.info(f"🔍 Checking {symbol}: in_symbols={in_symbols}, not_in_positions={in_positions}")
+                
                 if symbol in self.symbols and symbol not in self.positions:
-                    # Import position into agent management
+                    # Import position into agent management (IGNORE max_positions during sync)
                     self.positions[symbol] = {
                         'side': pos.get('side', 'buy'),
                         'entry_price': float(pos.get('entry_price', 0)),
@@ -1074,6 +1083,12 @@ class HighRiskFuturesAgent:
                     }
                     synced_count += 1
                     logger.info(f"✅ Synced existing position: {symbol} {pos.get('side')} x{pos.get('quantity')}")
+                elif symbol not in self.symbols:
+                    logger.info(f"⏭️  Skipping {symbol}: not in configured symbols")
+                elif symbol in self.positions:
+                    logger.info(f"⏭️  Skipping {symbol}: already in agent positions")
+            
+            logger.info(f"📊 Total positions after sync: {len(self.positions)} (was {len(self.positions) - synced_count})")
             
             if synced_count > 0:
                 logger.info(f"🔄 Successfully synced {synced_count} existing positions into agent management")
