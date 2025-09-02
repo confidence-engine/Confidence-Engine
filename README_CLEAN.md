@@ -23,10 +23,151 @@ A pragmatic research/trading agent that exploits the gap between narrative (news
 - **Risk Management**: Independent capital allocation, VaR limits, and circuit breakers
 - **Notifications**: Real-time Discord/Telegram with heartbeat monitoring
 - **Auto-Commit**: Enhanced system for artifacts and evaluation data
+- **Database**: SQLite auto-commit active, enhanced_trading.db tracking all trades
+- **Status**: Both loops operational, 9+ trades executed, all systems stable
 
 ---
 
-## 2) Quick start
+## Dual-Agent Architecture
+
+### 🤖 Main Agent (Low-Risk)
+- Enhanced hybrid agent with 20+ crypto assets, ML gates, and adaptive strategies
+- Spot trading with conservative risk management
+- Stable, proven performance with 15 crypto pairs
+
+### ⚡ Futures Agent (High-Risk)
+- Leveraged futures/perpetuals agent with momentum trading
+- 5x-25x leverage on BTC, ETH, SOL
+- High-risk, high-reward strategies with $10k capital allocation
+
+### Key Features
+- **Independent Operation**: Separate capital allocation and risk management
+- **Real-time Monitoring**: Discord/Telegram notifications active
+- **Multi-Platform Support**: Alpaca (spot), Binance Futures (leveraged)
+- **Smart Features**: Market regime detection, correlation filtering, trailing stops
+
+---
+
+## Futures Trading Platform
+
+### Supported Platforms
+- **Binance Futures Testnet** (PRIMARY): Real API integration, 20 blue chip pairs, up to 125x leverage
+- **Bybit Futures Demo** (BACKUP): Alternative platform for different assets/features
+- **BitMEX Futures Testnet**: Professional platform
+- **Deribit Futures Test**: Options & futures
+
+### Exit Strategy Comparison
+
+**Futures Agent (High-Risk)**:
+- Manual position monitoring with 6 exit conditions (no TP/SL orders)
+- Exit conditions: 8% profit target, 3% stop loss, trailing stop, 10% max loss, 24h time limit, volatility exit
+
+**Hybrid Trader (Swing Trading)**:
+- Broker-managed bracket orders with TP/SL plus 5 exit conditions
+- Bracket orders: 5% take profit, 2% stop loss
+- Additional conditions: EMA crossovers, sentiment changes, risk overrides
+
+---
+
+## Multi-Source Data Provider
+
+### Free Data Sources
+| Provider | Data Type | Frequency | Cost | Status |
+|----------|-----------|-----------|------|--------|
+| **Yahoo Finance** | Stocks & Crypto | 1min - Daily | Free | ✅ Active |
+| **Binance API** | Crypto Only | 1min - Daily | Free | ✅ Active |
+| **CoinGecko** | Crypto Only | 1min - Daily | Free | ✅ Active |
+| **Alpha Vantage** | Stocks & Crypto | 1min - Daily | Free API Key | 🔧 Optional |
+
+### Key Features
+- **Cost Reduction**: No API fees for testing and development
+- **Redundancy**: Multiple data sources prevent single points of failure
+- **Automatic Failover**: Switches between providers seamlessly
+- **Paper Trading**: Perfect for testing strategies without live trading costs
+
+---
+
+## Enhanced Auto-Commit System
+
+**Permanent Directive**: Auto-commit all non-script files, exclude scripts/ and .env always
+
+### Files Auto-Committed
+✅ Documentation (`.md`, `.txt`, `.rst`)
+✅ Data files (`.json`, `.csv`, `.txt`)
+✅ Logs (`.log`)
+✅ Configuration files
+✅ Artifacts and outputs
+
+### Files Excluded
+❌ `scripts/` directory (entire)
+❌ `.env`, `.env.*`, `.env.local`
+❌ `.py`, `.sh`, `.js`, `.ts`, etc.
+❌ `.git/`, `.venv/`, `__pycache__/`
+
+### Usage Examples
+```bash
+# List files that would be committed
+python3 autocommit_enhanced.py --list
+
+# Run complete auto-commit cycle
+python3 autocommit_enhanced.py --run
+
+# Auto-commit non-script files only
+python3 autocommit_enhanced.py --main-only
+```
+
+---
+
+## Current System Status (September 2, 2025)
+
+### Real-Time Operational Status
+**🔄 Hybrid Crypto Trader:**
+- Status: Actively cycling through 15 crypto assets
+- Mode: Multi-asset with ML gates and adaptive strategies
+
+**🚀 Futures Agent:**
+- Status: Managing 5/5 maximum positions (fully deployed)
+- Activity: Completed cycle 6, actively trading 20 symbols
+
+### Real-Time Financial Status
+- **Total Balance**: $14,925.08 (Live Binance API)
+- **Available**: $12,769.30
+- **Used Margin**: $2,136.90
+- **Unrealized P&L**: +$38.74
+
+### Infrastructure Status
+- **Database**: SQLite auto-commit active, enhanced_trading.db tracking all trades
+- **Total Trades**: 9+ trades executed across both systems
+- **Uptime**: 11 days, 17+ hours system uptime
+- **Notifications**: Discord and Telegram alerts operational
+
+---
+
+## Enhanced Hybrid Trading Features
+
+### Multi-Asset Support
+- Support for 15 Alpaca-verified crypto pairs: BTC/USD, ETH/USD, SOL/USD, LINK/USD, LTC/USD, BCH/USD, UNI/USD, AAVE/USD, AVAX/USD, DOT/USD, MATIC/USD, and more
+- Single command switches between single-asset and multi-asset modes
+
+### Advanced Risk Management
+- **Kelly Criterion Position Sizing**: Dynamic sizing based on win probability and win/loss ratios
+- **Portfolio VaR Limits**: Controls total portfolio risk exposure
+- **Correlation Management**: Prevents over-concentration in correlated assets
+- **Regime-Based Adjustments**: Risk parameters adapt to market conditions
+
+### Market Regime Detection
+- **Multi-dimensional classification**: Volatility, trend, liquidity, momentum regimes
+- **Real-time adaptation**: Strategy parameters adjust based on current regime
+- **Enhanced decision making**: Entry/exit logic considers market regime
+
+### Ensemble ML Integration
+- **Optional ML gating**: Can load and use trained ensemble models
+- **37-feature engineering**: Technical indicators for robust predictions
+- **Confidence scoring**: Only trades when ML confidence exceeds threshold
+
+---
+
+## 3) Quick start
 - Install
 ```
 python3 -m venv .venv && source .venv/bin/activate

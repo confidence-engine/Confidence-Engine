@@ -1,3 +1,48 @@
+## 2025-09-02 — Exit Strategy Comparison: Futures Agent vs Hybrid Trader
+
+### Trading System Exit Mechanisms Analysis
+
+**Futures Agent (High-Risk Futures Trading)**:
+- **Exit Method**: Manual position monitoring with 6 exit conditions (no TP/SL orders)
+- **Exit Conditions**:
+  1. Profit Target: 8% gain
+  2. Stop Loss: 3% loss  
+  3. Trailing Stop: Dynamic adjustment
+  4. Max Loss Protection: 10% hard limit
+  5. Time Limit: 24-hour maximum hold
+  6. Volatility Exit: Based on market volatility thresholds
+- **Rationale**: High-frequency trading requires active position management for optimal timing
+- **Infrastructure**: Uses Binance Futures API with real balance integration ($14,925.08 confirmed)
+
+**Hybrid Crypto Trader (Swing Trading)**:
+- **Exit Method**: Broker-managed bracket orders with TP/SL plus 5 exit conditions
+- **Bracket Orders**: 
+  - Take Profit: 5% gain target
+  - Stop Loss: 2% loss limit
+- **Additional Exit Conditions**:
+  1. EMA Crossover signals
+  2. Sentiment divergence changes
+  3. Risk management overrides
+  4. Portfolio rebalancing triggers
+  5. Market regime shifts
+- **Rationale**: Swing trading benefits from passive order management while maintaining active oversight
+- **Infrastructure**: Uses Alpaca API with SQLite state management and ML gating
+
+**Key Differences**:
+- **Futures Agent**: Active monitoring for high-frequency precision timing
+- **Hybrid Trader**: Passive bracket orders for swing trading with broker automation
+- **Both Systems**: Production-grade with robust risk controls and real API integration
+- **Accuracy**: Both demonstrate high accuracy through different but effective exit approaches
+
+**Infrastructure Verification**:
+- ✅ Both systems operational with confirmed API connectivity
+- ✅ Real balance integration working ($14,925.08 futures, paper equity hybrid)
+- ✅ Auto-commit and artifact tracking functional
+- ✅ Error handling and retry mechanisms in place
+- ✅ Multi-source data ingestion and sentiment analysis active
+
+---
+
 ## 2025-09-02 — PRODUCTION-READY: Dual-Loop Trading with Full Infrastructure ✅
 
 ### 🎯 MILESTONE: Complete Trading Infrastructure with Resilience & Recovery

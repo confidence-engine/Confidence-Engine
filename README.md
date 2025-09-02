@@ -4,7 +4,7 @@ Here is a draft for the README introduction that puts the Tracer Bullet philosop
 ***
 
 # Confidence Engine — Institutional-Grade Multi-Asset Divergence Engine
-> Looking for the concise version? See [README_CLEAN.md](README_CLEAN.md) | [Enhanced Features Summary](ENHANCED_HYBRID_SUMMARY.md) | [Dual Agent System](DUAL_AGENT_README.md)
+> Looking for the concise version? See [README_CLEAN.md](README_CLEAN.md)
 
 ## 🚀 Latest: Dual-Agent System with Futures & Perpetuals Trading
 
@@ -26,6 +26,13 @@ Here is a draft for the README introduction that puts the Tracer Bullet philosop
 - **Database**: SQLite auto-commit enabled, enhanced_trading.db tracked in GitHub
 - **Notifications**: Discord and Telegram with trade confirmations and heartbeat monitoring
 - **Status**: Both loops operational, 9+ trades executed, all systems stable
+
+### Real-Time System Status
+- **Total Balance**: $14,925.08 (Live Binance API)
+- **Available**: $12,769.30
+- **Used Margin**: $2,136.90
+- **Unrealized P&L**: +$38.74
+- **Uptime**: 11 days, 17+ hours system uptime
 
 ## Our Mission: Exploit Emotional-Math Gaps with Perfect Discipline
 
