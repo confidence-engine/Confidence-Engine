@@ -288,14 +288,19 @@ class FuturesTradingPlatform:
     def _apply_binance_precision(self, symbol: str, quantity: float) -> float:
         """Apply Binance-specific quantity precision requirements"""
         # Binance has different precision requirements for different symbols
-        if 'BTC' in symbol.upper():
+        symbol_upper = symbol.upper()
+        
+        if 'BTC' in symbol_upper and 'USDT' in symbol_upper:
             # BTC pairs: 0.001 precision (3 decimal places)
             precision = 3
-        elif 'ETH' in symbol.upper():
+        elif 'ETH' in symbol_upper and 'USDT' in symbol_upper:
             # ETH pairs: 0.01 precision (2 decimal places)
             precision = 2
-        elif 'USDT' in symbol.upper():
-            # USDT pairs: 0.1 precision (1 decimal place)
+        elif symbol_upper in ['SOLUSDT', 'AVAXUSDT', 'ADAUSDT', 'DOTUSDT', 'LINKUSDT', 'UNIUSDT', 'AAVEUSDT', 'ATOMUSDT', 'ALGOUSDT']:
+            # Altcoin pairs: higher precision needed (0.1 to 1.0 range typically)
+            precision = 1  # 0.1 precision for most altcoins
+        elif 'USDT' in symbol_upper:
+            # Other USDT pairs: 0.1 precision (1 decimal place)
             precision = 1
         else:
             # Other pairs: 0.1 precision (1 decimal place)
@@ -308,6 +313,10 @@ class FuturesTradingPlatform:
         min_quantity = 10 ** (-precision)  # 0.001 for BTC, 0.01 for ETH, 0.1 for others
         if rounded_quantity < min_quantity:
             rounded_quantity = min_quantity
+
+        # For very small quantities that might still cause precision errors, round up to minimum
+        if rounded_quantity < min_quantity * 10:  # If less than 10x minimum
+            rounded_quantity = min_quantity * 10  # Use a safer minimum
 
         return rounded_quantity
 

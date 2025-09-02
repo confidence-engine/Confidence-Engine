@@ -23,13 +23,17 @@ try:
 except ImportError:
     pass
 
-# Import futures platform
+# Import futures platform functions
 from futures_integration import (
-    futures_integration,
     enhanced_futures_bars,
     calculate_futures_position,
     execute_futures_trade,
-    get_futures_status
+    get_futures_status,
+    get_account_balance,
+    is_futures_available,
+    switch_platform,
+    get_platform_config,
+    calculate_smart_leverage
 )
 
 # Import notification modules
@@ -136,7 +140,7 @@ class HighRiskFuturesAgent:
             return False
 
         # Switch platform
-        if futures_integration.switch_platform(platform_name):
+        if switch_platform(platform_name):
             self.current_platform = platform_name
             self.last_platform_switch = current_time
             logger.info(f"🔄 Switched to {platform_name} platform")
@@ -148,7 +152,6 @@ class HighRiskFuturesAgent:
         """Get REAL capital for current platform from API"""
         try:
             # Try to get real balance from platform
-            from futures_integration import get_account_balance
             balance_info = get_account_balance()
             if balance_info and 'available_balance' in balance_info:
                 real_balance = balance_info['available_balance']
@@ -181,7 +184,7 @@ class HighRiskFuturesAgent:
                             return platform
 
             # Check if we need to switch based on trade size limits
-            platform_config = futures_integration.get_platform_config(self.current_platform)
+            platform_config = get_platform_config(self.current_platform)
             max_trade_size = platform_config.get('max_trade_size', float('inf'))
 
             # If current capital exceeds platform limits, switch to platform with higher limits
@@ -189,7 +192,7 @@ class HighRiskFuturesAgent:
             if current_capital > max_trade_size * 10:  # If capital is much larger than trade size
                 for platform in self.available_platforms:
                     if platform != self.current_platform:
-                        alt_config = futures_integration.get_platform_config(platform)
+                        alt_config = get_platform_config(platform)
                         alt_max_size = alt_config.get('max_trade_size', 0)
                         alt_capital = self.platform_capital.get(platform, 0)
 
@@ -390,12 +393,12 @@ class HighRiskFuturesAgent:
         """Calculate dynamic leverage based on volatility and market regime"""
         try:
             # Get platform-specific max leverage
-            platform_config = futures_integration.get_platform_config(self.current_platform)
+            platform_config = get_platform_config(self.current_platform)
             max_platform_leverage = platform_config.get('max_leverage', self.max_leverage)
 
             # Use smart leverage calculation from futures integration
             market_regime = self.detect_market_regime(symbol)
-            smart_leverage = futures_integration.calculate_smart_leverage(
+            smart_leverage = calculate_smart_leverage(
                 symbol, max_platform_leverage, volatility, market_regime
             )
 
@@ -505,7 +508,7 @@ class HighRiskFuturesAgent:
             # Apply smart leverage calculation
             volatility = signal.get('volatility', 0.05)
             market_regime = self.detect_market_regime(symbol)
-            smart_leverage = futures_integration.calculate_smart_leverage(
+            smart_leverage = calculate_smart_leverage(
                 symbol, pos_info['leverage_used'], volatility, market_regime
             )
             pos_info['leverage_used'] = smart_leverage
@@ -902,7 +905,6 @@ class HighRiskFuturesAgent:
     def sync_existing_positions(self):
         """Sync existing positions from platform into agent management"""
         try:
-            from futures_integration import get_futures_status
             status = get_futures_status()
             
             if 'error' in status:
@@ -948,7 +950,7 @@ def main():
     print("🚀 High-Risk Futures Agent")
     print("=" * 50)
 
-    if not futures_integration.is_futures_available():
+    if not is_futures_available():
         print("❌ Futures trading not available")
         print("💡 Enable with: TB_ENABLE_FUTURES_TRADING=1")
         return
