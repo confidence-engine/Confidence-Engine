@@ -14,7 +14,14 @@ FAIL_MSGS=()
 if pgrep -f "python3 scripts/hybrid_crypto_trader.py" >/dev/null 2>&1; then
   :
 else
-  FAIL_MSGS+=("Trader process not running")
+  FAIL_MSGS+=("Hybrid trader process not running")
+fi
+
+# 1b) Futures agent process running
+if pgrep -f "python3.*high_risk_futures_agent.py" >/dev/null 2>&1; then
+  :
+else
+  FAIL_MSGS+=("Futures agent process not running")
 fi
 
 # 2) Log freshness
@@ -26,10 +33,25 @@ for f in "$LOG_FILE" "$ERR_FILE"; do
     mtime=$(stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null || echo 0)
     age_min=$(( (NOW_TS - mtime) / 60 ))
     if [ "$age_min" -gt "$max_log_age_min" ]; then
-      FAIL_MSGS+=("Log stale: $f (${age_min}m > ${max_log_age_min}m)")
+      FAIL_MSGS+=("Hybrid log stale: $f (${age_min}m > ${max_log_age_min}m)")
     fi
   else
-    FAIL_MSGS+=("Missing log: $f")
+    FAIL_MSGS+=("Missing hybrid log: $f")
+  fi
+done
+
+# 2b) Futures agent log freshness
+FUTURES_LOG_FILE="high_risk_futures_loop.log"
+FUTURES_ERR_FILE="high_risk_futures_loop.err"
+for f in "$FUTURES_LOG_FILE" "$FUTURES_ERR_FILE"; do
+  if [ -f "$f" ]; then
+    mtime=$(stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null || echo 0)
+    age_min=$(( (NOW_TS - mtime) / 60 ))
+    if [ "$age_min" -gt "$max_log_age_min" ]; then
+      FAIL_MSGS+=("Futures log stale: $f (${age_min}m > ${max_log_age_min}m)")
+    fi
+  else
+    FAIL_MSGS+=("Missing futures log: $f")
   fi
 done
 
@@ -176,7 +198,7 @@ if [ ${#FAIL_MSGS[@]} -eq 0 ]; then
   exit 0
 fi
 
-msg="HYBRID HEALTH CHECK FAILED\n- $(printf "%s\n- " "${FAIL_MSGS[@]}")"
+msg="TRADING AGENTS HEALTH CHECK FAILED\n- $(printf "%s\n- " "${FAIL_MSGS[@]}")"
 
 # Discord alert (gated by TB_ENABLE_DISCORD=1 and webhook)
 if [ "${TB_ENABLE_DISCORD:-0}" = "1" ] && [ -n "${DISCORD_WEBHOOK_URL:-}" ]; then
@@ -186,7 +208,7 @@ from scripts.discord_sender import send_discord_digest_to
 url = sys.argv[1]
 text = sys.argv[2]
 embeds = [{
-  "title": "Hybrid health check FAILED",
+  "title": "Trading Agents Health Check FAILED",
   "description": text,
   "color": 0xFF0000,
 }]
@@ -199,7 +221,7 @@ if [ "${TB_NO_TELEGRAM:-0}" != "1" ]; then
   python3 - <<'PY'
 import os
 from scripts.tg_sender import send_telegram_text
-text = os.environ.get("HEALTH_FAIL_MSG", "Hybrid health check failed.")
+text = os.environ.get("HEALTH_FAIL_MSG", "Trading agents health check failed.")
 send_telegram_text(text)
 PY
 fi
