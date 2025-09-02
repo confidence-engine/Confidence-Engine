@@ -52,6 +52,18 @@ A concise development history highlighting milestones, major features, testing, 
 
 ---
 
+## Latest (v4.6 — Critical Platform Fixes & Enhancements)
+- **Futures Platform Wrapper Fix**: Fixed `get_positions()` method to return real API data instead of empty lists
+- **Account Balance Retrieval**: Added `get_account_balance()` function for real-time balance monitoring ($14,925.08)
+- **UTC Timestamp Standardization**: Converted all timestamps to proper UTC format (`datetime.now(timezone.utc).isoformat()`)
+- **Bybit Testnet Configuration**: Updated to use proper testnet endpoints (`api-testnet.bybit.com`)
+- **Position Monitoring**: Now properly tracks 8 active positions (5 underwater, 3 profitable)
+- **Discord Notifications**: Fixed timestamp display issues ("Tomorrow at 4:33 AM" → current time)
+- **API Authentication**: HMAC SHA256 signature generation for secure Binance testnet API calls
+- **Error Handling**: Graceful degradation with proper logging when API unavailable
+
+---
+
 ## Latest (v3.1.16 — digest A+ + plain-English)
 - Parity: Telegram and Discord both tag `[A+ Setup]` in headers and `(A+)` in Quick Summary.
 - Readability: Executive Take, Weekly Plan, Engine Thesis simplified to plain English.

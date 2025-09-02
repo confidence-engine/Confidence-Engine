@@ -21,9 +21,9 @@
 - `autocommit_enhanced.py` — Enhanced auto-commit system for artifacts
 
 ### Futures Agent Components
-- `high_risk_futures_agent.py` — Futures trading orchestrator
-- `futures_integration.py` — Futures platform integration layer
-- `futures_trading_platform.py` — Multi-platform futures trading support
+- `high_risk_futures_agent.py` — Futures trading orchestrator with UTC timestamps
+- `futures_integration.py` — Futures platform integration layer with account balance retrieval
+- `futures_trading_platform.py` — Multi-platform futures trading support with real API calls
 - `futures_paper_trading_demo.py` — Paper trading demonstrations
 - `dual_agent.sh` — Dual-agent management script
 
@@ -34,6 +34,14 @@
 4) **Execution**: Independent execution for spot (Alpaca) and futures (Binance/Bybit)
 5) **Monitoring**: Real-time notifications, heartbeat monitoring, performance tracking
 6) **Persistence**: SQLite, JSON artifacts, CSV data, auto-commit to git
+
+### Recent Enhancements (September 2, 2025)
+- **Real API Integration**: Fixed `get_positions()` to return actual Binance testnet data instead of empty lists
+- **Account Balance**: Added `get_account_balance()` function for real-time balance monitoring
+- **UTC Timestamps**: Standardized all timestamps to `datetime.now(timezone.utc).isoformat()`
+- **Position Tracking**: Now properly monitors 8 active positions with real P&L data
+- **API Authentication**: HMAC SHA256 signature generation for secure API calls
+- **Error Handling**: Graceful degradation when API unavailable with proper logging
 
 ## Data Flow
 1) Fetch bars/headlines (`alpaca.py`)

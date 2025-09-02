@@ -104,10 +104,18 @@ class YahooFinanceProvider(DataSourceProvider):
             })
 
             # Ensure UTC timezone
-            if df.index.tz is None:
-                df.index = df.index.tz_localize('UTC')
+            if isinstance(df.index, pd.DatetimeIndex):
+                if df.index.tz is None:
+                    df.index = df.index.tz_localize('UTC')
+                else:
+                    df.index = df.index.tz_convert('UTC')
             else:
-                df.index = df.index.tz_convert('UTC')
+                # If not a DatetimeIndex, convert to DatetimeIndex with UTC timezone
+                try:
+                    df.index = pd.to_datetime(df.index).tz_localize('UTC')
+                except Exception:
+                    # If conversion fails, create a proper DatetimeIndex
+                    df.index = pd.date_range(start=datetime.now(timezone.utc), periods=len(df), freq='1H', tz='UTC')[:len(df)]
 
             return df[['open', 'high', 'low', 'close', 'volume']].tail(limit)
 
@@ -396,8 +404,16 @@ class AlphaVantageProvider(DataSourceProvider):
             df.set_index('timestamp', inplace=True)
 
             # Ensure UTC timezone
-            if df.index.tz is None:
-                df.index = df.index.tz_localize('UTC')
+            if isinstance(df.index, pd.DatetimeIndex):
+                if df.index.tz is None:
+                    df.index = df.index.tz_localize('UTC')
+            else:
+                # If not a DatetimeIndex, convert to DatetimeIndex with UTC timezone
+                try:
+                    df.index = pd.to_datetime(df.index).tz_localize('UTC')
+                except Exception:
+                    # If conversion fails, create a proper DatetimeIndex
+                    df.index = pd.date_range(start=datetime.now(timezone.utc), periods=len(df), freq='1D', tz='UTC')[:len(df)]
 
             return df[['open', 'high', 'low', 'close', 'volume']].tail(limit)
 

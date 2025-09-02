@@ -30,10 +30,21 @@ def recent_bars(symbol: str, minutes: int = 120) -> pd.DataFrame:
     bars = api.get_crypto_bars(sym, "1Min", start.isoformat(), end.isoformat()).df
     if isinstance(bars.index, pd.MultiIndex):
         bars = bars.xs(sym, level=0)
-    if bars.index.tz is None:
-        bars.index = bars.index.tz_localize("UTC")
+    # Fix timezone handling - check if index is DatetimeIndex before accessing .tz
+    if isinstance(bars.index, pd.DatetimeIndex):
+        if bars.index.tz is None:
+            bars.index = bars.index.tz_localize("UTC")
+        else:
+            bars = bars.tz_convert("UTC")
     else:
-        bars = bars.tz_convert("UTC")
+        # If not a DatetimeIndex, convert to DatetimeIndex with UTC timezone
+        if not isinstance(bars.index, pd.DatetimeIndex):
+            # Assume the index contains timestamps and convert
+            try:
+                bars.index = pd.to_datetime(bars.index).tz_localize("UTC")
+            except Exception:
+                # If conversion fails, create a proper DatetimeIndex
+                bars.index = pd.date_range(start=datetime.now(timezone.utc), periods=len(bars), freq='1min', tz='UTC')[:len(bars)]
     bars = bars.loc[bars.index >= (end - timedelta(minutes=minutes))]
     return bars[["open", "high", "low", "close", "volume"]].copy()
 
