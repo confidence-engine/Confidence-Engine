@@ -13,8 +13,8 @@ export PYTHONPATH="${PYTHONPATH:-$PWD}"
 while true; do
   echo "[start_futures_loop] Starting futures agent at $(date)" >> high_risk_futures_loop.log
   
-  # Run the futures agent with error handling
-  python3 high_risk_futures_agent.py --continuous --interval 120 || {
+  # Run the futures agent with error handling - 30 second intervals for real-time risk management
+  python3 high_risk_futures_agent.py --continuous --interval 30 || {
     echo "[start_futures_loop] Futures agent crashed at $(date), restarting in 60s..." >> high_risk_futures_loop.log
     sleep 60
   }
