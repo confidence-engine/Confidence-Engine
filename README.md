@@ -394,7 +394,7 @@ Key features:
 
 - Ingest
   - Alpaca: latest_headlines(symbol, limit)
-  - Perplexity Pro API: sonar-pro chat-completions; multiple API keys rotation
+  - Perplexity Pro API: sonar chat-completions; multiple API keys rotation
   - CoinDesk RSS (optional)
   - Deduplication across sources (preserve original text)
 - Relevance gating
@@ -436,7 +436,7 @@ Key features:
   - make_from_headlines(accepted_only): narrative summary from accepted; confidence heuristic; neutral baseline score (composite blending used downstream).
 
 - pplx_fetcher.py
-  - Perplexity chat-completions (sonar-pro) client with multi-key rotation; returns (titles, items, err) with strict JSON parsing.
+  - Perplexity chat-completions (sonar) client with multi-key rotation; returns (titles, items, err) with strict JSON parsing.
 
 - coindesk_rss.py
   - RSS fetcher with retry/backoff; returns title list.

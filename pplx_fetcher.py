@@ -26,7 +26,7 @@ def _build_payload(prompt: str, hours: int = 24) -> dict:
         "Do not include code fences, explanations, or any text outside the JSON array."
     )
     return {
-        "model": "sonar-pro",
+        "model": "sonar",
         "messages": [
             {"role": "system", "content": system_msg},
             {"role": "user", "content": f"{prompt} Time window: last {hours} hours."}

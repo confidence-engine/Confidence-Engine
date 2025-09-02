@@ -20,7 +20,7 @@ def test_key_comprehensive(api_key, key_number):
     print(f"Key: {api_key[:25]}...")
 
     payload = {
-        "model": "sonar-pro",
+        "model": "sonar",
         "messages": [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": "Say hello"}
@@ -95,7 +95,7 @@ def test_key_minimal_payload(api_key, key_number):
 
     print("Test 3: Minimal payload...")
     payload = {
-        "model": "sonar-pro",
+        "model": "sonar",
         "messages": [{"role": "user", "content": "Hi"}]
     }
 
