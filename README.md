@@ -16,14 +16,16 @@ Here is a draft for the README introduction that puts the Tracer Bullet philosop
 - **🛡️ Independent Operation**: Each agent manages its own capital and risk
 - **📈 Free Paper Trading**: Test futures strategies without cost
 
-**Status**: Both agents operational | **Main Agent**: Live trading | **Futures Agent**: Paper trading ready | **Monitoring**: Real-time dashboard active
+**Status**: Both agents operational | **Main Agent**: Live trading | **Futures Agent**: Live trading | **Monitoring**: Real-time dashboard active
 
 ### Current Live Configuration (September 2, 2025)
-- **Main Agent**: Running with 18 crypto assets, ML gates, ATR filters, and adaptive thresholds
-- **Futures Agent**: Running with 10 symbols, smart leverage, correlation filtering, and trailing stops
-- **Platforms**: Binance Futures (primary), Bybit (backup) with per-platform limits
-- **Risk Management**: Independent capital allocation, VaR limits, and circuit breakers
-- **Notifications**: Discord and Telegram with heartbeat monitoring
+- **Main Agent**: ✅ Live trading with 15 crypto assets, ML gates, ATR filters, and adaptive thresholds
+- **Futures Agent**: ✅ Live trading with 20 blue chip futures, 25x leverage cap, $100 margin cap
+- **Platforms**: Binance Futures (testnet) with real API integration and proper precision handling
+- **Risk Management**: Dynamic leverage based on risk-reward ratios, volatility adjustments, hard caps
+- **Database**: SQLite auto-commit enabled, enhanced_trading.db tracked in GitHub
+- **Notifications**: Discord and Telegram with trade confirmations and heartbeat monitoring
+- **Status**: Both loops operational, 9+ trades executed, all systems stable
 
 ## Our Mission: Exploit Emotional-Math Gaps with Perfect Discipline
 

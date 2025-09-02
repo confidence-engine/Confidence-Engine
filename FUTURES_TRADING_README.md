@@ -11,42 +11,36 @@ This platform provides **free futures and perpetuals trading** capabilities for 
 - **Professional Tools** (advanced order types, position management)
 
 ## 🚀 Current Status (September 2, 2025)
-- **✅ High-Risk Futures Agent**: Running live with momentum trading
-- **✅ Multi-Platform Support**: Binance (primary), Bybit (backup)
-- **✅ Smart Leverage**: Dynamic leverage based on volatility and market regime
-- **✅ Risk Management**: 5% risk per trade, 20% daily loss limit
-- **✅ Position Management**: Trailing stops, profit targets, correlation filtering
-- **✅ Notifications**: Real-time Discord/Telegram alerts
+- **✅ High-Risk Futures Agent**: Running live with real Binance testnet integration
+- **✅ Platform**: Binance Futures testnet with HMAC SHA256 authentication 
+- **✅ Smart Leverage**: Dynamic risk-reward based calculations (up to 25x cap)
+- **✅ Risk Management**: $100 margin cap per trade, volatility adjustments
+- **✅ Position Management**: Market regime detection, correlation filtering
+- **✅ Order Precision**: Fixed quantity precision issues for reliable execution
+- **✅ Notifications**: Real-time Discord/Telegram alerts with trade confirmations
+- **✅ Database Tracking**: SQLite auto-commit, GitHub integration active
 
 ## Supported Platforms
 
-### 1. Binance Futures Testnet
+### 1. Binance Futures Testnet (PRIMARY - ACTIVE)
 - **Type**: Futures & Perpetuals
-- **Leverage**: Up to 125x
-- **Assets**: BTCUSDT, ETHUSDT, BNBUSDT, ADAUSDT, SOLUSDT
-- **Features**: Linear & inverse contracts, high-frequency data
-- **Cost**: Free (testnet)
+- **Leverage**: Up to 125x (capped at 25x for safety)
+- **Assets**: 20 blue chip pairs (BTCUSDT, ETHUSDT, SOLUSDT, ADAUSDT, etc.)
+- **Features**: Real API integration, dynamic precision handling
+- **Status**: ✅ OPERATIONAL - Live trading with real testnet orders
+- **Recent Orders**: ADAUSDT x25, ENJUSDT x25 successfully placed
+- **Cost**: Free (testnet with real API calls)
 
-### 2. Bybit Futures Demo
-- **Type**: Futures & Perpetuals
-- **Leverage**: Up to 100x
-- **Assets**: BTCUSDT, ETHUSDT, SOLUSDT, ADAUSDT, DOTUSDT
-- **Features**: Professional trading interface, demo accounts
-- **Cost**: Free (demo trading)
+### 2. Bybit Futures Demo (BACKUP - DISABLED)
+- **Type**: Futures & Perpetuals  
+- **Status**: ❌ DISABLED - API authentication issues resolved by focusing on Binance
+- **Reason**: Simplified to single-platform approach for reliability
 
-### 3. BitMEX Futures Testnet
-- **Type**: Futures & Perpetuals
-- **Leverage**: Up to 100x
-- **Assets**: XBTUSD, ETHUSD, SOLUSD, ADAUSD, DOTUSD
-- **Features**: Inverse contracts, professional tools
-- **Cost**: Free (testnet)
+### 3. BitMEX Futures Testnet (NOT IMPLEMENTED)
+- **Status**: ❌ NOT IMPLEMENTED - Focus on Binance stability first
 
-### 4. Deribit Futures Test
-- **Type**: Futures & Options
-- **Leverage**: Up to 100x
-- **Assets**: BTC-PERPETUAL, ETH-PERPETUAL, SOL-PERPETUAL
-- **Features**: Options trading, advanced derivatives
-- **Cost**: Free (test environment)
+### 4. Deribit Futures Test (NOT IMPLEMENTED)
+- **Status**: ❌ NOT IMPLEMENTED - Focus on Binance stability first
 
 ## Setup Instructions
 
