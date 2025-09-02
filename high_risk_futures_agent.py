@@ -923,10 +923,10 @@ class HighRiskFuturesAgent:
         else:
             logger.info(f"💓 Heartbeat condition not met: {self.enable_heartbeat} and {self.run_count % self.heartbeat_every_n == 0}")
 
-        # Sync existing positions on first run AND periodically to stay in sync
-        if self.run_count == 1 or self.run_count % 5 == 0:  # Sync every 5 runs
-            logger.info("🔄 Syncing existing positions from platform...")
-            self.sync_existing_positions()
+        # Sync existing positions on EVERY RUN for critical risk management
+        # This ensures positions are always managed immediately
+        logger.info("🔄 Syncing existing positions from platform...")
+        self.sync_existing_positions()
 
         # Update market regime and correlations
         self.update_market_context()
