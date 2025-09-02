@@ -34,6 +34,63 @@ Here is a draft for the README introduction that puts the Tracer Bullet philosop
 - **Unrealized P&L**: +$38.74
 - **Uptime**: 11 days, 17+ hours system uptime
 
+## 🛡️ Comprehensive Monitoring System (Latest Addition)
+
+**NEW**: Enterprise-grade monitoring system preventing silent failures and ensuring 24/7 operation:
+
+### Watchdog Scripts
+- **Futures Watchdog**: `scripts/watchdog_futures.sh` - Monitors futures agent every 60 seconds, automatic restart on failure
+- **Hybrid Watchdog**: `scripts/watchdog_hybrid.sh` - Monitors main crypto trader with process checks and log freshness validation
+- **Launchd Services**: macOS launchd integration for persistent background monitoring
+- **Cron Jobs**: Automated health checks every 15 minutes via crontab
+
+### Health Monitoring Dashboard
+- **Unified Status**: `scripts/monitoring_status.sh` - Real-time dashboard showing both agents' status
+- **Process Monitoring**: Checks for running processes, log freshness, and system health
+- **ML Model Health**: Validates model loading, inference capability, and performance metrics
+- **Database Integrity**: Verifies SQLite database connectivity and recent activity
+
+### Automatic Recovery Mechanisms
+- **Self-Healing**: Automatic restart of failed agents with retry logic
+- **Graceful Degradation**: Fallback modes when components fail (e.g., ML gate bypass)
+- **Alert System**: Discord and Telegram notifications for critical events and heartbeats
+- **Circuit Breakers**: Prevents cascading failures with timeout and retry limits
+
+### System Architecture
+- **Independent Operation**: Each agent manages its own monitoring and recovery
+- **Redundant Checks**: Multiple layers of monitoring (process, logs, external watchdogs)
+- **Configuration Management**: Environment-based toggles for all monitoring features
+- **Audit Trail**: Comprehensive logging of all monitoring events and recovery actions
+
+### Quick Monitoring Commands
+```bash
+# Check both agents status
+bash scripts/monitoring_status.sh
+
+# View watchdog logs
+tail -f futures_watchdog.log
+tail -f enhanced_monitoring.log
+
+# Manual health check
+bash scripts/health_check.sh
+```
+
+### Monitoring Configuration (.env)
+```bash
+# Watchdog settings
+TB_FUTURES_WATCHDOG_INTERVAL=60
+TB_HYBRID_WATCHDOG_INTERVAL=120
+
+# Health check settings
+TB_HEALTH_CHECK_INTERVAL=900  # 15 minutes
+TB_LOG_FRESHNESS_HOURS=2
+
+# Alert settings
+TB_ENABLE_DISCORD=1
+TB_ENABLE_TELEGRAM=1
+TB_NOTIFY_HEARTBEAT=1
+```
+
 ## Our Mission: Exploit Emotional-Math Gaps with Perfect Discipline
 
 Financial markets are driven by human emotion as much as by fundamentals. Crowd fear, greed, and narrative bias often cause prices to diverge significantly from their true, statistical values — creating opportunities for disciplined, rational traders.
@@ -65,6 +122,7 @@ By measuring and quantifying these divergences rigorously, filtering for relevan
 - **Futures Trading Platforms:** Multiple free platforms including Binance Futures Testnet, Bybit Futures Demo, BitMEX Futures Testnet, Deribit Futures Test for comprehensive market coverage
 - **Advanced Risk Management:** Portfolio VaR limits, individual position limits, regime-based risk adjustments, and independent capital allocation ($10k for futures agent)
 - **Adaptive Learning:** Real-time parameter optimization with exploration windows and performance tracking for both agents
+- **Comprehensive Monitoring:** Enterprise-grade watchdog system with automatic recovery, health checks, and 24/7 uptime assurance
 - **Philosophy-first:** We shipped a fast, end‑to‑end prototype (V1) to validate our core edge early, avoiding premature complexity.
 - **Elegant simplicity:** We leverage two clean, high-quality signal pillars — Alpaca price data and Perplexity synthesized narrative — before adding noisy social feeds.
 - **Hybrid intelligence:** Combining quantitative “oracle” data and qualitative “psychologist” narrative to find true market inefficiencies.

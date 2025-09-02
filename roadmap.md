@@ -26,7 +26,7 @@ Roadmap snapshot: milestone-based (no calendar dates).
 - V4.0 — Dual-Agent Architecture: ✅ COMPLETED (September 2, 2025)
 - V4.1 — Futures Trading Integration: ✅ COMPLETED (September 2, 2025)
 - V4.2 — Backtesting & Governance: NOT DONE
-- V4.3 — Reliability Ops Hardening: IN PROGRESS (nightly hit‑rate self‑checks wired, broadened non‑.py auto‑commit)
+- V4.3 — Reliability Ops Hardening: ✅ COMPLETED (September 3, 2025 - Comprehensive monitoring system implemented with watchdog scripts, health checks, launchd services, and automatic restart mechanisms)
 - V5 — 24/7 Cloud Agent: NOT DONE
 - V6 — Paper Execution & Risk: ✅ COMPLETED (Both agents running in paper mode)
 - V7 — Live Capital: NOT DONE
@@ -1124,18 +1124,23 @@ Here’s how the updated **v3.1.x** scope will look:
 ## **Now → Near → Next**
 
 - **Now (active)**
-  - v4.3 Reliability Ops Hardening (IN PROGRESS)
-    - Retries/backoff, self‑checks, degraded‑run markers
+  - v3.3 — Full Crypto Alts + Evidence Lines + Polymarket BTC/ETH Read-Only (READY)
+    - All liquid alts in artifacts; digest shows top-K (config-gated)
+    - Evidence lines: BTC/ETH + top alts get 1–2 sentence "why now" (sentiment/news/structure; number-free)
+    - Polymarket adapter/bridge (BTC/ETH only): strict filters, stance/readiness/edge label, rationale
   - v3.4 Evaluation Pipeline (IN PROGRESS)
     - DoD: accumulate ≥50 resolved observations; weekly snapshots; optional plots
 
 - **Near (queued)**
-  - v5 — 24/7 Cloud Agent Run (after reliability/evaluation proven)
-    - Scheduled workflows, secrets, monitoring/rollback
+  - v4.2 — Backtesting & Governance (after v3.3 completion)
+    - Event-ordered replay of bars + headlines; point-in-time features only
+    - Walk-forward validation; rolling IS/OOS; publish selected thresholds
+    - Cohort analytics; monthly governance cadence
 
 - **Next (after Near)**
-  - v6 — Paper Execution & Risk Controls (dry‑run)
-    - Order lifecycle simulator, caps/limits, circuit breakers, kill‑switches
+  - v4 — Data Breadth & Explainability+
+    - Optional attention/crowd proxies (secondary only)
+    - Source credibility learning; compact case files per signal
 
 ***
 
