@@ -662,7 +662,12 @@ class HighRiskFuturesAgent:
                 return 'max_loss_limit'
 
             # 5. Time-based exit (if position is too old)
-            position_age_hours = (datetime.now() - datetime.fromisoformat(position['timestamp'])).total_seconds() / 3600
+            position_timestamp = datetime.fromisoformat(position['timestamp'])
+            if position_timestamp.tzinfo is not None:
+                # Convert to naive datetime for comparison
+                position_timestamp = position_timestamp.replace(tzinfo=None)
+            current_time = datetime.now().replace(tzinfo=None)
+            position_age_hours = (current_time - position_timestamp).total_seconds() / 3600
             if position_age_hours > 24:  # Close after 24 hours
                 return 'time_limit'
 
@@ -790,6 +795,11 @@ class HighRiskFuturesAgent:
         else:
             logger.info(f"💓 Heartbeat condition not met: {self.enable_heartbeat} and {self.run_count % self.heartbeat_every_n == 0}")
 
+        # Sync existing positions on first run
+        if self.run_count == 1:
+            logger.info("🔄 Syncing existing positions from platform...")
+            self.sync_existing_positions()
+
         # Update market regime and correlations
         self.update_market_context()
 
@@ -888,6 +898,50 @@ class HighRiskFuturesAgent:
                 logger.error(f"Error in trading cycle {cycle_count}: {e}")
                 logger.error(f"Traceback: {traceback.format_exc()}")
                 time.sleep(60)  # Wait before retry
+
+    def sync_existing_positions(self):
+        """Sync existing positions from platform into agent management"""
+        try:
+            from futures_integration import get_futures_status
+            status = get_futures_status()
+            
+            if 'error' in status:
+                logger.warning(f"❌ Could not sync positions: {status['error']}")
+                return False
+            
+            platform_positions = status.get('positions', [])
+            synced_count = 0
+            
+            for pos in platform_positions:
+                symbol = pos.get('symbol', '').replace('USDT', '') + 'USDT'  # Normalize symbol
+                if symbol in self.symbols and symbol not in self.positions:
+                    # Import position into agent management
+                    self.positions[symbol] = {
+                        'side': pos.get('side', 'buy'),
+                        'entry_price': float(pos.get('entry_price', 0)),
+                        'quantity': float(pos.get('quantity', 0)),
+                        'leverage': int(pos.get('leverage', 1)),
+                        'platform': pos.get('platform', self.current_platform),
+                        'timestamp': datetime.now(timezone.utc).isoformat(),  # Use current time as sync time
+                        'signal': {'signal': 'synced', 'strength': 0, 'reason': 'existing_position_sync'},
+                        'highest_price': float(pos.get('entry_price', 0)),  # For trailing stops
+                        'lowest_price': float(pos.get('entry_price', 0)),   # For trailing stops
+                        'trailing_stop_pct': 0.05,  # 5% trailing stop
+                        'profit_target_pct': 0.08   # 8% profit target
+                    }
+                    synced_count += 1
+                    logger.info(f"✅ Synced existing position: {symbol} {pos.get('side')} x{pos.get('quantity')}")
+            
+            if synced_count > 0:
+                logger.info(f"🔄 Successfully synced {synced_count} existing positions into agent management")
+                return True
+            else:
+                logger.info("ℹ️  No new positions to sync")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error syncing existing positions: {e}")
+            return False
 
 def main():
     """Main function"""
