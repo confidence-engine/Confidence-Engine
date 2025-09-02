@@ -1156,16 +1156,23 @@ def get_enabled_assets():
         enabled = []
         for asset in ASSET_LIST:
             asset = asset.strip()
+            # Normalize asset format by adding /USD if not present
+            if "/" not in asset:
+                asset = f"{asset[:-3]}/{asset[-3:]}"
             if asset in SUPPORTED_ASSETS and SUPPORTED_ASSETS[asset]["enabled"]:
                 enabled.append(asset)
         return enabled
     else:
         # Single asset mode
-        if SYMBOL in SUPPORTED_ASSETS and SUPPORTED_ASSETS[SYMBOL]["enabled"]:
-            return [SYMBOL]
+        if "/" not in SYMBOL:
+            normalized_symbol = f"{SYMBOL[:-3]}/{SYMBOL[-3:]}"
         else:
-            logger.warning("Asset %s not in supported list, using anyway", SYMBOL)
-            return [SYMBOL]
+            normalized_symbol = SYMBOL
+        if normalized_symbol in SUPPORTED_ASSETS and SUPPORTED_ASSETS[normalized_symbol]["enabled"]:
+            return [normalized_symbol]
+        else:
+            logger.warning("Asset %s not in supported list, using anyway", normalized_symbol)
+            return [normalized_symbol]
 
 def calculate_enhanced_position_size(components, symbol, bars_15, bars_1h, sentiment, current_equity):
     """Calculate position size using enhanced methods"""
@@ -2533,21 +2540,38 @@ def main() -> int:
     run_id = _run_id
     run_dir = None
     
-    # Create a simple global state for heartbeat tracking (since we removed single-asset state)
-    state = {
-        "hb_runs": 0,
-        "last_run_ts": now_ts,
-        "last_heartbeat_ts": 0
-    }
+    # Load existing global state for heartbeat tracking
+    try:
+        global_state_file = STATE_DIR / "global_state.json"
+        if global_state_file.exists():
+            with global_state_file.open("r") as f:
+                heartbeat_state = json.load(f)
+        else:
+            heartbeat_state = {
+                "hb_runs": 0,
+                "last_run_ts": now_ts,
+                "last_heartbeat_ts": 0
+            }
+    except Exception as e:
+        logger.warning(f"Failed to load global state: {e}")
+        heartbeat_state = {
+            "hb_runs": 0,
+            "last_run_ts": now_ts,
+            "last_heartbeat_ts": 0
+        }
     
     # Skip old single-asset code - removed to prevent UnboundLocalError
     # The old single-asset code has been removed as we now use multi-asset processing exclusively
     
     # Heartbeat: per-run counter + optional liveness notification
     try:
-        hb_runs = int(state.get("hb_runs", 0)) + 1
-        state["hb_runs"] = hb_runs
-        state["last_run_ts"] = now_ts
+        hb_runs = int(heartbeat_state.get("hb_runs", 0)) + 1
+        heartbeat_state["hb_runs"] = hb_runs
+        heartbeat_state["last_run_ts"] = now_ts
+        
+        # Debug logging for heartbeat
+        logger.info(f"[heartbeat] HEARTBEAT={HEARTBEAT}, NOTIFY={NOTIFY}, HEARTBEAT_EVERY_N={HEARTBEAT_EVERY_N}, hb_runs={hb_runs}")
+        
         if HEARTBEAT and NOTIFY and HEARTBEAT_EVERY_N > 0 and (hb_runs % HEARTBEAT_EVERY_N == 0):
             payload = {
                 "symbol": "MULTI-ASSET",
@@ -2560,16 +2584,18 @@ def main() -> int:
                 "status": f"alive run={hb_runs} trades={len(executed_trades)}",
             }
             notify("heartbeat", payload)
-            state["last_heartbeat_ts"] = now_ts
+            heartbeat_state["last_heartbeat_ts"] = now_ts
             logger.info("[heartbeat] sent run=%d every=%d", hb_runs, HEARTBEAT_EVERY_N)
+        else:
+            logger.info(f"[heartbeat] not sent: condition not met (hb_runs % HEARTBEAT_EVERY_N = {hb_runs % HEARTBEAT_EVERY_N})")
     except Exception as e:
         logger.warning(f"[heartbeat] failed: {e}")
 
     # Persist global state for heartbeat tracking
     try:
         # Save global heartbeat state (not per-symbol since we're multi-asset)
-        global_state_file = os.path.join(STATE_DIR, "global_state.json")
-        write_json(global_state_file, state)
+        global_state_file = STATE_DIR / "global_state.json"
+        write_json(global_state_file, heartbeat_state)
     except Exception:
         pass
 
@@ -2578,7 +2604,7 @@ def main() -> int:
         try:
             write_json(run_dir / "decision.json", {
                 "decision": decision,
-                "state": state,
+                "state": heartbeat_state,
             })
             logger.info(f"[progress] Wrote audit decision -> {run_dir}/decision.json")
         except Exception as e:

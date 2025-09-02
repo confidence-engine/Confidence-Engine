@@ -368,6 +368,125 @@ python3 scripts/hybrid_crypto_trader.py --debug
   - Orders are only sent when `TB_NO_TRADE=0` and offline is disabled.
   - The forced test buy hook is for paper validation only and should remain `0` during normal operation.
 
+## High-Risk Futures Agent
+
+- Overview:
+  - Script: `high_risk_futures_agent.py`
+  - Logic: Momentum-based signals with market regime detection, correlation filtering, dynamic leverage, and advanced exit timing
+  - Features: Trailing stops, profit targets, time-based exits, volatility-based exits, correlation avoidance
+  - Risk: High leverage (up to 25x), high risk per trade (5%), designed for experienced traders
+
+- Environment (recommended `.env` baseline):
+```
+# Futures trading configuration
+TB_ENABLE_FUTURES_TRADING=1
+FUTURES_AGENT_CAPITAL=10000
+FUTURES_MAX_LEVERAGE=25
+FUTURES_RISK_PER_TRADE=0.05
+FUTURES_MAX_DAILY_LOSS=0.20
+FUTURES_SYMBOLS=BTCUSDT,ETHUSDT,SOLUSDT
+
+# Safety gates (override per run)
+TB_TRADER_OFFLINE=1   # strict no network, synthetic bars
+TB_NO_TRADE=1         # never place orders when 1
+TB_TRADER_NOTIFY=0    # no sends unless explicitly enabled
+TB_ENABLE_DISCORD=0   # Discord off by default
+TB_NO_TELEGRAM=1      # Telegram off by default
+
+# Optional risk/signal params (defaults are aggressive)
+TB_MAX_RISK_FRAC=0.05
+TB_TP_PCT=0.08
+TB_SL_PCT=0.03
+TB_TRAILING_STOP_PCT=0.05
+TB_PROFIT_TARGET_PCT=0.08
+TB_TIME_LIMIT_HOURS=24
+TB_VOLATILITY_EXIT_PCT=0.08
+TB_CORRELATION_THRESHOLD=0.7
+```
+
+- Strict offline preview (no API calls, no orders, no sends):
+```
+TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 TB_TRADER_NOTIFY=0 TB_ENABLE_DISCORD=0 TB_NO_TELEGRAM=1 \
+python3 high_risk_futures_agent.py
+```
+
+- Online no-trade validation (API calls on; orders disabled; sends off):
+```
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=1 TB_TRADER_NOTIFY=0 TB_ENABLE_DISCORD=0 TB_NO_TELEGRAM=1 \
+python3 high_risk_futures_agent.py
+```
+
+- Paper live trading (API calls enabled; orders placed):
+```
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 TB_NO_TELEGRAM=0 \
+python3 high_risk_futures_agent.py
+```
+
+- Background continuous trading (keeps running after terminal closes):
+```
+nohup zsh -lc 'set -a; [ -f .env ] && source .env; set +a; \
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_NO_TELEGRAM=0 TB_NO_DISCORD=0 \
+while true; do python3 high_risk_futures_agent.py >> high_risk_futures_loop.log 2>&1; sleep 300; done' >/dev/null 2>&1 &
+```
+
+- Background with custom interval (e.g., every 10 minutes):
+```
+nohup zsh -lc 'set -a; [ -f .env ] && source .env; set +a; \
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_NO_TELEGRAM=0 TB_NO_DISCORD=0 \
+while true; do python3 high_risk_futures_agent.py >> high_risk_futures_loop.log 2>&1; sleep 600; done' >/dev/null 2>&1 &
+```
+
+- Continuous mode with explicit interval (built-in loop):
+```
+TB_TRADER_OFFLINE=0 TB_NO_TRADE=0 TB_TRADER_NOTIFY=1 TB_ENABLE_DISCORD=1 TB_NO_TELEGRAM=0 \
+python3 high_risk_futures_agent.py --continuous --interval 300
+```
+
+- Test cycles (run 3 test cycles and show status):
+```
+TB_TRADER_OFFLINE=1 TB_NO_TRADE=1 \
+python3 high_risk_futures_agent.py
+```
+
+- Behavior notes:
+  - Market regime detection: Classifies markets as trending, ranging, or sideways
+  - Correlation filtering: Avoids trading highly correlated symbols (>0.7 threshold)
+  - Dynamic leverage: Adjusts leverage based on volatility and market regime
+  - Advanced exits: Trailing stops, profit targets, time limits, volatility triggers
+  - Risk management: 5% risk per trade, 20% max daily loss, position limits
+  - Crypto futures are 24/7, no market hours restrictions
+
+- Enhanced features:
+  - `--continuous`: Run in continuous loop mode
+  - `--interval`: Set custom interval in seconds (default 300)
+  - Automatic correlation matrix updates
+  - Trailing stop management per position
+  - Volatility-based leverage adjustment
+  - Multi-condition exit logic
+
+- Monitoring logs:
+```
+tail -n 200 -f high_risk_futures_loop.log
+```
+
+- Stop background process:
+```
+pkill -f 'python3 high_risk_futures_agent.py'
+```
+
+- View current status:
+```
+python3 -c "from high_risk_futures_agent import HighRiskFuturesAgent; agent = HighRiskFuturesAgent(); print(agent.get_status())"
+```
+
+Notes:
+- High-risk agent uses futures/perpetuals with leverage up to 25x
+- Designed for experienced traders with high risk tolerance
+- Includes comprehensive risk management despite aggressive positioning
+- Background mode runs every 5 minutes by default (configurable)
+- Logs are written to `high_risk_futures_loop.log`
+- All safety gates from hybrid trader apply (TB_NO_TRADE, TB_TRADER_OFFLINE, etc.)
+
 ## Tests
 - Run test suite (safe profile):
 ```

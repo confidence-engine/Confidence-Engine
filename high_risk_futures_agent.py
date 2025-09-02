@@ -31,6 +31,16 @@ from futures_integration import (
     get_futures_status
 )
 
+# Import notification modules
+try:
+    from scripts.discord_sender import send_discord_digest_to
+    from telegram_bot import send_message as send_telegram
+    NOTIFICATIONS_AVAILABLE = True
+except ImportError:
+    NOTIFICATIONS_AVAILABLE = False
+    send_discord_digest_to = None
+    send_telegram = None
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -62,15 +72,111 @@ class HighRiskFuturesAgent:
         self.correlation_matrix = {}  # Initialize as empty dict
         self.trailing_stops = {}  # Track trailing stop levels
 
+        # Heartbeat and notification tracking
+        self.run_count = 0
+        self.last_heartbeat = time.time()
+        self.heartbeat_every_n = int(os.getenv("TB_HEARTBEAT_EVERY_N", "12"))
+        self.enable_heartbeat = os.getenv("TB_TRADER_NOTIFY_HEARTBEAT", "0") == "1"
+        self.enable_notifications = os.getenv("TB_TRADER_NOTIFY", "0") == "1"
+        self.enable_discord = os.getenv("TB_ENABLE_DISCORD", "0") == "1"
+        self.no_telegram = os.getenv("TB_NO_TELEGRAM", "1") == "1"
+        self.discord_webhook = os.getenv("DISCORD_TRADER_WEBHOOK_URL", "") or os.getenv("DISCORD_WEBHOOK_URL", "")
+
         logger.info(f"🚀 {self.name} initialized")
         logger.info(f"💰 Capital: ${self.capital}")
         logger.info(f"⚡ Max Leverage: {self.max_leverage}x")
         logger.info(f"🎯 Risk per Trade: {self.risk_per_trade*100}%")
         logger.info(f"📊 Symbols: {', '.join(self.symbols)}")
+        logger.info(f"📢 Notifications: {'Enabled' if self.enable_notifications else 'Disabled'}")
+        logger.info(f"💓 Heartbeat: {'Enabled' if self.enable_heartbeat else 'Disabled'} (every {self.heartbeat_every_n} runs)")
 
     def is_market_open(self) -> bool:
         """Check if futures markets are open (crypto markets are 24/7)"""
         return True  # Crypto futures are always open
+
+    def notify(self, event: str, payload: Dict) -> None:
+        """Send notifications for trades and heartbeat events"""
+        if not self.enable_notifications or not NOTIFICATIONS_AVAILABLE:
+            return
+
+        symbol = payload.get("symbol", "")
+        status = payload.get("status", "")
+        price = payload.get("price", 0)
+        qty = payload.get("qty", 0)
+        leverage = payload.get("leverage", 1)
+
+        # Build message based on event type
+        if event.lower() in ("trade", "buy", "sell"):
+            action = payload.get("action", event.upper())
+            pnl = payload.get("pnl", 0)
+            reason = payload.get("reason", "")
+
+            desc_lines = [
+                f"Symbol: {symbol}",
+                f"Action: {action}",
+                f"Quantity: {qty}",
+                f"Price: ${price:.2f}",
+                f"Leverage: {leverage}x",
+                f"Reason: {reason}",
+                f"Status: {status}"
+            ]
+
+            if pnl != 0:
+                desc_lines.append(f"P&L: ${pnl:.2f}")
+
+            tg_msg = (
+                f"High-Risk Futures Agent • {symbol}. {action}. "
+                f"qty={qty} price=${price:.2f} x{leverage} {reason}"
+            )
+            color = 0x2ecc71 if action == "BUY" else 0xe74c3c
+
+        elif event.lower() == "heartbeat":
+            desc_lines = [
+                f"Agent: {self.name}",
+                f"Status: {status}",
+                f"Run Count: {self.run_count}",
+                f"Active Positions: {len(self.positions)}",
+                f"Daily P&L: ${self.daily_pnl:.2f}",
+                f"Market Regime: {self.market_regime}"
+            ]
+
+            tg_msg = (
+                f"High-Risk Futures Agent • Heartbeat. "
+                f"Positions: {len(self.positions)} P&L: ${self.daily_pnl:.2f} Regime: {self.market_regime}"
+            )
+            color = 0x95a5a6
+
+        else:  # Generic event
+            desc_lines = [
+                f"Event: {event}",
+                f"Symbol: {symbol}",
+                f"Status: {status}"
+            ]
+            tg_msg = f"High-Risk Futures Agent • {event}. {symbol} {status}"
+            color = 0x95a5a6
+
+        embed = {
+            "title": f"Futures Agent: {event} {symbol}",
+            "description": "\n".join(desc_lines),
+            "color": color,
+            "timestamp": datetime.now().isoformat()
+        }
+
+        # Send Discord notification
+        if self.enable_discord and self.discord_webhook:
+            try:
+                send_discord_digest_to(self.discord_webhook, [embed])
+                logger.info(f"📢 Discord notification sent for {event}")
+            except Exception as e:
+                logger.warning(f"Failed to send Discord notification: {e}")
+
+        # Send Telegram notification
+        if not self.no_telegram and send_telegram:
+            try:
+                send_telegram(tg_msg)
+                logger.info(f"📱 Telegram notification sent for {event}")
+            except Exception as e:
+                logger.warning(f"Failed to send Telegram notification: {e}")
 
     def detect_market_regime(self, symbol: str) -> str:
         """Detect if market is trending or ranging"""
@@ -316,6 +422,18 @@ class HighRiskFuturesAgent:
                 self.trades_today += 1
 
                 logger.info(f"✅ {side.upper()} {symbol} x{leverage} @ ${entry_price:.2f}")
+
+                # Send trade notification
+                self.notify("trade", {
+                    "symbol": symbol,
+                    "action": side.upper(),
+                    "price": entry_price,
+                    "qty": quantity,
+                    "leverage": leverage,
+                    "status": "executed",
+                    "reason": signal['reason']
+                })
+
                 return True
             else:
                 logger.warning(f"❌ Trade execution failed: {trade_result['error']}")
@@ -469,6 +587,18 @@ class HighRiskFuturesAgent:
             logger.info(f"   Entry: ${entry_price:.2f} | Exit: ${exit_price:.2f}")
             logger.info(f"   P&L: ${pnl_amount:.2f} ({pnl_pct:.2%})")
 
+            # Send close notification
+            self.notify("close", {
+                "symbol": symbol,
+                "action": "CLOSE",
+                "price": exit_price,
+                "qty": quantity,
+                "leverage": leverage,
+                "status": reason,
+                "pnl": pnl_amount,
+                "reason": reason
+            })
+
             # Record exit
             exit_record = {
                 'timestamp': datetime.now().isoformat(),
@@ -516,6 +646,11 @@ class HighRiskFuturesAgent:
     def run_trading_cycle(self):
         """Run one complete trading cycle with enhanced features"""
         logger.info("🔄 Starting trading cycle...")
+
+        # Increment run count and check heartbeat
+        self.run_count += 1
+        if self.enable_heartbeat and self.run_count % self.heartbeat_every_n == 0:
+            self.notify("heartbeat", {"status": "active"})
 
         # Update market regime and correlations
         self.update_market_context()
