@@ -54,7 +54,21 @@ class HighRiskFuturesAgent:
         self.max_leverage = int(os.getenv("FUTURES_MAX_LEVERAGE", "25"))  # High risk = high leverage
         self.risk_per_trade = float(os.getenv("FUTURES_RISK_PER_TRADE", "0.05"))  # 5% risk per trade
         self.max_daily_loss = float(os.getenv("FUTURES_MAX_DAILY_LOSS", "0.20"))  # 20% max daily loss
-        self.symbols = os.getenv("FUTURES_SYMBOLS", "BTCUSDT,ETHUSDT,SOLUSDT").split(",")
+        self.symbols = os.getenv("FUTURES_SYMBOLS", "BTCUSDT,ETHUSDT,SOLUSDT,ADAUSDT,DOTUSDT,LINKUSDT,AVAXUSDT,MATICUSDT,UNIUSDT,AAVEUSDT").split(",")
+        self.max_positions = int(os.getenv("FUTURES_MAX_POSITIONS", "5"))  # Allow up to 5 concurrent positions
+        self.max_trades_per_cycle = int(os.getenv("FUTURES_MAX_TRADES_PER_CYCLE", "3"))  # Allow up to 3 trades per cycle
+
+        # Multi-platform support
+        self.available_platforms = ['binance', 'bybit']
+        self.current_platform = os.getenv("TB_FUTURES_PLATFORM", "binance")
+        self.platform_switch_cooldown = 300  # 5 minutes between platform switches
+        self.last_platform_switch = 0
+
+        # Per-platform capital tracking
+        self.platform_capital = {
+            'binance': float(os.getenv("BINANCE_PAPER_CAPITAL", "15000")),
+            'bybit': float(os.getenv("BYBIT_PAPER_CAPITAL", "100000"))
+        }
 
         # State tracking
         self.daily_pnl = 0.0
@@ -62,11 +76,11 @@ class HighRiskFuturesAgent:
         self.positions = {}
         self.trade_log = []
 
-        # Strategy parameters
-        self.momentum_window = 12  # hours
-        self.volatility_window = 24  # hours
-        self.min_momentum_threshold = 0.02  # 2% momentum
-        self.max_volatility_threshold = 0.08  # 8% max volatility
+        # Strategy parameters - More aggressive for frequent trading
+        self.momentum_window = 6  # hours (reduced for faster signals)
+        self.volatility_window = 12  # hours (reduced for more responsive)
+        self.min_momentum_threshold = 0.008  # 0.8% momentum (reduced for more signals)
+        self.max_volatility_threshold = 0.12  # 12% max volatility (increased for more opportunities)
 
         # New: Market regime and correlation tracking
         self.market_regime = 'unknown'
@@ -84,12 +98,83 @@ class HighRiskFuturesAgent:
         self.discord_webhook = os.getenv("DISCORD_TRADER_WEBHOOK_URL", "") or os.getenv("DISCORD_WEBHOOK_URL", "")
 
         logger.info(f"🚀 {self.name} initialized")
-        logger.info(f"💰 Capital: ${self.capital}")
+        logger.info(f"💰 Capital: Binance=${self.platform_capital['binance']}, Bybit=${self.platform_capital['bybit']}")
         logger.info(f"⚡ Max Leverage: {self.max_leverage}x")
         logger.info(f"🎯 Risk per Trade: {self.risk_per_trade*100}%")
-        logger.info(f"📊 Symbols: {', '.join(self.symbols)}")
+        logger.info(f"📊 Symbols: {', '.join(self.symbols)} ({len(self.symbols)} total)")
+        logger.info(f"📈 Max Positions: {self.max_positions}")
+        logger.info(f"🔄 Max Trades per Cycle: {self.max_trades_per_cycle}")
+        logger.info(f"🏛️ Platforms: {', '.join(self.available_platforms)}")
+        logger.info(f"🎯 Current Platform: {self.current_platform}")
+        logger.info(f"📊 Momentum Window: {self.momentum_window}h")
+        logger.info(f"📊 Min Momentum Threshold: {self.min_momentum_threshold*100:.1f}%")
+        logger.info(f"📊 Max Volatility Threshold: {self.max_volatility_threshold*100:.1f}%")
         logger.info(f"📢 Notifications: {'Enabled' if self.enable_notifications else 'Disabled'}")
         logger.info(f"💓 Heartbeat: {'Enabled' if self.enable_heartbeat else 'Disabled'} (every {self.heartbeat_every_n} runs)")
+
+    def switch_platform(self, platform_name: str) -> bool:
+        """Switch to a different trading platform"""
+        if platform_name not in self.available_platforms:
+            logger.warning(f"⚠️ Platform {platform_name} not available")
+            return False
+
+        # Check cooldown
+        current_time = time.time()
+        if current_time - self.last_platform_switch < self.platform_switch_cooldown:
+            logger.info(f"⏳ Platform switch cooldown active, waiting...")
+            return False
+
+        # Switch platform
+        if futures_integration.switch_platform(platform_name):
+            self.current_platform = platform_name
+            self.last_platform_switch = current_time
+            logger.info(f"🔄 Switched to {platform_name} platform")
+            return True
+
+        return False
+
+    def get_current_platform_capital(self) -> float:
+        """Get capital for current platform"""
+        return self.platform_capital.get(self.current_platform, self.capital)
+
+    def should_switch_platform(self) -> Optional[str]:
+        """Determine if we should switch platforms based on availability and limits"""
+        try:
+            # Check if current platform has issues
+            status = get_futures_status()
+            if 'error' in status:
+                logger.warning(f"⚠️ Current platform {self.current_platform} has issues, checking alternatives...")
+
+                # Try alternative platforms
+                for platform in self.available_platforms:
+                    if platform != self.current_platform:
+                        # Check if alternative platform is available
+                        if self.switch_platform(platform):
+                            return platform
+
+            # Check if we need to switch based on trade size limits
+            platform_config = futures_integration.get_platform_config(self.current_platform)
+            max_trade_size = platform_config.get('max_trade_size', float('inf'))
+
+            # If current capital exceeds platform limits, switch to platform with higher limits
+            current_capital = self.get_current_platform_capital()
+            if current_capital > max_trade_size * 10:  # If capital is much larger than trade size
+                for platform in self.available_platforms:
+                    if platform != self.current_platform:
+                        alt_config = futures_integration.get_platform_config(platform)
+                        alt_max_size = alt_config.get('max_trade_size', 0)
+                        alt_capital = self.platform_capital.get(platform, 0)
+
+                        if alt_max_size > max_trade_size and alt_capital >= current_capital:
+                            logger.info(f"💰 Switching to {platform} for larger trade sizes")
+                            if self.switch_platform(platform):
+                                return platform
+
+            return None
+
+        except Exception as e:
+            logger.warning(f"Error checking platform switch: {e}")
+            return None
 
     def is_market_open(self) -> bool:
         """Check if futures markets are open (crypto markets are 24/7)"""
@@ -267,38 +352,31 @@ class HighRiskFuturesAgent:
         for existing_symbol in self.positions.keys():
             if existing_symbol in self.correlation_matrix and symbol in self.correlation_matrix[existing_symbol]:
                 correlation = abs(self.correlation_matrix[existing_symbol][symbol])
-                if correlation > 0.7:  # High correlation threshold
+                if correlation > 0.85:  # Higher correlation threshold (reduced from 0.7)
                     logger.info(f"⚠️ Skipping {symbol} due to high correlation ({correlation:.2f}) with {existing_symbol}")
                     return False
 
         return True
 
     def calculate_dynamic_leverage(self, symbol: str, volatility: float) -> int:
-        """Calculate dynamic leverage based on volatility"""
+        """Calculate dynamic leverage based on volatility and market regime"""
         try:
-            # Base leverage
-            base_leverage = self.max_leverage
+            # Get platform-specific max leverage
+            platform_config = futures_integration.get_platform_config(self.current_platform)
+            max_platform_leverage = platform_config.get('max_leverage', self.max_leverage)
 
-            # Adjust based on volatility
-            if volatility > 0.06:  # High volatility
-                adjusted_leverage = max(1, int(base_leverage * 0.6))  # Reduce to 60%
-            elif volatility > 0.04:  # Medium volatility
-                adjusted_leverage = max(1, int(base_leverage * 0.8))  # Reduce to 80%
-            else:  # Low volatility
-                adjusted_leverage = base_leverage  # Use full leverage
+            # Use smart leverage calculation from futures integration
+            market_regime = self.detect_market_regime(symbol)
+            smart_leverage = futures_integration.calculate_smart_leverage(
+                symbol, max_platform_leverage, volatility, market_regime
+            )
 
-            # Adjust based on market regime
-            regime = self.detect_market_regime(symbol)
-            if regime == 'ranging':
-                adjusted_leverage = max(1, int(adjusted_leverage * 0.7))  # Reduce in ranging markets
-            elif regime == 'trending':
-                adjusted_leverage = min(self.max_leverage, int(adjusted_leverage * 1.2))  # Increase in trending markets
-
-            return min(adjusted_leverage, self.max_leverage)
+            logger.info(f"🎯 Smart leverage for {symbol}: {smart_leverage}x (vol: {volatility:.4f}, regime: {market_regime})")
+            return smart_leverage
 
         except Exception as e:
             logger.warning(f"Error calculating dynamic leverage for {symbol}: {e}")
-            return self.max_leverage
+            return min(self.max_leverage, max_platform_leverage)
 
     def calculate_momentum_signal(self, symbol: str) -> Dict:
         """Calculate momentum-based trading signal"""
@@ -353,9 +431,9 @@ class HighRiskFuturesAgent:
             logger.warning(f"🚫 Daily loss limit reached: ${self.daily_pnl:.2f}")
             return False
 
-        # Check if we already have a position in this symbol
-        if symbol in self.positions:
-            logger.info(f"📊 Already have position in {symbol}")
+        # Check maximum positions limit
+        if len(self.positions) >= self.max_positions:
+            logger.info(f"📊 Maximum positions reached ({self.max_positions}), skipping {symbol}")
             return False
 
         # Check signal strength
@@ -373,14 +451,22 @@ class HighRiskFuturesAgent:
         return True
 
     def execute_trade(self, symbol: str, signal: Dict) -> bool:
-        """Execute a futures trade"""
+        """Execute a futures trade with platform switching support"""
         try:
+            # Check if we should switch platforms
+            switch_platform = self.should_switch_platform()
+            if switch_platform:
+                logger.info(f"🔄 Switching to {switch_platform} for better trading conditions")
+
             side = signal['signal']
 
-            # Calculate position size
+            # Use platform-specific capital for position sizing
+            platform_capital = self.get_current_platform_capital()
+
+            # Calculate position size with platform-specific limits
             pos_info = calculate_futures_position(
                 symbol,
-                self.capital,
+                platform_capital,
                 self.risk_per_trade
             )
 
@@ -388,11 +474,13 @@ class HighRiskFuturesAgent:
                 logger.warning(f"❌ Position calculation failed: {pos_info['error']}")
                 return False
 
-            # Apply leverage limits with dynamic adjustment
+            # Apply smart leverage calculation
             volatility = signal.get('volatility', 0.05)
-            dynamic_leverage = self.calculate_dynamic_leverage(symbol, volatility)
-            leverage = min(pos_info['leverage_used'], dynamic_leverage)
-            pos_info['leverage_used'] = leverage
+            market_regime = self.detect_market_regime(symbol)
+            smart_leverage = futures_integration.calculate_smart_leverage(
+                symbol, pos_info['leverage_used'], volatility, market_regime
+            )
+            pos_info['leverage_used'] = smart_leverage
 
             # Execute trade
             trade_result = execute_futures_trade(symbol, side, pos_info)
@@ -406,7 +494,8 @@ class HighRiskFuturesAgent:
                     'side': side,
                     'entry_price': float(entry_price),
                     'quantity': float(quantity),
-                    'leverage': leverage,
+                    'leverage': smart_leverage,
+                    'platform': self.current_platform,
                     'timestamp': datetime.now().isoformat(),
                     'signal': signal,
                     'highest_price': float(entry_price),  # For trailing stops
@@ -422,7 +511,8 @@ class HighRiskFuturesAgent:
                     'side': side,
                     'quantity': float(quantity),
                     'price': float(entry_price),
-                    'leverage': leverage,
+                    'leverage': smart_leverage,
+                    'platform': self.current_platform,
                     'order_id': trade_result['order_id'],
                     'signal_strength': signal['strength'],
                     'reason': signal['reason']
@@ -431,7 +521,7 @@ class HighRiskFuturesAgent:
 
                 self.trades_today += 1
 
-                logger.info(f"✅ {side.upper()} {symbol} x{leverage} @ ${entry_price:.2f}")
+                logger.info(f"✅ {side.upper()} {symbol} x{smart_leverage} @ ${entry_price:.2f} on {self.current_platform}")
 
                 # Send trade notification
                 self.notify("trade", {
@@ -439,7 +529,8 @@ class HighRiskFuturesAgent:
                     "action": side.upper(),
                     "price": entry_price,
                     "qty": quantity,
-                    "leverage": leverage,
+                    "leverage": smart_leverage,
+                    "platform": self.current_platform,
                     "status": "executed",
                     "reason": signal['reason']
                 })
@@ -633,6 +724,9 @@ class HighRiskFuturesAgent:
         return {
             'name': self.name,
             'capital': self.capital,
+            'platform_capital': self.platform_capital,
+            'current_platform': self.current_platform,
+            'available_platforms': self.available_platforms,
             'daily_pnl': self.daily_pnl,
             'trades_today': self.trades_today,
             'open_positions': len(self.positions),
@@ -675,9 +769,14 @@ class HighRiskFuturesAgent:
         self.check_positions()
 
         # Look for new trades
+        trades_this_cycle = 0
         for symbol in self.symbols:
             if symbol in self.positions:
                 continue  # Skip if we already have position
+
+            if trades_this_cycle >= self.max_trades_per_cycle:
+                logger.info(f"📊 Maximum trades per cycle reached ({self.max_trades_per_cycle}), stopping for this cycle")
+                break
 
             signal = self.calculate_momentum_signal(symbol)
 
@@ -686,14 +785,15 @@ class HighRiskFuturesAgent:
                 regime = self.detect_market_regime(symbol)
                 logger.info(f"🎯 Signal detected for {symbol}: {signal['signal']} ({signal['strength']:.4f})")
                 logger.info(f"📊 Market regime: {regime} | Volatility: {signal.get('volatility', 0):.4f}")
-                self.execute_trade(symbol, signal)
-
-                # Limit to one trade per cycle
-                break
+                if self.execute_trade(symbol, signal):
+                    trades_this_cycle += 1
+                    logger.info(f"✅ Trade {trades_this_cycle}/{self.max_trades_per_cycle} executed this cycle")
 
         # Log status
         status = self.get_status()
         logger.info(f"📊 Status: ${status['daily_pnl']:.2f} P&L | {status['open_positions']} positions | {status['trades_today']} trades today")
+        logger.info(f"🏛️ Platform: {status['current_platform']} | Capital: ${self.get_current_platform_capital():.0f}")
+        logger.info(f"🌍 Market Regime: {status['market_regime']} | Win Rate: {status['win_rate']:.1%}")
 
     def update_market_context(self):
         """Update market regime and correlation data"""
@@ -712,7 +812,7 @@ class HighRiskFuturesAgent:
         except Exception as e:
             logger.warning(f"Error updating market context: {e}")
 
-    def run_continuous_sync(self, interval_seconds: int = 300):
+    def run_continuous_sync(self, interval_seconds: int = 120):
         """Run continuous trading loop synchronously (for nohup compatibility)"""
         logger.info(f"🚀 Starting continuous futures trading (sync mode, interval: {interval_seconds}s)")
 
@@ -755,7 +855,10 @@ def main():
     # Show final status
     print("\n📊 Final Status:")
     status = agent.get_status()
-    print(f"💰 Daily P&L: ${status['daily_pnl']:.2f}")
+    print(f"💰 Total Capital: ${status['capital']:.0f}")
+    print(f"🏛️ Current Platform: {status['current_platform']}")
+    print(f"💰 Platform Capital: Binance=${agent.platform_capital['binance']:.0f}, Bybit=${agent.platform_capital['bybit']:.0f}")
+    print(f"📊 Daily P&L: ${status['daily_pnl']:.2f}")
     print(f"📊 Trades Today: {status['trades_today']}")
     print(f"📈 Open Positions: {status['open_positions']}")
     print(f"🎯 Win Rate: {status['win_rate']:.1%}")
@@ -763,11 +866,14 @@ def main():
     print(f"🌍 Market Regime: {status['market_regime']}")
     print(f"📊 Correlation Pairs: {status['correlation_pairs']}")
 
-    print("\n✅ Enhanced High-Risk Futures Agent Ready!")
+    print("\n✅ Enhanced Multi-Platform High-Risk Futures Agent Ready!")
     print("🚀 New Features:")
+    print("  • Multi-platform support (Binance & Bybit)")
+    print("  • Per-platform trading limits ($100 Binance, $500 Bybit)")
+    print("  • Smart leverage calculation based on risk/reward")
+    print("  • Platform switching for optimal trading conditions")
     print("  • Market regime detection (trending/ranging)")
     print("  • Correlation filtering to avoid correlated positions")
-    print("  • Dynamic leverage adjustment based on volatility")
     print("  • Advanced exit timing with trailing stops")
     print("  • Profit targets and time-based exits")
     print("\n💡 Run with: python3 high_risk_futures_agent.py --continuous")
@@ -777,7 +883,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='High-Risk Futures Agent')
     parser.add_argument('--continuous', action='store_true', help='Run continuous trading loop')
-    parser.add_argument('--interval', type=int, default=300, help='Trading cycle interval in seconds')
+    parser.add_argument('--interval', type=int, default=120, help='Trading cycle interval in seconds (default: 120)')
 
     args = parser.parse_args()
 

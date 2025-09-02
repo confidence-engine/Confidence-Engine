@@ -135,10 +135,15 @@ class BinanceFuturesPlatform:
         self.base_url = "https://testnet.binancefuture.com"
         self.api_key = os.getenv("BINANCE_TESTNET_API_KEY", "")
         self.secret_key = os.getenv("BINANCE_TESTNET_SECRET_KEY", "")
+        # Per-platform limits from environment
+        self.max_trade_size = float(os.getenv("BINANCE_MAX_TRADE_SIZE", "100"))  # $100 default
+        self.max_leverage = int(os.getenv("BINANCE_MAX_LEVERAGE", "25"))  # 25x default
+        self.paper_capital = float(os.getenv("BINANCE_PAPER_CAPITAL", "15000"))  # 15k USDT
         self.features = [
             'futures', 'perpetuals', 'linear', 'inverse',
             'leverage_up_to_125x', 'multiple_timeframes',
-            'high_frequency_data', 'paper_trading'
+            'high_frequency_data', 'paper_trading',
+            'per_platform_limits', 'smart_leverage'
         ]
 
     def is_available(self) -> bool:
@@ -256,22 +261,55 @@ class BinanceFuturesPlatform:
 
     def place_futures_order(self, symbol: str, side: str, quantity: float, price: Optional[float] = None,
                            order_type: str = 'market', leverage: int = 1) -> Dict:
-        """Place futures order (paper trading simulation)"""
-        # For demo purposes, simulate order placement
-        order_id = f"demo_{int(time.time())}_{symbol}"
+        """Place futures order (paper trading simulation) with per-platform limits"""
+        try:
+            # Enforce per-platform leverage cap
+            leverage = min(leverage, self.max_leverage)
 
-        return {
-            'order_id': order_id,
-            'symbol': symbol,
-            'side': side,
-            'quantity': quantity,
-            'price': price,
-            'type': order_type,
-            'leverage': leverage,
-            'status': 'filled',  # Simulate immediate fill
-            'platform': 'binance_futures_testnet',
-            'mode': 'paper_trading'
-        }
+            # Get current price for trade size validation
+            current_price = None
+            if price:
+                current_price = price
+            else:
+                # Try to get current price
+                data = self.get_futures_data(symbol, '1h', 1)
+                if data is not None and len(data) > 0:
+                    current_price = data['close'].iloc[-1]
+
+            # Calculate trade value and enforce size limits
+            if current_price:
+                trade_value = quantity * current_price / leverage
+                if trade_value > self.max_trade_size:
+                    # Scale down quantity to respect max trade size
+                    max_quantity = (self.max_trade_size * leverage) / current_price
+                    quantity = min(quantity, max_quantity)
+                    logger.info(f"📏 Scaled down {symbol} trade to ${self.max_trade_size} limit: {quantity:.4f}")
+
+            # For demo purposes, simulate order placement
+            order_id = f"demo_binance_{int(time.time())}_{symbol}"
+
+            return {
+                'order_id': order_id,
+                'symbol': symbol,
+                'side': side,
+                'quantity': quantity,
+                'price': price or current_price,
+                'type': order_type,
+                'leverage': leverage,
+                'status': 'filled',  # Simulate immediate fill
+                'platform': 'binance_futures_testnet',
+                'mode': 'paper_trading',
+                'max_trade_size': self.max_trade_size,
+                'max_leverage': self.max_leverage,
+                'paper_capital': self.paper_capital
+            }
+
+        except Exception as e:
+            logger.warning(f"Error in Binance order placement: {e}")
+            return {
+                'error': str(e),
+                'platform': 'binance_futures_testnet'
+            }
 
     def get_positions(self) -> List[Dict]:
         """Get current positions (simulated for demo)"""
@@ -280,12 +318,14 @@ class BinanceFuturesPlatform:
     def get_account_balance(self) -> Dict:
         """Get account balance (simulated)"""
         return {
-            'total_balance': 100000.0,  # $100k demo balance
-            'available_balance': 95000.0,
-            'used_margin': 5000.0,
+            'total_balance': self.paper_capital,  # Use platform-specific paper capital
+            'available_balance': self.paper_capital * 0.95,  # 95% available
+            'used_margin': self.paper_capital * 0.05,  # 5% used
             'unrealized_pnl': 0.0,
             'platform': 'binance_futures_testnet',
-            'mode': 'paper_trading'
+            'mode': 'paper_trading',
+            'max_trade_size': self.max_trade_size,
+            'max_leverage': self.max_leverage
         }
 
 class BybitFuturesPlatform:
@@ -297,10 +337,15 @@ class BybitFuturesPlatform:
         self.base_url = "https://api-testnet.bybit.com"
         self.api_key = os.getenv("BYBIT_TESTNET_API_KEY", "")
         self.secret_key = os.getenv("BYBIT_TESTNET_SECRET_KEY", "")
+        # Per-platform limits from environment
+        self.max_trade_size = float(os.getenv("BYBIT_MAX_TRADE_SIZE", "500"))  # $500 default
+        self.max_leverage = int(os.getenv("BYBIT_MAX_LEVERAGE", "100"))  # 100x default
+        self.paper_capital = float(os.getenv("BYBIT_PAPER_CAPITAL", "100000"))  # 100k USDT
         self.features = [
             'perpetuals', 'linear', 'inverse',
             'leverage_up_to_100x', 'multiple_timeframes',
-            'high_frequency_data', 'paper_trading'
+            'high_frequency_data', 'paper_trading',
+            'per_platform_limits', 'smart_leverage'
         ]
 
     def is_available(self) -> bool:
@@ -364,21 +409,55 @@ class BybitFuturesPlatform:
 
     def place_futures_order(self, symbol: str, side: str, quantity: float, price: Optional[float] = None,
                            order_type: str = 'market', leverage: int = 1) -> Dict:
-        """Place futures order (paper trading simulation)"""
-        order_id = f"bybit_demo_{int(time.time())}_{symbol}"
+        """Place futures order (paper trading simulation) with per-platform limits"""
+        try:
+            # Enforce per-platform leverage cap
+            leverage = min(leverage, self.max_leverage)
 
-        return {
-            'order_id': order_id,
-            'symbol': symbol,
-            'side': side,
-            'quantity': quantity,
-            'price': price,
-            'type': order_type,
-            'leverage': leverage,
-            'status': 'filled',
-            'platform': 'bybit_futures_demo',
-            'mode': 'paper_trading'
-        }
+            # Get current price for trade size validation
+            current_price = None
+            if price:
+                current_price = price
+            else:
+                # Try to get current price
+                data = self.get_futures_data(symbol, '1h', 1)
+                if data is not None and len(data) > 0:
+                    current_price = data['close'].iloc[-1]
+
+            # Calculate trade value and enforce size limits
+            if current_price:
+                trade_value = quantity * current_price / leverage
+                if trade_value > self.max_trade_size:
+                    # Scale down quantity to respect max trade size
+                    max_quantity = (self.max_trade_size * leverage) / current_price
+                    quantity = min(quantity, max_quantity)
+                    logger.info(f"📏 Scaled down {symbol} trade to ${self.max_trade_size} limit: {quantity:.4f}")
+
+            # For demo purposes, simulate order placement
+            order_id = f"bybit_demo_{int(time.time())}_{symbol}"
+
+            return {
+                'order_id': order_id,
+                'symbol': symbol,
+                'side': side,
+                'quantity': quantity,
+                'price': price or current_price,
+                'type': order_type,
+                'leverage': leverage,
+                'status': 'filled',
+                'platform': 'bybit_futures_demo',
+                'mode': 'paper_trading',
+                'max_trade_size': self.max_trade_size,
+                'max_leverage': self.max_leverage,
+                'paper_capital': self.paper_capital
+            }
+
+        except Exception as e:
+            logger.warning(f"Error in Bybit order placement: {e}")
+            return {
+                'error': str(e),
+                'platform': 'bybit_futures_demo'
+            }
 
     def get_positions(self) -> List[Dict]:
         """Get current positions (simulated)"""
@@ -387,12 +466,14 @@ class BybitFuturesPlatform:
     def get_account_balance(self) -> Dict:
         """Get account balance (simulated)"""
         return {
-            'total_balance': 100000.0,
-            'available_balance': 95000.0,
-            'used_margin': 5000.0,
+            'total_balance': self.paper_capital,  # Use platform-specific paper capital
+            'available_balance': self.paper_capital * 0.95,  # 95% available
+            'used_margin': self.paper_capital * 0.05,  # 5% used
             'unrealized_pnl': 0.0,
             'platform': 'bybit_futures_demo',
-            'mode': 'paper_trading'
+            'mode': 'paper_trading',
+            'max_trade_size': self.max_trade_size,
+            'max_leverage': self.max_leverage
         }
 
 class BitMEXFuturesPlatform:

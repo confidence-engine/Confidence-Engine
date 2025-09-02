@@ -41,8 +41,80 @@ class FuturesIntegration:
         self.leverage_limit = int(os.getenv("TB_MAX_LEVERAGE", "10"))
         self.paper_trading = os.getenv("TB_PAPER_TRADING", "1") == "1"
 
+        # Per-platform configuration
+        self.platform_configs = {
+            'binance': {
+                'max_trade_size': float(os.getenv("BINANCE_MAX_TRADE_SIZE", "100")),
+                'max_leverage': int(os.getenv("BINANCE_MAX_LEVERAGE", "25")),
+                'paper_capital': float(os.getenv("BINANCE_PAPER_CAPITAL", "15000"))
+            },
+            'bybit': {
+                'max_trade_size': float(os.getenv("BYBIT_MAX_TRADE_SIZE", "500")),
+                'max_leverage': int(os.getenv("BYBIT_MAX_LEVERAGE", "100")),
+                'paper_capital': float(os.getenv("BYBIT_PAPER_CAPITAL", "100000"))
+            }
+        }
+
+        # Smart leverage configuration
+        self.leverage_risk_multiplier = float(os.getenv("LEVERAGE_RISK_MULTIPLIER", "1.5"))
+        self.leverage_volatility_threshold = float(os.getenv("LEVERAGE_VOLATILITY_THRESHOLD", "0.05"))
+        self.leverage_market_regime_multiplier = float(os.getenv("LEVERAGE_MARKET_REGIME_MULTIPLIER", "1.2"))
+
         if self.futures_enabled:
             self._initialize_futures()
+
+    def switch_platform(self, platform_name: str) -> bool:
+        """Switch to a different futures platform"""
+        if platform_name in get_futures_platforms():
+            switch_futures_platform(platform_name)
+            self.preferred_platform = platform_name
+            logger.info(f"🔄 Switched to {platform_name} platform")
+            return True
+        logger.warning(f"⚠️ Platform {platform_name} not available")
+        return False
+
+    def get_platform_config(self, platform_name: str = None) -> Dict:
+        """Get configuration for a specific platform"""
+        name = platform_name or self.preferred_platform
+        return self.platform_configs.get(name, {})
+
+    def calculate_smart_leverage(self, symbol: str, base_leverage: int, volatility: float,
+                                market_regime: str = 'unknown') -> int:
+        """Calculate smart leverage based on risk/reward analysis"""
+        try:
+            # Start with platform-specific max leverage
+            platform_config = self.get_platform_config()
+            max_platform_leverage = platform_config.get('max_leverage', self.leverage_limit)
+
+            # Base leverage (respect platform limits)
+            smart_leverage = min(base_leverage, max_platform_leverage)
+
+            # Adjust based on volatility
+            if volatility > self.leverage_volatility_threshold:
+                # Reduce leverage in high volatility
+                volatility_reduction = min(0.5, (volatility - self.leverage_volatility_threshold) * 2)
+                smart_leverage = int(smart_leverage * (1 - volatility_reduction))
+            else:
+                # Can use slightly higher leverage in low volatility
+                smart_leverage = int(smart_leverage * 1.1)
+
+            # Adjust based on market regime
+            if market_regime == 'trending':
+                # Higher leverage in trending markets
+                smart_leverage = int(smart_leverage * self.leverage_market_regime_multiplier)
+            elif market_regime == 'ranging':
+                # Lower leverage in ranging markets
+                smart_leverage = int(smart_leverage * 0.8)
+
+            # Apply risk multiplier
+            smart_leverage = int(smart_leverage * self.leverage_risk_multiplier)
+
+            # Ensure minimum leverage of 1 and respect platform limits
+            return max(1, min(smart_leverage, max_platform_leverage))
+
+        except Exception as e:
+            logger.warning(f"Error calculating smart leverage: {e}")
+            return min(base_leverage, max_platform_leverage)
 
     def _initialize_futures(self):
         """Initialize futures trading capabilities"""
@@ -86,12 +158,17 @@ class FuturesIntegration:
             return None
 
     def calculate_futures_position_size(self, symbol: str, capital: float, risk_pct: float = 0.02,
-                                      volatility_multiplier: float = 1.0) -> Dict:
-        """Calculate position size for futures trading"""
+                                      volatility_multiplier: float = 1.0, market_regime: str = 'unknown') -> Dict:
+        """Calculate position size for futures trading with platform-specific limits"""
         if not self.is_futures_available():
             return {'error': 'Futures not available'}
 
         try:
+            # Get platform-specific configuration
+            platform_config = self.get_platform_config()
+            platform_capital = platform_config.get('paper_capital', capital)
+            max_trade_size = platform_config.get('max_trade_size', float('inf'))
+
             # Get recent data for volatility calculation
             data = self.get_futures_bars(symbol, '1h', 100)
             if data is None or len(data) < 20:
@@ -105,24 +182,38 @@ class FuturesIntegration:
             kelly_pct = (returns.mean() / (volatility ** 2)) * volatility_multiplier
 
             # Risk-adjusted position size
-            risk_amount = capital * risk_pct
-            position_value = risk_amount / volatility
+            risk_amount = platform_capital * risk_pct
 
-            # Apply leverage limits
-            max_leverage = min(self.leverage_limit, 10)  # Conservative default
-            leveraged_position = position_value * max_leverage
+            # Calculate base position value
+            position_value = risk_amount / volatility if volatility > 0 else risk_amount
 
-            # Ensure we don't exceed capital
-            final_position = min(leveraged_position, capital * max_leverage)
+            # Apply platform-specific leverage limits
+            max_platform_leverage = platform_config.get('max_leverage', self.leverage_limit)
+            leveraged_position = position_value * max_platform_leverage
+
+            # Ensure we don't exceed platform capital
+            final_position = min(leveraged_position, platform_capital * max_platform_leverage)
+
+            # Apply trade size limits
+            if max_trade_size < float('inf'):
+                # Get current price to calculate trade value
+                current_price = data['close'].iloc[-1]
+                max_position_by_size = max_trade_size * max_platform_leverage / current_price
+                final_position = min(final_position, max_position_by_size)
+
+            # Calculate smart leverage
+            smart_leverage = self.calculate_smart_leverage(symbol, max_platform_leverage, volatility, market_regime)
 
             return {
                 'symbol': symbol,
                 'position_value': final_position,
-                'leverage_used': min(max_leverage, final_position / position_value if position_value > 0 else 1),
+                'leverage_used': smart_leverage,
                 'risk_amount': risk_amount,
                 'volatility': volatility,
                 'kelly_pct': kelly_pct,
                 'platform': self.preferred_platform,
+                'platform_capital': platform_capital,
+                'max_trade_size': max_trade_size,
                 'mode': 'paper_trading' if self.paper_trading else 'live'
             }
 
