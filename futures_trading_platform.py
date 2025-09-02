@@ -36,12 +36,10 @@ class FuturesTradingPlatform:
         self._initialize_platforms()
 
     def _initialize_platforms(self):
-        """Initialize all available futures platforms"""
+        """Initialize only Bybit (primary) and Binance (fallback) platforms - both on testnet"""
         platforms = [
-            BinanceFuturesPlatform(),
-            BybitFuturesPlatform(),
-            BitMEXFuturesPlatform(),
-            DeribitFuturesPlatform(),
+            BybitFuturesPlatform(),  # Primary: Testnet Bybit account
+            BinanceFuturesPlatform(),  # Fallback: Binance testnet
         ]
 
         for platform in platforms:
@@ -50,9 +48,14 @@ class FuturesTradingPlatform:
                 logger.info(f"✅ {platform.name} initialized")
 
         if self.platforms:
-            # Set default to Binance (most comprehensive)
-            self.active_platform = list(self.platforms.keys())[0]
-            logger.info(f"🎯 Active platform: {self.active_platform}")
+            # Set Bybit as default active platform (testnet trading)
+            if "Bybit Futures" in self.platforms:
+                self.active_platform = "Bybit Futures"
+                logger.info(f"🎯 Active platform: {self.active_platform} (TESTNET TRADING)")
+            else:
+                # Fallback to first available platform
+                self.active_platform = list(self.platforms.keys())[0]
+                logger.info(f"🎯 Active platform: {self.active_platform} (fallback)")
 
     def switch_platform(self, platform_name: str) -> bool:
         """Switch active trading platform"""
@@ -98,12 +101,81 @@ class FuturesTradingPlatform:
 
     def place_futures_order(self, symbol: str, side: str, quantity: float, price: Optional[float] = None,
                            order_type: str = 'market', leverage: int = 1) -> Dict:
-        """Place futures order (paper trading only)"""
+        """Place futures order with dynamic margin/leverage calculation"""
         if not self.active_platform:
             return {'error': 'No active platform'}
 
         platform = self.platforms[self.active_platform]
+
+        # Calculate dynamic margin and leverage based on risk-reward
+        dynamic_params = self._calculate_dynamic_margin_leverage(symbol, side, quantity, price, leverage)
+        quantity = dynamic_params['quantity']
+        leverage = dynamic_params['leverage']
+        margin_used = dynamic_params['margin_used']
+
+        logger.info(f"📊 Dynamic calculation for {symbol}: Margin=${margin_used:.2f}, Leverage={leverage}x, Qty={quantity:.4f}")
+
         return platform.place_futures_order(symbol, side, quantity, price, order_type, leverage)
+
+    def _calculate_dynamic_margin_leverage(self, symbol: str, side: str, quantity: float,
+                                         price: Optional[float] = None, requested_leverage: int = 1) -> Dict:
+        """Calculate dynamic margin and leverage based on risk-reward ratio"""
+        try:
+            # Get platform-specific caps
+            platform = self.platforms[self.active_platform]
+            MAX_MARGIN_PER_TRADE = getattr(platform, 'max_margin_per_trade', 1000.0)  # $1000 default
+            MAX_LEVERAGE_PER_TRADE = getattr(platform, 'max_leverage_per_trade', 100)  # 100x default
+
+            # Get current price if not provided
+            if price is None:
+                data = self.get_futures_data(symbol, '1h', 1)
+                if data is not None and len(data) > 0:
+                    price = data['close'].iloc[-1]
+                else:
+                    price = 50000  # Fallback BTC price
+
+            # Calculate base position value
+            position_value = quantity * price
+
+            # Apply leverage cap
+            leverage = min(requested_leverage, MAX_LEVERAGE_PER_TRADE)
+
+            # Calculate required margin
+            margin_required = position_value / leverage
+
+            # Apply margin cap - if required margin exceeds cap, reduce position size
+            if margin_required > MAX_MARGIN_PER_TRADE:
+                # Scale down the position to fit within margin cap
+                max_position_value = MAX_MARGIN_PER_TRADE * leverage
+                quantity = max_position_value / price
+                margin_required = MAX_MARGIN_PER_TRADE
+                logger.info(f"📏 Scaled down {symbol} position to fit ${MAX_MARGIN_PER_TRADE} margin cap")
+
+            # Ensure minimum position size (0.001 BTC or equivalent)
+            min_quantity = 0.001 if 'BTC' in symbol else 0.1
+            if quantity < min_quantity:
+                quantity = min_quantity
+                margin_required = (quantity * price) / leverage
+                logger.info(f"📏 Adjusted {symbol} to minimum quantity: {quantity}")
+
+            return {
+                'quantity': quantity,
+                'leverage': leverage,
+                'margin_used': margin_required,
+                'position_value': quantity * price,
+                'price': price
+            }
+
+        except Exception as e:
+            logger.warning(f"Error in dynamic calculation: {e}")
+            # Return safe defaults
+            return {
+                'quantity': min(quantity, 0.001),
+                'leverage': min(requested_leverage, 10),
+                'margin_used': 100.0,
+                'position_value': quantity * (price or 50000),
+                'price': price or 50000
+            }
 
     def get_positions(self) -> List[Dict]:
         """Get current positions across all platforms"""
@@ -135,15 +207,17 @@ class BinanceFuturesPlatform:
         self.base_url = "https://testnet.binancefuture.com"
         self.api_key = os.getenv("BINANCE_TESTNET_API_KEY", "")
         self.secret_key = os.getenv("BINANCE_TESTNET_SECRET_KEY", "")
-        # Per-platform limits from environment
-        self.max_trade_size = float(os.getenv("BINANCE_MAX_TRADE_SIZE", "100"))  # $100 default
-        self.max_leverage = int(os.getenv("BINANCE_MAX_LEVERAGE", "25"))  # 25x default
-        self.paper_capital = float(os.getenv("BINANCE_PAPER_CAPITAL", "15000"))  # 15k USDT
+        # Dynamic margin and leverage caps as specified
+        self.max_margin_per_trade = float(os.getenv("BINANCE_MAX_MARGIN_PER_TRADE", "1000.0"))  # $1000 hard cap per trade
+        self.max_leverage_per_trade = int(os.getenv("BINANCE_MAX_LEVERAGE", "100"))  # 100x hard cap per trade
+        self.max_trade_size = float(os.getenv("BINANCE_MAX_TRADE_SIZE", "10000"))  # Platform limit
+        self.max_leverage = int(os.getenv("BINANCE_MAX_LEVERAGE", "100"))  # Platform limit
+        self.paper_capital = float(os.getenv("BINANCE_PAPER_CAPITAL", "15000"))  # Testnet capital
         self.features = [
             'futures', 'perpetuals', 'linear', 'inverse',
             'leverage_up_to_125x', 'multiple_timeframes',
             'high_frequency_data', 'paper_trading',
-            'per_platform_limits', 'smart_leverage'
+            'dynamic_margin_leverage', 'smart_risk_management'
         ]
 
     def is_available(self) -> bool:
@@ -261,47 +335,123 @@ class BinanceFuturesPlatform:
 
     def place_futures_order(self, symbol: str, side: str, quantity: float, price: Optional[float] = None,
                            order_type: str = 'market', leverage: int = 1) -> Dict:
-        """Place futures order (paper trading simulation) with per-platform limits"""
+        """Place REAL futures order on Binance testnet with dynamic margin/leverage"""
         try:
-            # Enforce per-platform leverage cap
-            leverage = min(leverage, self.max_leverage)
-
-            # Get current price for trade size validation
-            current_price = None
-            if price:
-                current_price = price
-            else:
-                # Try to get current price
+            # Get current price if not provided
+            current_price = price
+            if current_price is None:
                 data = self.get_futures_data(symbol, '1h', 1)
                 if data is not None and len(data) > 0:
                     current_price = data['close'].iloc[-1]
+                else:
+                    return {'error': f'Cannot get current price for {symbol}', 'platform': 'binance_futures_testnet'}
 
-            # Calculate trade value and enforce size limits
-            if current_price:
-                trade_value = quantity * current_price / leverage
-                if trade_value > self.max_trade_size:
-                    # Scale down quantity to respect max trade size
-                    max_quantity = (self.max_trade_size * leverage) / current_price
-                    quantity = min(quantity, max_quantity)
-                    logger.info(f"📏 Scaled down {symbol} trade to ${self.max_trade_size} limit: {quantity:.4f}")
+            # Validate API credentials
+            if not self.api_key or not self.secret_key:
+                return {'error': 'Missing Binance API credentials', 'platform': 'binance_futures_testnet'}
 
-            # For demo purposes, simulate order placement
-            order_id = f"demo_binance_{int(time.time())}_{symbol}"
-
-            return {
-                'order_id': order_id,
+            # Set leverage first
+            leverage_params = {
                 'symbol': symbol,
-                'side': side,
-                'quantity': quantity,
-                'price': price or current_price,
-                'type': order_type,
                 'leverage': leverage,
-                'status': 'filled',  # Simulate immediate fill
-                'platform': 'binance_futures_testnet',
-                'mode': 'paper_trading',
-                'max_trade_size': self.max_trade_size,
-                'max_leverage': self.max_leverage,
-                'paper_capital': self.paper_capital
+                'timestamp': int(time.time() * 1000),
+                'recvWindow': 5000
+            }
+            
+            leverage_query = urlencode(leverage_params)
+            leverage_signature = self._generate_signature(leverage_query)
+            leverage_params['signature'] = leverage_signature
+            
+            headers = {'X-MBX-APIKEY': self.api_key}
+            
+            # Set leverage
+            leverage_response = requests.post(
+                f'{self.base_url}/fapi/v1/leverage',
+                headers=headers,
+                data=leverage_params,
+                timeout=10
+            )
+            
+            if leverage_response.status_code != 200:
+                logger.warning(f"Leverage setting failed: {leverage_response.text}")
+
+            # Prepare order parameters with proper precision
+            # Different symbols have different quantity precision requirements
+            if 'BTC' in symbol or 'ETH' in symbol:
+                quantity_precision = 3  # 0.001 for BTC/ETH
+            elif 'USDT' in symbol:
+                quantity_precision = 1  # 0.1 for most USDT pairs
+            else:
+                quantity_precision = 0  # Whole numbers for others
+            
+            # Round quantity to appropriate precision
+            rounded_quantity = round(quantity, quantity_precision)
+            
+            order_params = {
+                'symbol': symbol,
+                'side': side.upper(),
+                'type': order_type.upper(),
+                'quantity': f'{rounded_quantity:.{quantity_precision}f}',
+                'timestamp': int(time.time() * 1000),
+                'recvWindow': 5000
+            }
+
+            # Add price for limit orders
+            if order_type.lower() == 'limit' and price:
+                order_params['price'] = f'{price:.2f}'
+                order_params['timeInForce'] = 'GTC'
+
+            # Create signature
+            order_query = urlencode(order_params)
+            order_signature = self._generate_signature(order_query)
+            order_params['signature'] = order_signature
+
+            # Place the order
+            order_response = requests.post(
+                f'{self.base_url}/fapi/v1/order',
+                headers=headers,
+                data=order_params,
+                timeout=10
+            )
+
+            if order_response.status_code == 200:
+                order_data = order_response.json()
+                
+                # Calculate margin used
+                margin_used = (quantity * current_price) / leverage
+                
+                return {
+                    'order_id': str(order_data.get('orderId', '')),
+                    'client_order_id': order_data.get('clientOrderId', ''),
+                    'symbol': symbol,
+                    'side': side,
+                    'quantity': quantity,
+                    'price': current_price,
+                    'type': order_type,
+                    'leverage': leverage,
+                    'status': order_data.get('status', 'NEW'),
+                    'platform': 'binance_futures_testnet',
+                    'mode': 'testnet_trading',
+                    'max_trade_size': self.max_trade_size,
+                    'max_leverage': self.max_leverage,
+                    'margin_used': margin_used,
+                    'order_time': order_data.get('updateTime', int(time.time() * 1000))
+                }
+            else:
+                error_data = order_response.json() if order_response.content else {}
+                error_msg = error_data.get('msg', f'HTTP {order_response.status_code}')
+                return {
+                    'error': f'Binance order failed: {error_msg}',
+                    'platform': 'binance_futures_testnet',
+                    'response_code': order_response.status_code,
+                    'response_text': order_response.text[:200]
+                }
+
+        except Exception as e:
+            logger.error(f"Error placing Binance testnet order: {e}")
+            return {
+                'error': f'Exception: {str(e)}',
+                'platform': 'binance_futures_testnet'
             }
 
         except Exception as e:
@@ -316,51 +466,170 @@ class BinanceFuturesPlatform:
         return []  # No real positions in demo
 
     def get_account_balance(self) -> Dict:
-        """Get account balance (simulated)"""
-        return {
-            'total_balance': self.paper_capital,  # Use platform-specific paper capital
-            'available_balance': self.paper_capital * 0.95,  # 95% available
-            'used_margin': self.paper_capital * 0.05,  # 5% used
-            'unrealized_pnl': 0.0,
-            'platform': 'binance_futures_testnet',
-            'mode': 'paper_trading',
-            'max_trade_size': self.max_trade_size,
-            'max_leverage': self.max_leverage
-        }
+        """Get REAL account balance from Binance testnet"""
+        try:
+            if not self.api_key or not self.secret_key:
+                # Fallback to paper capital if no API credentials
+                return {
+                    'total_balance': self.paper_capital,
+                    'available_balance': self.paper_capital * 0.95,
+                    'used_margin': self.paper_capital * 0.05,
+                    'unrealized_pnl': 0.0,
+                    'platform': 'binance_futures_testnet',
+                    'mode': 'paper_trading',
+                    'max_trade_size': self.max_trade_size,
+                    'max_leverage': self.max_leverage
+                }
+
+            # Real API call to get account information
+            import requests
+            import time
+            from urllib.parse import urlencode
+            
+            params = {
+                'timestamp': int(time.time() * 1000),
+                'recvWindow': 5000
+            }
+            
+            query_string = urlencode(params)
+            signature = self._generate_signature(query_string)
+            params['signature'] = signature
+            
+            headers = {'X-MBX-APIKEY': self.api_key}
+            
+            response = requests.get(
+                f'{self.base_url}/fapi/v2/account',
+                headers=headers,
+                params=params,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                total_balance = float(data.get('totalWalletBalance', 0))
+                available_balance = float(data.get('availableBalance', 0))
+                used_margin = float(data.get('totalInitialMargin', 0))
+                unrealized_pnl = float(data.get('totalUnrealizedProfit', 0))
+                
+                return {
+                    'total_balance': total_balance,
+                    'available_balance': available_balance,
+                    'used_margin': used_margin,
+                    'unrealized_pnl': unrealized_pnl,
+                    'platform': 'binance_futures_testnet',
+                    'mode': 'real_testnet_api',
+                    'max_trade_size': self.max_trade_size,
+                    'max_leverage': self.max_leverage
+                }
+            else:
+                logger.warning(f"Failed to get account balance: {response.text}")
+                # Fallback to paper capital
+                return {
+                    'total_balance': self.paper_capital,
+                    'available_balance': self.paper_capital * 0.95,
+                    'used_margin': self.paper_capital * 0.05,
+                    'unrealized_pnl': 0.0,
+                    'platform': 'binance_futures_testnet',
+                    'mode': 'fallback_paper',
+                    'max_trade_size': self.max_trade_size,
+                    'max_leverage': self.max_leverage
+                }
+                
+        except Exception as e:
+            logger.warning(f"Error fetching account balance: {e}")
+            # Fallback to paper capital
+            return {
+                'total_balance': self.paper_capital,
+                'available_balance': self.paper_capital * 0.95,
+                'used_margin': self.paper_capital * 0.05,
+                'unrealized_pnl': 0.0,
+                'platform': 'binance_futures_testnet',
+                'mode': 'error_fallback',
+                'max_trade_size': self.max_trade_size,
+                'max_leverage': self.max_leverage
+            }
 
 class BybitFuturesPlatform:
-    """Bybit Futures Demo Platform"""
+    """Bybit Futures Testnet Platform"""
 
     def __init__(self):
         self.name = "Bybit Futures"
         self.platform_type = "futures_perpetuals"
-        self.base_url = "https://api-testnet.bybit.com"
-        self.api_key = os.getenv("BYBIT_TESTNET_API_KEY", "")
-        self.secret_key = os.getenv("BYBIT_TESTNET_SECRET_KEY", "")
-        # Per-platform limits from environment
-        self.max_trade_size = float(os.getenv("BYBIT_MAX_TRADE_SIZE", "500"))  # $500 default
-        self.max_leverage = int(os.getenv("BYBIT_MAX_LEVERAGE", "100"))  # 100x default
-        self.paper_capital = float(os.getenv("BYBIT_PAPER_CAPITAL", "100000"))  # 100k USDT
+        self.base_url = "https://api-testnet.bybit.com"  # TESTNET API endpoint
+        self.api_key = os.getenv("BYBIT_TESTNET_API_KEY", "")  # Use testnet API key
+        self.secret_key = os.getenv("BYBIT_TESTNET_SECRET_KEY", "")  # Use testnet secret key
+        # Dynamic margin and leverage caps as specified
+        self.max_margin_per_trade = float(os.getenv("BYBIT_MAX_MARGIN_PER_TRADE", "1000.0"))  # $1000 hard cap per trade
+        self.max_leverage_per_trade = int(os.getenv("BYBIT_MAX_LEVERAGE", "100"))  # 100x hard cap per trade
+        self.max_trade_size = float(os.getenv("BYBIT_MAX_TRADE_SIZE", "10000"))  # Platform limit
+        self.max_leverage = int(os.getenv("BYBIT_MAX_LEVERAGE", "100"))  # Platform limit
+        self.paper_capital = float(os.getenv("BYBIT_PAPER_CAPITAL", "100000.00"))  # Testnet starting balance
         self.features = [
-            'perpetuals', 'linear', 'inverse',
+            'futures', 'perpetuals', 'linear', 'inverse',
             'leverage_up_to_100x', 'multiple_timeframes',
-            'high_frequency_data', 'paper_trading',
-            'per_platform_limits', 'smart_leverage'
+            'high_frequency_data', 'testnet_trading',
+            'dynamic_margin_leverage', 'smart_risk_management'
         ]
 
     def is_available(self) -> bool:
+        """Check if Bybit is available (with API key fallback)"""
+        # First check if API keys are configured
+        if self.api_key and self.secret_key:
+            return True  # If we have API keys, consider it available
+
+        # Fallback to connectivity check
         try:
             response = requests.get(f"{self.base_url}/v2/public/time", timeout=5)
             return response.status_code == 200
         except:
-            return False
+            return False  # Only return False if both API keys missing AND connectivity fails
 
-    def get_available_instruments(self) -> List[str]:
-        """Get available perpetual instruments"""
-        return ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'ADAUSDT', 'DOTUSDT']
+    def _make_request(self, method: str, endpoint: str, params: Dict = None) -> Optional[Dict]:
+        """Make authenticated request to Bybit"""
+        try:
+            url = f"{self.base_url}{endpoint}"
+
+            if params is None:
+                params = {}
+
+            # Add timestamp for authentication
+            timestamp = str(int(time.time() * 1000))
+            params['timestamp'] = timestamp
+            params['api_key'] = self.api_key
+
+            # Create signature
+            param_str = '&'.join([f"{k}={v}" for k, v in sorted(params.items())])
+            signature = self._generate_signature(param_str)
+            params['sign'] = signature
+
+            headers = {
+                'Content-Type': 'application/json'
+            }
+
+            if method.upper() == 'POST':
+                response = requests.post(url, json=params, headers=headers, timeout=10)
+            else:
+                response = requests.get(url, params=params, headers=headers, timeout=10)
+
+            response.raise_for_status()
+            return response.json()
+
+        except Exception as e:
+            logger.warning(f"Bybit request failed: {e}")
+            return None
+
+    def _generate_signature(self, param_str: str) -> str:
+        """Generate HMAC SHA256 signature for Bybit"""
+        if not self.secret_key:
+            return ""
+        return hmac.new(
+            self.secret_key.encode('utf-8'),
+            param_str.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
 
     def get_futures_data(self, symbol: str, timeframe: str = '1h', limit: int = 500) -> Optional[pd.DataFrame]:
-        """Get futures data from Bybit"""
+        """Get futures data from Bybit using V5 API"""
         try:
             # Map timeframes
             interval_map = {
@@ -371,33 +640,33 @@ class BybitFuturesPlatform:
             interval = interval_map.get(timeframe, '60')
 
             params = {
+                'category': 'linear',
                 'symbol': symbol,
                 'interval': interval,
                 'limit': min(limit, 200)
             }
 
-            response = requests.get(f"{self.base_url}/v2/public/kline/list", params=params, timeout=10)
+            # Use V5 API endpoint
+            response = requests.get(f"{self.base_url}/v5/market/kline", params=params, timeout=10)
             response.raise_for_status()
 
             data = response.json()
 
-            if data.get('ret_code') != 0 or 'result' not in data:
-                return None
+            if data.get('retCode') == 0 and 'result' in data:
+                df_data = []
+                for kline in data['result']['list']:
+                    df_data.append({
+                        'timestamp': datetime.fromtimestamp(int(kline[0]) / 1000, tz=timezone.utc),
+                        'open': float(kline[1]),
+                        'high': float(kline[2]),
+                        'low': float(kline[3]),
+                        'close': float(kline[4]),
+                        'volume': float(kline[5])
+                    })
 
-            df_data = []
-            for kline in data['result']:
-                df_data.append({
-                    'timestamp': datetime.fromtimestamp(kline['open_time'], tz=timezone.utc),
-                    'open': float(kline['open']),
-                    'high': float(kline['high']),
-                    'low': float(kline['low']),
-                    'close': float(kline['close']),
-                    'volume': float(kline['volume'])
-                })
-
-            df = pd.DataFrame(df_data)
-            df.set_index('timestamp', inplace=True)
-            return df[['open', 'high', 'low', 'close', 'volume']]
+                df = pd.DataFrame(df_data)
+                df.set_index('timestamp', inplace=True)
+                return df[['open', 'high', 'low', 'close', 'volume']]
 
         except Exception as e:
             logger.warning(f"Failed to get Bybit futures data for {symbol}: {e}")
@@ -409,71 +678,274 @@ class BybitFuturesPlatform:
 
     def place_futures_order(self, symbol: str, side: str, quantity: float, price: Optional[float] = None,
                            order_type: str = 'market', leverage: int = 1) -> Dict:
-        """Place futures order (paper trading simulation) with per-platform limits"""
+        """Place futures order (TESTNET TRADING - SAFE ORDERS) with dynamic margin/leverage"""
         try:
-            # Enforce per-platform leverage cap
-            leverage = min(leverage, self.max_leverage)
+            # Dynamic calculation is handled by parent class
+            # Just validate and place the order with calculated parameters
 
-            # Get current price for trade size validation
-            current_price = None
-            if price:
-                current_price = price
-            else:
-                # Try to get current price
+            # Get current price for validation if not provided
+            current_price = price
+            if current_price is None:
                 data = self.get_futures_data(symbol, '1h', 1)
                 if data is not None and len(data) > 0:
                     current_price = data['close'].iloc[-1]
 
-            # Calculate trade value and enforce size limits
+            # Validate position size against platform limits
             if current_price:
-                trade_value = quantity * current_price / leverage
-                if trade_value > self.max_trade_size:
-                    # Scale down quantity to respect max trade size
-                    max_quantity = (self.max_trade_size * leverage) / current_price
-                    quantity = min(quantity, max_quantity)
-                    logger.info(f"📏 Scaled down {symbol} trade to ${self.max_trade_size} limit: {quantity:.4f}")
+                position_value = quantity * current_price
+                max_allowed_value = self.max_trade_size
 
-            # For demo purposes, simulate order placement
-            order_id = f"bybit_demo_{int(time.time())}_{symbol}"
+                if position_value > max_allowed_value:
+                    # Scale down quantity to respect platform limits
+                    quantity = max_allowed_value / current_price
+                    logger.info(f"📏 Bybit: Scaled down {symbol} to platform limit ${self.max_trade_size}")
 
-            return {
-                'order_id': order_id,
-                'symbol': symbol,
-                'side': side,
-                'quantity': quantity,
-                'price': price or current_price,
-                'type': order_type,
-                'leverage': leverage,
-                'status': 'filled',
-                'platform': 'bybit_futures_demo',
-                'mode': 'paper_trading',
-                'max_trade_size': self.max_trade_size,
-                'max_leverage': self.max_leverage,
-                'paper_capital': self.paper_capital
-            }
+            # TESTNET ORDER PLACEMENT - Use Bybit Testnet API
+            if self.api_key and self.secret_key:
+                return self._place_testnet_order(symbol, side, quantity, price, order_type, leverage)
+            else:
+                logger.error("❌ No Bybit testnet API keys configured")
+                return {
+                    'error': 'No testnet API keys configured',
+                    'platform': 'bybit_futures_testnet'
+                }
 
         except Exception as e:
-            logger.warning(f"Error in Bybit order placement: {e}")
+            logger.warning(f"Error in Bybit testnet order placement: {e}")
             return {
                 'error': str(e),
-                'platform': 'bybit_futures_demo'
+                'platform': 'bybit_futures_testnet'
+            }
+
+    def _place_testnet_order(self, symbol: str, side: str, quantity: float, price: Optional[float] = None,
+                          order_type: str = 'market', leverage: int = 1) -> Dict:
+        """Place a testnet order on Bybit using correct API endpoints"""
+        try:
+            # Use Bybit V5 API for futures testnet
+            base_url = "https://api-testnet.bybit.com"
+            endpoint = "/v5/order/create"
+
+            # Prepare order parameters
+            params = {
+                'category': 'linear',  # For USDT perpetuals
+                'symbol': symbol,
+                'side': side.upper(),
+                'orderType': order_type.upper(),
+                'qty': str(quantity),
+                'timeInForce': 'GTC',
+                'reduceOnly': False,
+                'closeOnTrigger': False
+            }
+
+            if price:
+                params['price'] = str(price)
+
+            # Add timestamp for authentication
+            timestamp = str(int(time.time() * 1000))
+            params['timestamp'] = timestamp
+            params['api_key'] = self.api_key
+
+            # Create signature
+            param_str = '&'.join([f"{k}={v}" for k, v in sorted(params.items())])
+            signature = hmac.new(
+                self.secret_key.encode('utf-8'),
+                param_str.encode('utf-8'),
+                hashlib.sha256
+            ).hexdigest()
+            params['sign'] = signature
+
+            headers = {
+                'Content-Type': 'application/json'
+            }
+
+            # Make the API request
+            response = requests.post(f"{base_url}{endpoint}", json=params, headers=headers, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('retCode') == 0:
+                    order_data = data.get('result', {})
+                    return {
+                        'order_id': order_data.get('orderId', ''),
+                        'symbol': symbol,
+                        'side': side,
+                        'quantity': quantity,
+                        'price': price or order_data.get('price', 0),
+                        'type': order_type,
+                        'leverage': leverage,
+                        'status': 'placed',
+                        'platform': 'bybit_futures_testnet',
+                        'mode': 'testnet_trading',
+                        'max_trade_size': self.max_trade_size,
+                        'max_leverage': self.max_leverage,
+                        'paper_capital': self.paper_capital
+                    }
+                else:
+                    error_msg = data.get('retMsg', 'Unknown error')
+                    return {
+                        'error': f"Bybit testnet API error: {error_msg}",
+                        'platform': 'bybit_futures_testnet'
+                    }
+            else:
+                return {
+                    'error': f"HTTP {response.status_code}: {response.text[:200]}",
+                    'platform': 'bybit_futures_testnet'
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to place testnet Bybit order: {e}")
+            return {
+                'error': str(e),
+                'platform': 'bybit_futures_testnet'
             }
 
     def get_positions(self) -> List[Dict]:
-        """Get current positions (simulated)"""
-        return []
+        """Get current positions from Bybit using V5 API"""
+        try:
+            # Try to get real positions from Bybit API
+            if self.api_key and self.secret_key:
+                base_url = "https://api.bybit.com"
+                endpoint = "/v5/position/list"
+
+                # Prepare parameters
+                params = {
+                    'category': 'linear',
+                    'timestamp': str(int(time.time() * 1000)),
+                    'api_key': self.api_key
+                }
+
+                # Create signature
+                param_str = '&'.join([f"{k}={v}" for k, v in sorted(params.items())])
+                signature = hmac.new(
+                    self.secret_key.encode('utf-8'),
+                    param_str.encode('utf-8'),
+                    hashlib.sha256
+                ).hexdigest()
+                params['sign'] = signature
+
+                headers = {
+                    'Content-Type': 'application/json'
+                }
+
+                # Make the API request
+                response = requests.get(f"{base_url}{endpoint}", params=params, headers=headers, timeout=10)
+
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('retCode') == 0:
+                        positions = []
+                        result = data.get('result', {}).get('list', [])
+                        for pos in result:
+                            size = float(pos.get('size', 0))
+                            if size != 0:  # Only include open positions
+                                positions.append({
+                                    'symbol': pos.get('symbol', ''),
+                                    'side': 'long' if size > 0 else 'short',
+                                    'quantity': abs(size),
+                                    'entry_price': float(pos.get('avgPrice', 0)),
+                                    'mark_price': float(pos.get('markPrice', 0)),
+                                    'unrealized_pnl': float(pos.get('unrealisedPnl', 0)),
+                                    'leverage': int(pos.get('leverage', 1)),
+                                    'platform': 'bybit_futures_testnet'
+                                })
+                        return positions
+                    else:
+                        error_msg = data.get('retMsg', 'Unknown error')
+                        logger.warning(f"Bybit API error getting positions: {error_msg}")
+
+            # Return empty list if no API or no positions
+            return []
+
+        except Exception as e:
+            logger.warning(f"Failed to get Bybit positions: {e}")
+            return []
 
     def get_account_balance(self) -> Dict:
-        """Get account balance (simulated)"""
+        """Get account balance from Bybit testnet using V5 API"""
+        try:
+            # Try to get testnet balance from Bybit API
+            if self.api_key and self.secret_key:
+                base_url = "https://api-testnet.bybit.com"
+                endpoint = "/v5/account/wallet-balance"
+
+                # Prepare parameters
+                params = {
+                    'accountType': 'UNIFIED',
+                    'timestamp': str(int(time.time() * 1000)),
+                    'api_key': self.api_key
+                }
+
+                # Create signature
+                param_str = '&'.join([f"{k}={v}" for k, v in sorted(params.items())])
+                signature = hmac.new(
+                    self.secret_key.encode('utf-8'),
+                    param_str.encode('utf-8'),
+                    hashlib.sha256
+                ).hexdigest()
+                params['sign'] = signature
+
+                headers = {
+                    'Content-Type': 'application/json'
+                }
+
+                # Make the API request
+                response = requests.get(f"{base_url}{endpoint}", params=params, headers=headers, timeout=10)
+
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('retCode') == 0:
+                        balance_data = data.get('result', {}).get('list', [{}])[0]
+                        total_balance = float(balance_data.get('totalEquity', '0'))
+                        available_balance = float(balance_data.get('totalAvailableBalance', '0'))
+                        used_margin = float(balance_data.get('totalMarginUsed', '0'))
+                        unrealized_pnl = float(balance_data.get('totalPerpetualUnrealisedPnl', '0'))
+
+                        return {
+                            'total_balance': total_balance,
+                            'available_balance': available_balance,
+                            'used_margin': used_margin,
+                            'unrealized_pnl': unrealized_pnl,
+                            'platform': 'bybit_futures_testnet',
+                            'mode': 'testnet_trading',
+                            'max_trade_size': self.max_trade_size,
+                            'max_leverage': self.max_leverage,
+                            'paper_capital': self.paper_capital
+                        }
+                    else:
+                        error_msg = data.get('retMsg', 'Unknown error')
+                        logger.warning(f"Bybit testnet API error getting balance: {error_msg}")
+                        # Fall back to paper trading data
+                        return self._get_paper_balance()
+                else:
+                    logger.warning(f"HTTP {response.status_code} getting Bybit testnet balance: {response.text[:200]}")
+                    # Fall back to paper trading data
+                    return self._get_paper_balance()
+            else:
+                # No API keys, return paper trading data
+                return self._get_paper_balance()
+
+        except Exception as e:
+            logger.warning(f"Failed to get Bybit testnet account balance: {e}")
+            # Fall back to paper trading data
+            return self._get_paper_balance()
+
+    def get_available_instruments(self) -> List[str]:
+        """Get available futures instruments"""
+        return ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'ADAUSDT', 'DOTUSDT', 'LINKUSDT', 'UNIUSDT']
+
+    def _get_paper_balance(self) -> Dict:
+        """Get paper trading balance as fallback"""
         return {
-            'total_balance': self.paper_capital,  # Use platform-specific paper capital
+            'total_balance': self.paper_capital,
             'available_balance': self.paper_capital * 0.95,  # 95% available
             'used_margin': self.paper_capital * 0.05,  # 5% used
             'unrealized_pnl': 0.0,
-            'platform': 'bybit_futures_demo',
-            'mode': 'paper_trading',
+            'platform': 'bybit_futures_testnet',
+            'mode': 'testnet_trading',
             'max_trade_size': self.max_trade_size,
-            'max_leverage': self.max_leverage
+            'max_leverage': self.max_leverage,
+            'paper_capital': self.paper_capital,
+            'note': 'Using paper balance - testnet API unavailable'
         }
 
 class BitMEXFuturesPlatform:
@@ -725,14 +1197,23 @@ def get_futures_platform_info(platform_name: str = None) -> Dict:
     return futures_platform.get_platform_info(platform_name)
 
 if __name__ == "__main__":
-    # Test the futures platform
+    # Test the futures platform (Bybit primary, Binance fallback - both testnet)
     print("🧪 Testing Futures & Perpetuals Platforms")
+    print("🎯 Primary: Bybit Futures (TESTNET TRADING)")
+    print("🔄 Fallback: Binance Futures (Testnet)")
     print("=" * 60)
 
     platforms = get_futures_platforms()
     print(f"📊 Available Platforms: {platforms}")
 
     if platforms:
+        # Test active platform (should be Bybit)
+        active_info = get_futures_platform_info()
+        if active_info:
+            print(f"🎯 Active Platform: {active_info['name']}")
+            print(f"📊 Type: {active_info['type']}")
+            print(f"⚙️  Mode: {'TESTNET TRADING' if 'bybit' in active_info['name'].lower() else 'PAPER TRADING'}")
+
         # Test data fetching
         print("\n🧪 Testing BTC Futures Data...")
         data = get_futures_data("BTCUSDT", "1h", 10)
@@ -748,4 +1229,5 @@ if __name__ == "__main__":
         for platform in platforms:
             info = get_futures_platform_info(platform)
             if info:
-                print(f"🏛️  {info['name']}: {info['type']} - {len(info['features'])} features")
+                mode = "TESTNET" if "bybit" in platform.lower() else "PAPER"
+                print(f"🏛️  {info['name']}: {info['type']} - {mode} - {len(info['features'])} features")

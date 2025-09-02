@@ -2619,8 +2619,8 @@ def main() -> int:
                 "python3", "-c",
                 (
                     "import autocommit as ac; "
-                    "print(ac.auto_commit_and_push(['runs','eval_runs','universe_runs','bars','state','data','eval_data','validation_reports','trader_loop.log','trading_agent.log','validation_analysis.db','integration_test_results_*.json','test_integration_report.json','*_integration_report.json'], "
-                    "extra_message='local artifacts + validation data + integration tests + bar data + trader state + eval data + validation reports', push_enabled="
+                    "print(ac.auto_commit_and_push(['runs','eval_runs','universe_runs','bars','state','data','eval_data','validation_reports','trader_loop.log','trading_agent.log','validation_analysis.db','integration_test_results_*.json','test_integration_report.json','*_integration_report.json','enhanced_trading.db'], "
+                    "extra_message='local artifacts + validation data + integration tests + bar data + trader state + eval data + validation reports + trading database', push_enabled="
                     + ("True" if push_enabled else "False") +
                     "))"
                 )

@@ -112,6 +112,17 @@ class HighRiskFuturesAgent:
         logger.info(f"📢 Notifications: {'Enabled' if self.enable_notifications else 'Disabled'}")
         logger.info(f"💓 Heartbeat: {'Enabled' if self.enable_heartbeat else 'Disabled'} (every {self.heartbeat_every_n} runs)")
 
+    def check_internet_connectivity(self) -> bool:
+        """Check if internet connectivity is available"""
+        try:
+            import requests
+            # Try to reach a reliable endpoint
+            response = requests.get('https://httpbin.org/status/200', timeout=10)
+            return response.status_code == 200
+        except Exception as e:
+            logger.warning(f"🌐 Internet connectivity check failed: {e}")
+            return False
+
     def switch_platform(self, platform_name: str) -> bool:
         """Switch to a different trading platform"""
         if platform_name not in self.available_platforms:
@@ -134,8 +145,25 @@ class HighRiskFuturesAgent:
         return False
 
     def get_current_platform_capital(self) -> float:
-        """Get capital for current platform"""
-        return self.platform_capital.get(self.current_platform, self.capital)
+        """Get REAL capital for current platform from API"""
+        try:
+            # Try to get real balance from platform
+            from futures_integration import get_account_balance
+            balance_info = get_account_balance()
+            if balance_info and 'available_balance' in balance_info:
+                real_balance = balance_info['available_balance']
+                logger.info(f"💰 Real available balance: ${real_balance:.2f}")
+                return real_balance
+            else:
+                # Fallback to configured capital
+                fallback_capital = self.platform_capital.get(self.current_platform, self.capital)
+                logger.warning(f"⚠️ Could not fetch real balance, using fallback: ${fallback_capital:.2f}")
+                return fallback_capital
+        except Exception as e:
+            # Fallback to configured capital
+            fallback_capital = self.platform_capital.get(self.current_platform, self.capital)
+            logger.warning(f"⚠️ Error fetching real balance: {e}, using fallback: ${fallback_capital:.2f}")
+            return fallback_capital
 
     def should_switch_platform(self) -> Optional[str]:
         """Determine if we should switch platforms based on availability and limits"""
@@ -820,8 +848,36 @@ class HighRiskFuturesAgent:
         while True:
             try:
                 cycle_count += 1
+                
+                # Check internet connectivity before starting cycle
+                if not self.check_internet_connectivity():
+                    logger.warning("🌐 No internet connectivity, waiting 60s before retry...")
+                    time.sleep(60)
+                    continue
+                
                 logger.info(f"🔄 Starting cycle {cycle_count} of continuous loop")
                 self.run_trading_cycle()
+                
+                # Auto-commit database changes after each cycle
+                try:
+                    import os
+                    if os.getenv("TB_AUTOCOMMIT_ARTIFACTS", "1") == "1":
+                        push_enabled = os.getenv("TB_AUTOCOMMIT_PUSH", "1") == "1"
+                        import subprocess
+                        code = subprocess.call([
+                            "python3", "-c",
+                            (
+                                "import autocommit as ac; "
+                                "print(ac.auto_commit_and_push(['enhanced_trading.db','futures_agent.log','high_risk_futures_loop.log'], "
+                                "extra_message='futures trading database and logs', push_enabled="
+                                + ("True" if push_enabled else "False") +
+                                "))"
+                            )
+                        ])
+                        logger.info(f"[autocommit] futures database committed with status: {code}")
+                except Exception as e:
+                    logger.warning(f"[autocommit] failed: {e}")
+                
                 logger.info(f"✅ Completed cycle {cycle_count}, sleeping for {interval_seconds}s")
                 time.sleep(interval_seconds)
 
