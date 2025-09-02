@@ -17,6 +17,7 @@ import hmac
 import hashlib
 import base64
 from urllib.parse import urlencode
+import random
 
 # Load environment variables
 try:
@@ -34,6 +35,77 @@ class FuturesTradingPlatform:
         self.platforms = {}
         self.active_platform = None
         self._initialize_platforms()
+
+        # Circuit breaker and retry configuration
+        self.circuit_breaker_failures = {}
+        self.circuit_breaker_timeout = 300  # 5 minutes
+        self.max_retries = 3
+        self.base_retry_delay = 1.0  # 1 second
+        self.max_retry_delay = 30.0  # 30 seconds
+
+    def _retry_with_backoff(self, func, *args, **kwargs):
+        """Execute function with exponential backoff retry logic"""
+        platform_name = self.active_platform or "unknown"
+
+        # Check circuit breaker
+        if self._is_circuit_breaker_open(platform_name):
+            logger.warning(f"🚫 Circuit breaker open for {platform_name}, skipping request")
+            return None
+
+        last_exception = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                result = func(*args, **kwargs)
+                # Success - reset circuit breaker
+                if platform_name in self.circuit_breaker_failures:
+                    del self.circuit_breaker_failures[platform_name]
+                return result
+
+            except Exception as e:
+                last_exception = e
+                logger.warning(f"Attempt {attempt + 1}/{self.max_retries + 1} failed for {platform_name}: {e}")
+
+                if attempt < self.max_retries:
+                    # Calculate delay with exponential backoff and jitter
+                    delay = min(self.base_retry_delay * (2 ** attempt), self.max_retry_delay)
+                    jitter = random.uniform(0.1, 1.0) * delay * 0.1  # 10% jitter
+                    total_delay = delay + jitter
+
+                    logger.info(f"⏳ Retrying in {total_delay:.2f} seconds...")
+                    time.sleep(total_delay)
+
+        # All retries failed - trigger circuit breaker
+        self._trigger_circuit_breaker(platform_name)
+        logger.error(f"❌ All {self.max_retries + 1} attempts failed for {platform_name}: {last_exception}")
+        return None
+
+    def _is_circuit_breaker_open(self, platform_name: str) -> bool:
+        """Check if circuit breaker is open for a platform"""
+        if platform_name not in self.circuit_breaker_failures:
+            return False
+
+        failures, last_failure_time = self.circuit_breaker_failures[platform_name]
+        if failures >= 5:  # Open circuit after 5 failures
+            time_since_failure = time.time() - last_failure_time
+            if time_since_failure < self.circuit_breaker_timeout:
+                return True
+            else:
+                # Timeout expired, reset circuit breaker
+                del self.circuit_breaker_failures[platform_name]
+                return False
+
+        return False
+
+    def _trigger_circuit_breaker(self, platform_name: str):
+        """Trigger circuit breaker for a platform"""
+        current_time = time.time()
+        if platform_name not in self.circuit_breaker_failures:
+            self.circuit_breaker_failures[platform_name] = [1, current_time]
+        else:
+            failures, _ = self.circuit_breaker_failures[platform_name]
+            self.circuit_breaker_failures[platform_name] = [failures + 1, current_time]
+
+        logger.warning(f"🔌 Circuit breaker triggered for {platform_name} after multiple failures")
 
     def _initialize_platforms(self):
         """Initialize only Bybit (primary) and Binance (fallback) platforms - both on testnet"""
@@ -101,11 +173,9 @@ class FuturesTradingPlatform:
 
     def place_futures_order(self, symbol: str, side: str, quantity: float, price: Optional[float] = None,
                            order_type: str = 'market', leverage: int = 1) -> Dict:
-        """Place futures order with dynamic margin/leverage calculation"""
+        """Place futures order with dynamic margin/leverage calculation and retry logic"""
         if not self.active_platform:
             return {'error': 'No active platform'}
-
-        platform = self.platforms[self.active_platform]
 
         # Calculate dynamic margin and leverage based on risk-reward
         dynamic_params = self._calculate_dynamic_margin_leverage(symbol, side, quantity, price, leverage)
@@ -115,7 +185,20 @@ class FuturesTradingPlatform:
 
         logger.info(f"📊 Dynamic calculation for {symbol}: Margin=${margin_used:.2f}, Leverage={leverage}x, Qty={quantity:.4f}")
 
-        return platform.place_futures_order(symbol, side, quantity, price, order_type, leverage)
+        def _place_order_attempt():
+            platform = self.platforms[self.active_platform]
+            return platform.place_futures_order(symbol, side, quantity, price, order_type, leverage)
+
+        result = self._retry_with_backoff(_place_order_attempt)
+
+        if result is None:
+            return {
+                'error': f'All retry attempts failed for {self.active_platform}',
+                'platform': self.active_platform,
+                'circuit_breaker': 'open' if self._is_circuit_breaker_open(self.active_platform) else 'closed'
+            }
+
+        return result
 
     def _calculate_dynamic_margin_leverage(self, symbol: str, side: str, quantity: float,
                                          price: Optional[float] = None, requested_leverage: int = 1) -> Dict:
@@ -158,6 +241,10 @@ class FuturesTradingPlatform:
                 margin_required = (quantity * price) / leverage
                 logger.info(f"📏 Adjusted {symbol} to minimum quantity: {quantity}")
 
+            # Apply precision requirements based on symbol
+            quantity = self._apply_quantity_precision(symbol, quantity)
+            logger.info(f"📐 Applied precision to {symbol}: {quantity}")
+
             return {
                 'quantity': quantity,
                 'leverage': leverage,
@@ -176,6 +263,95 @@ class FuturesTradingPlatform:
                 'position_value': quantity * (price or 50000),
                 'price': price or 50000
             }
+
+    def _apply_quantity_precision(self, symbol: str, quantity: float) -> float:
+        """Apply appropriate quantity precision based on symbol and platform requirements"""
+        try:
+            # Get precision requirements from active platform
+            platform = self.platforms.get(self.active_platform)
+            if not platform:
+                return quantity
+
+            # Different platforms have different precision requirements
+            if "Binance" in self.active_platform:
+                return self._apply_binance_precision(symbol, quantity)
+            elif "Bybit" in self.active_platform:
+                return self._apply_bybit_precision(symbol, quantity)
+            else:
+                # Default precision handling
+                return self._apply_default_precision(symbol, quantity)
+
+        except Exception as e:
+            logger.warning(f"Error applying quantity precision: {e}")
+            return quantity
+
+    def _apply_binance_precision(self, symbol: str, quantity: float) -> float:
+        """Apply Binance-specific quantity precision requirements"""
+        # Binance has different precision requirements for different symbols
+        if 'BTC' in symbol.upper():
+            # BTC pairs: 0.001 precision (3 decimal places)
+            precision = 3
+        elif 'ETH' in symbol.upper():
+            # ETH pairs: 0.01 precision (2 decimal places)
+            precision = 2
+        elif 'USDT' in symbol.upper():
+            # USDT pairs: 0.1 precision (1 decimal place)
+            precision = 1
+        else:
+            # Other pairs: 0.1 precision (1 decimal place)
+            precision = 1
+
+        # Round to appropriate precision
+        rounded_quantity = round(quantity, precision)
+
+        # Ensure minimum quantity after rounding
+        min_quantity = 10 ** (-precision)  # 0.001 for BTC, 0.01 for ETH, 0.1 for others
+        if rounded_quantity < min_quantity:
+            rounded_quantity = min_quantity
+
+        return rounded_quantity
+
+    def _apply_bybit_precision(self, symbol: str, quantity: float) -> float:
+        """Apply Bybit-specific quantity precision requirements"""
+        # Bybit has different precision requirements
+        if 'BTC' in symbol.upper():
+            # BTC pairs: 0.001 precision (3 decimal places)
+            precision = 3
+        elif 'ETH' in symbol.upper():
+            # ETH pairs: 0.01 precision (2 decimal places)
+            precision = 2
+        else:
+            # Other pairs: 0.001 precision (3 decimal places)
+            precision = 3
+
+        # Round to appropriate precision
+        rounded_quantity = round(quantity, precision)
+
+        # Ensure minimum quantity after rounding
+        min_quantity = 10 ** (-precision)
+        if rounded_quantity < min_quantity:
+            rounded_quantity = min_quantity
+
+        return rounded_quantity
+
+    def _apply_default_precision(self, symbol: str, quantity: float) -> float:
+        """Apply default quantity precision requirements"""
+        # Default: 0.001 precision for BTC, 0.1 for others
+        if 'BTC' in symbol.upper():
+            precision = 3
+            min_quantity = 0.001
+        else:
+            precision = 1
+            min_quantity = 0.1
+
+        # Round to appropriate precision
+        rounded_quantity = round(quantity, precision)
+
+        # Ensure minimum quantity after rounding
+        if rounded_quantity < min_quantity:
+            rounded_quantity = min_quantity
+
+        return rounded_quantity
 
     def get_positions(self) -> List[Dict]:
         """Get current positions across all platforms"""
