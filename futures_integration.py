@@ -37,7 +37,7 @@ class FuturesIntegration:
 
     def __init__(self):
         self.futures_enabled = os.getenv("TB_ENABLE_FUTURES_TRADING", "0") == "1"
-        self.preferred_platform = os.getenv("TB_FUTURES_PLATFORM", "binance")
+        self.preferred_platform = os.getenv("TB_FUTURES_PLATFORM", "Bybit Futures")  # Default to Bybit
         self.leverage_limit = int(os.getenv("TB_MAX_LEVERAGE", "10"))
         self.paper_trading = os.getenv("TB_PAPER_TRADING", "1") == "1"
 
@@ -51,7 +51,17 @@ class FuturesIntegration:
             'bybit': {
                 'max_trade_size': float(os.getenv("BYBIT_MAX_TRADE_SIZE", "500")),
                 'max_leverage': int(os.getenv("BYBIT_MAX_LEVERAGE", "100")),
-                'paper_capital': float(os.getenv("BYBIT_PAPER_CAPITAL", "100000"))
+                'paper_capital': float(os.getenv("BYBIT_PAPER_CAPITAL", "240000"))
+            },
+            'Binance Futures': {
+                'max_trade_size': float(os.getenv("BINANCE_MAX_TRADE_SIZE", "100")),
+                'max_leverage': int(os.getenv("BINANCE_MAX_LEVERAGE", "25")),
+                'paper_capital': float(os.getenv("BINANCE_PAPER_CAPITAL", "15000"))
+            },
+            'Bybit Futures': {
+                'max_trade_size': float(os.getenv("BYBIT_MAX_TRADE_SIZE", "500")),
+                'max_leverage': int(os.getenv("BYBIT_MAX_LEVERAGE", "100")),
+                'paper_capital': float(os.getenv("BYBIT_PAPER_CAPITAL", "240000"))
             }
         }
 
@@ -65,10 +75,20 @@ class FuturesIntegration:
 
     def switch_platform(self, platform_name: str) -> bool:
         """Switch to a different futures platform"""
-        if platform_name in get_futures_platforms():
-            switch_futures_platform(platform_name)
-            self.preferred_platform = platform_name
-            logger.info(f"🔄 Switched to {platform_name} platform")
+        # Handle both naming conventions
+        platform_mapping = {
+            'binance': 'Binance Futures',
+            'bybit': 'Bybit Futures',
+            'Binance Futures': 'Binance Futures',
+            'Bybit Futures': 'Bybit Futures'
+        }
+
+        actual_platform_name = platform_mapping.get(platform_name, platform_name)
+
+        if actual_platform_name in get_futures_platforms():
+            switch_futures_platform(actual_platform_name)
+            self.preferred_platform = actual_platform_name
+            logger.info(f"🔄 Switched to {actual_platform_name} platform")
             return True
         logger.warning(f"⚠️ Platform {platform_name} not available")
         return False
