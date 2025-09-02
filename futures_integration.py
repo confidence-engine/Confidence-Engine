@@ -304,6 +304,10 @@ class FuturesIntegration:
             logger.error(f"Failed to get portfolio status: {e}")
             return {'error': str(e)}
 
+def get_account_balance() -> Dict:
+    """Get account balance from current platform"""
+    return futures_platform.get_account_balance()
+
 # Global instance
 futures_integration = FuturesIntegration()
 

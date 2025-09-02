@@ -10,7 +10,7 @@ import time
 import json
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 import logging
 import asyncio
@@ -280,7 +280,7 @@ class HighRiskFuturesAgent:
             "title": f"Futures Agent: {event} {symbol}",
             "description": "\n".join(desc_lines),
             "color": color,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         # Send Discord notification
@@ -524,7 +524,7 @@ class HighRiskFuturesAgent:
                     'quantity': float(quantity),
                     'leverage': smart_leverage,
                     'platform': self.current_platform,
-                    'timestamp': datetime.now().isoformat(),
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
                     'signal': signal,
                     'highest_price': float(entry_price),  # For trailing stops
                     'lowest_price': float(entry_price),   # For trailing stops
@@ -534,7 +534,7 @@ class HighRiskFuturesAgent:
 
                 # Log trade
                 trade_record = {
-                    'timestamp': datetime.now().isoformat(),
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
                     'symbol': symbol,
                     'side': side,
                     'quantity': float(quantity),
@@ -730,7 +730,7 @@ class HighRiskFuturesAgent:
 
             # Record exit
             exit_record = {
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'symbol': symbol,
                 'action': 'close',
                 'reason': reason,
@@ -763,7 +763,7 @@ class HighRiskFuturesAgent:
             'win_rate': self.calculate_win_rate(),
             'market_regime': self.market_regime,
             'correlation_pairs': len(self.correlation_matrix) if self.correlation_matrix else 0,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
 
     def calculate_win_rate(self) -> float:

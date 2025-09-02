@@ -638,8 +638,64 @@ class BinanceFuturesPlatform:
             }
 
     def get_positions(self) -> List[Dict]:
-        """Get current positions (simulated for demo)"""
-        return []  # No real positions in demo
+        """Get current positions from Binance testnet API"""
+        try:
+            if not self.api_key or not self.secret_key:
+                return []  # No API credentials, return empty
+
+            # Real API call to get position information
+            import requests
+            import time
+            from urllib.parse import urlencode
+            
+            params = {
+                'timestamp': int(time.time() * 1000),
+                'recvWindow': 5000
+            }
+            
+            query_string = urlencode(params)
+            signature = self._generate_signature(query_string)
+            params['signature'] = signature
+            
+            headers = {'X-MBX-APIKEY': self.api_key}
+            
+            response = requests.get(
+                f'{self.base_url}/fapi/v2/positionRisk',
+                headers=headers,
+                params=params,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                positions = []
+                
+                for pos in data:
+                    position_amt = float(pos.get('positionAmt', 0))
+                    
+                    # Only include non-zero positions
+                    if position_amt != 0:
+                        positions.append({
+                            'symbol': pos.get('symbol', ''),
+                            'side': 'long' if position_amt > 0 else 'short',
+                            'quantity': abs(position_amt),
+                            'entry_price': float(pos.get('entryPrice', 0)),
+                            'mark_price': float(pos.get('markPrice', 0)),
+                            'unrealized_pnl': float(pos.get('unrealizedProfit', 0)),
+                            'leverage': int(pos.get('leverage', 1)),
+                            'liquidation_price': float(pos.get('liquidationPrice', 0)),
+                            'platform': 'binance_futures_testnet',
+                            'mode': 'real_testnet_api'
+                        })
+                
+                return positions
+            else:
+                logger.warning(f"Failed to get positions: HTTP {response.status_code} - {response.text}")
+                return []
+                
+        except Exception as e:
+            logger.warning(f"Error fetching positions: {e}")
+            return []
 
     def get_account_balance(self) -> Dict:
         """Get REAL account balance from Binance testnet"""
@@ -978,9 +1034,9 @@ class BybitFuturesPlatform:
     def get_positions(self) -> List[Dict]:
         """Get current positions from Bybit using V5 API"""
         try:
-            # Try to get real positions from Bybit API
+            # Try to get real positions from Bybit TESTNET API
             if self.api_key and self.secret_key:
-                base_url = "https://api.bybit.com"
+                base_url = "https://api-testnet.bybit.com"  # Use testnet endpoint
                 endpoint = "/v5/position/list"
 
                 # Prepare parameters
@@ -1027,13 +1083,13 @@ class BybitFuturesPlatform:
                         return positions
                     else:
                         error_msg = data.get('retMsg', 'Unknown error')
-                        logger.warning(f"Bybit API error getting positions: {error_msg}")
+                        logger.warning(f"Bybit testnet API error getting positions: {error_msg}")
 
             # Return empty list if no API or no positions
             return []
 
         except Exception as e:
-            logger.warning(f"Failed to get Bybit positions: {e}")
+            logger.warning(f"Failed to get Bybit testnet positions: {e}")
             return []
 
     def get_account_balance(self) -> Dict:
