@@ -246,7 +246,21 @@ class TradingEnsemble:
     Ensemble of specialized trading models with meta-learning
     """
 
-    def __init__(self, input_dim: int):
+    def __init__(self, input_dim: int = 37):  # DEFAULT TO 37 TECHNICAL INDICATORS
+        """
+        Initialize ensemble with correct input dimension
+        
+        Args:
+            input_dim: Number of input features (default 37 for technical indicators)
+        """
+        # Validate input dimension
+        if input_dim <= 0:
+            logger.warning(f"Invalid input_dim {input_dim}, using default 37")
+            input_dim = 37
+            
+        logger.info(f"Initializing TradingEnsemble with {input_dim} features")
+        
+        self.input_dim = input_dim
         self.models = {
             'trend_model': AttentionMLP(input_dim),
             'mean_reversion_model': LSTMPredictor(input_dim),
@@ -319,6 +333,16 @@ class TradingEnsemble:
 
         if std_pred == 0:
             return 1.0  # Perfect agreement
+        
+        # Convert standard deviation to confidence (0-1 scale)
+        # Lower std means higher confidence
+        max_std = 2.0  # Maximum expected standard deviation
+        confidence = 1.0 - min(std_pred / max_std, 1.0)
+        return max(confidence, 0.1)  # Minimum confidence of 0.1
+    
+    def get_confidence(self, features: np.ndarray) -> float:
+        """Get confidence (alias for get_ensemble_confidence)"""
+        return self.get_ensemble_confidence(features)
 
         # Confidence based on inverse of disagreement
         agreement = 1.0 / (1.0 + std_pred)
