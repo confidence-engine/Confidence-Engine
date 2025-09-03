@@ -6,26 +6,29 @@ Here is a draft for the README introduction that puts the Tracer Bullet philosop
 # Confidence Engine — Institutional-Grade Multi-Asset Divergence Engine
 > Looking for the concise version? See [README_CLEAN.md](README_CLEAN.md)
 
-## 🚀 Latest: Dual-Agent System with Futures & Perpetuals Trading
+## 🚀 Latest: Intelligent TP/SL System with Critical Bug Fixes (September 3, 2025)
 
-**NEW**: Complete dual-agent architecture with independent risk management:
+**🚨 CRITICAL FIX**: Fixed missing entry logic in hybrid trader - system can now properly enter AND exit positions!
 
-- **🤖 Main Agent (Low-Risk)**: Enhanced hybrid agent with 20+ crypto assets, ML gates, and adaptive strategies
-- **⚡ Futures Agent (High-Risk)**: New leveraged futures/perpetuals agent with 5x-25x leverage and momentum trading
-- **📊 Unified Monitoring**: Real-time dashboard tracking both agents
-- **🛡️ Independent Operation**: Each agent manages its own capital and risk
-- **📈 Free Paper Trading**: Test futures strategies without cost
+**NEW**: Complete intelligent trade-quality based TP/SL system:
 
-**Status**: Both agents operational | **Main Agent**: Live trading | **Futures Agent**: Live trading | **Monitoring**: Real-time dashboard active
+- **� Intelligent TP/SL**: Trade quality analysis (Excellent/Good/Fair) with dynamic targets
+- **🎯 Crypto Targets**: 12-20% TP for excellent signals, 5-8% TP for fair signals
+- **🚀 Futures Targets**: 15-25% TP for excellent signals with leverage adjustments
+- **⚖️ Asset Difficulty**: BTC 1.5x hardest to move, smaller alts 0.7x easier
+- **� Position Management**: Automated monitoring with intelligent exit decisions
+- **� Complete Documentation**: Comprehensive command reference (COMMANDS.md)
 
-### Current Live Configuration (September 2, 2025)
-- **Main Agent**: ✅ Live trading with 15 crypto assets, ML gates, ATR filters, and adaptive thresholds
-- **Futures Agent**: ✅ Live trading with 20 blue chip futures, 25x leverage cap, $100 margin cap
-- **Platforms**: Binance Futures (testnet) with real API integration and proper precision handling
-- **Risk Management**: Dynamic leverage based on risk-reward ratios, volatility adjustments, hard caps
-- **Database**: SQLite auto-commit enabled, enhanced_trading.db tracked in GitHub
-- **Notifications**: Discord and Telegram with trade confirmations and heartbeat monitoring
-- **Status**: Both loops operational, 9+ trades executed, all systems stable
+**Status**: Both agents live with intelligent TP/SL | **Entry Logic**: ✅ FIXED | **Risk Management**: Enhanced
+
+### Current Live Configuration (September 3, 2025)
+- **Main Agent**: ✅ Live trading with intelligent TP/SL, fixed entry logic, 15+ crypto assets, ML gates
+- **Futures Agent**: ✅ Live trading with intelligent leverage-adjusted TP/SL, momentum strategies
+- **TP/SL System**: Trade-quality based (Excellent: 12-20%, Good: 8-12%, Fair: 5-8%)
+- **Risk Management**: Asset difficulty multipliers, dynamic targets, enhanced position monitoring
+- **Entry Logic**: ✅ CRITICAL FIX - BUY signals now generated on EMA cross conditions
+- **Position Management**: Automated monitoring with 60s crypto / 30s futures intervals
+- **Documentation**: Complete command reference (COMMANDS.md) with all operational procedures
 
 ### Real-Time System Status
 - **Total Balance**: $14,925.08 (Live Binance API)
