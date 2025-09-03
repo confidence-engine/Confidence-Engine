@@ -1470,7 +1470,7 @@ class HighRiskFuturesAgent:
     def send_enhanced_heartbeat_notification(self):
         """Send enhanced heartbeat notification with futures-specific metrics"""
         try:
-            if not ENHANCED_DISCORD_AVAILABLE or not self.enable_heartbeat:
+            if not self.enable_heartbeat:
                 return
             
             # Calculate performance metrics
@@ -1478,28 +1478,60 @@ class HighRiskFuturesAgent:
             total_pnl = sum(pos.get('pnl', 0) for pos in self.positions.values())
             
             # Get account balance
-            account_balance = get_account_balance(self.current_platform)
+            account_balance = get_account_balance()
+            available_balance = account_balance.get('available_balance', 0) if account_balance else 0
             
-            # Market regime summary
-            regime_summary = "Multiple regimes" if len(self.symbols) > 1 else "Unknown"
+            # Create simple heartbeat message
+            uptime_mins = (time.time() - (getattr(self, 'start_time', time.time() - 300))) / 60
             
-            # Send enhanced heartbeat
-            send_enhanced_heartbeat(
-                agent_type="futures",
-                run_count=self.run_count,
-                open_positions=open_positions,
-                total_pnl=total_pnl,
-                account_balance=account_balance,
-                market_regime=regime_summary,
-                platform=self.current_platform,
-                daily_trades=self.trades_today,
-                webhook_url=self.discord_webhook
-            )
+            # Discord heartbeat
+            if self.enable_discord and self.discord_webhook:
+                embed = {
+                    "title": "🔄 Futures Agent Heartbeat",
+                    "description": f"**Status:** Healthy\n**Capital:** ${available_balance:,.2f} USDT\n**Positions:** {open_positions}/{self.max_positions} (ultra-conservative)\n**P&L:** ${total_pnl:,.2f}\n**Uptime:** {uptime_mins:.0f}m",
+                    "color": 0x00ff00,  # Green
+                    "fields": [
+                        {"name": "🏛️ Platform", "value": self.current_platform, "inline": True},
+                        {"name": "🎯 Risk Per Trade", "value": f"{self.risk_per_trade*100:.1f}%", "inline": True},
+                        {"name": "📊 Leverage", "value": f"{self.max_leverage}x max", "inline": True},
+                        {"name": "📈 Trades Today", "value": str(self.trades_today), "inline": True},
+                        {"name": "🔄 Cycle", "value": str(self.run_count), "inline": True},
+                        {"name": "⏰ Last Update", "value": f"<t:{int(time.time())}:R>", "inline": True}
+                    ],
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                
+                try:
+                    send_discord_digest_to(self.discord_webhook, [embed])
+                    logger.info("✅ Discord heartbeat sent successfully")
+                except Exception as e:
+                    logger.error(f"❌ Discord heartbeat failed: {e}")
             
-            logger.info(f"💓 Enhanced futures heartbeat sent (run #{self.run_count})")
+            # Telegram heartbeat
+            if not self.no_telegram and send_telegram:
+                tg_msg = f"""🔄 **Futures Agent Heartbeat**
+
+💰 Capital: ${available_balance:,.2f} USDT
+📊 Positions: {open_positions}/{self.max_positions} (ultra-conservative)
+💸 P&L: ${total_pnl:,.2f}
+🎯 Risk: {self.risk_per_trade*100:.1f}% per trade
+📈 Leverage: {self.max_leverage}x max
+🏛️ Platform: {self.current_platform}
+⏰ Uptime: {uptime_mins:.0f} minutes
+🔄 Cycle: {self.run_count}"""
+                
+                try:
+                    send_telegram(tg_msg)
+                    logger.info("✅ Telegram heartbeat sent successfully")
+                except Exception as e:
+                    logger.error(f"❌ Telegram heartbeat failed: {e}")
+            
+            logger.info(f"💓 Futures heartbeat sent (run #{self.run_count})")
             
         except Exception as e:
-            logger.error(f"Failed to send enhanced heartbeat: {e}")
+            logger.error(f"Failed to send heartbeat: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     def check_positions(self):
         """Check and manage open positions with advanced exit timing"""
