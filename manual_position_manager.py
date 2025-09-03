@@ -320,31 +320,6 @@ class IntelligentPositionManager:
                     
         return closed_count
 
-def start_monitoring(manager):
-    """Start continuous monitoring loop"""
-    print("🔄 Starting intelligent position monitoring...")
-    while True:
-        try:
-            print(f"\n{'='*100}")
-            print(f"🔍 Scanning positions at {datetime.now().strftime('%H:%M:%S')}")
-            
-            positions = manager.get_positions()
-            if not positions:
-                print("📍 No positions to monitor")
-            else:
-                manager.print_positions()
-            
-            print(f"💤 Sleeping for 60 seconds...")
-            time.sleep(60)
-            
-        except KeyboardInterrupt:
-            print(f"\n🛑 Position monitoring stopped by user")
-            break
-        except Exception as e:
-            print(f"❌ Error in monitoring loop: {e}")
-            print(f"💤 Sleeping for 60 seconds before retry...")
-            time.sleep(60)
-
 def main():
     """Main function"""
     manager = IntelligentPositionManager()
@@ -353,29 +328,18 @@ def main():
         print("📊 Intelligent Position Manager")
         print("Usage:")
         print("  python3 manual_position_manager.py status      # Show positions")
-        print("  python3 manual_position_manager.py monitor     # Auto-monitor (continuous)")
         print("  python3 manual_position_manager.py close_tp    # Close profitable positions")
         print("  python3 manual_position_manager.py close_sl    # Close losing positions") 
         print("  python3 manual_position_manager.py close ALL   # Close all positions")
         print("  python3 manual_position_manager.py close SYMBOL # Close specific position")
         print()
-        
-        # Default to monitoring mode when run without arguments in background
-        import os
-        if os.getenv("TB_AUTO_MONITOR", "1") == "1":
-            print("🔄 Starting continuous monitoring mode...")
-            start_monitoring(manager)
-        else:
-            manager.print_positions()
+        manager.print_positions()
         return
         
     command = sys.argv[1].lower()
     
     if command == "status":
         manager.print_positions()
-        
-    elif command == "monitor":
-        start_monitoring(manager)
         
     elif command == "close_tp":
         print("🎯 Closing profitable positions...")
