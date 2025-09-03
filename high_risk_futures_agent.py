@@ -15,6 +15,10 @@ from typing import Dict, List, Optional, Any
 import logging
 import asyncio
 import traceback
+import hmac
+import hashlib
+import requests
+from urllib.parse import urlencode
 
 # Load environment variables
 try:
@@ -78,6 +82,15 @@ try:
     ENHANCED_DISCORD_AVAILABLE = True
 except ImportError:
     print("Enhanced Discord notifications not available for futures agent")
+
+# Import risk management and Kelly sizing
+try:
+    from advanced_risk_manager import AdvancedRiskManager, KellyPositionSizer
+    ADVANCED_RISK_AVAILABLE = True
+    print("✅ Advanced risk management and Kelly sizing loaded for futures agent")
+except ImportError as e:
+    print(f"❌ Failed to import advanced risk management: {e}")
+    ADVANCED_RISK_AVAILABLE = False
     ENHANCED_DISCORD_AVAILABLE = False
 
 # Import signal quality and market regime detection
@@ -164,6 +177,22 @@ class HighRiskFuturesAgent:
         self.trades_today = 0
         self.positions = {}
         self.trade_log = []
+
+        # Initialize Kelly sizing and risk management
+        if ADVANCED_RISK_AVAILABLE:
+            self.kelly_sizer = KellyPositionSizer()
+            self.risk_manager = AdvancedRiskManager()
+            logger.info("✅ Kelly sizing and advanced risk management initialized")
+        else:
+            self.kelly_sizer = None
+            self.risk_manager = None
+
+        # Performance tracking for Kelly sizing
+        self.win_count = 0
+        self.loss_count = 0
+        self.total_wins = 0.0
+        self.total_losses = 0.0
+        self.consecutive_losses = 0
 
         # Strategy parameters - More aggressive for frequent trading
         self.momentum_window = 6  # hours (reduced for faster signals)
@@ -370,6 +399,70 @@ class HighRiskFuturesAgent:
     def get_asset_symbol_clean(self, symbol: str) -> str:
         """Clean symbol for asset lookup"""
         return symbol.replace('USDT', '').replace('/USD', '').replace('USD', '').upper()
+    
+    def calculate_enhanced_risk_per_trade(self, symbol: str, signal: Dict) -> float:
+        """Calculate enhanced risk per trade using Kelly Criterion and performance tracking"""
+        try:
+            base_risk = self.risk_per_trade
+            
+            # 🎯 Apply Kelly Criterion if available and we have trade history
+            if self.kelly_sizer and (self.win_count + self.loss_count) >= 10:
+                total_trades = self.win_count + self.loss_count
+                win_probability = self.win_count / total_trades
+                
+                # Calculate win/loss ratio
+                if self.loss_count > 0 and self.total_losses != 0:
+                    avg_win = self.total_wins / max(self.win_count, 1)
+                    avg_loss = abs(self.total_losses) / self.loss_count
+                    win_loss_ratio = avg_win / avg_loss
+                else:
+                    win_loss_ratio = 1.0
+                
+                # Get current regime for Kelly calculation
+                regime = 'high_volatility' if signal.get('volatility', 0.05) > 0.1 else 'normal'
+                
+                # Calculate Kelly size as fraction of portfolio
+                platform_capital = self.get_current_platform_capital()
+                kelly_size = self.kelly_sizer.calculate_kelly_size(
+                    win_probability, win_loss_ratio, platform_capital, regime
+                )
+                
+                # Convert to risk percentage
+                kelly_risk = min(0.15, kelly_size / platform_capital)  # Cap at 15%
+                
+                logger.info(f"🧮 Kelly sizing for {symbol}: win_rate={win_probability:.2f}, "
+                           f"win_loss={win_loss_ratio:.2f}, kelly_risk={kelly_risk:.3f}")
+                
+                # Use Kelly if it's more conservative than base risk
+                if kelly_risk < base_risk:
+                    base_risk = kelly_risk
+            
+            # 🚨 Performance-based risk reduction
+            if self.consecutive_losses >= 3:
+                # Reduce risk after 3+ consecutive losses
+                reduction_factor = 0.5 ** (self.consecutive_losses - 2)  # 50%, 25%, 12.5%...
+                base_risk *= reduction_factor
+                logger.warning(f"⚠️ Risk reduced to {base_risk:.3f} due to {self.consecutive_losses} consecutive losses")
+            
+            # 🎯 Win rate based adjustment
+            if (self.win_count + self.loss_count) >= 20:
+                win_rate = self.win_count / (self.win_count + self.loss_count)
+                if win_rate < 0.30:  # If win rate < 30%, be very conservative
+                    base_risk *= 0.3  # Use only 30% of normal risk
+                    logger.warning(f"⚠️ Risk reduced to {base_risk:.3f} due to low win rate: {win_rate:.2f}")
+                elif win_rate < 0.40:  # If win rate < 40%, be conservative
+                    base_risk *= 0.6  # Use 60% of normal risk
+                    logger.info(f"📉 Risk reduced to {base_risk:.3f} due to win rate: {win_rate:.2f}")
+            
+            # Ensure minimum risk
+            base_risk = max(0.005, base_risk)  # Never go below 0.5%
+            
+            logger.debug(f"📊 Enhanced risk for {symbol}: {base_risk:.3f} (base: {self.risk_per_trade})")
+            return base_risk
+            
+        except Exception as e:
+            logger.error(f"Error in enhanced risk calculation: {e}")
+            return self.risk_per_trade * 0.5  # Conservative fallback
     
     def analyze_futures_trade_quality(self, symbol: str, entry_signal_strength: float = 0.5, 
                                     volatility: float = 0.0, volume_profile: float = 1.0) -> str:
@@ -1223,11 +1316,14 @@ class HighRiskFuturesAgent:
             # Use platform-specific capital for position sizing
             platform_capital = self.get_current_platform_capital()
 
+            # 🎯 ENHANCED: Apply Kelly Criterion and performance-based sizing
+            effective_risk = self.calculate_enhanced_risk_per_trade(symbol, signal)
+            
             # Calculate position size with platform-specific limits
             pos_info = calculate_futures_position(
                 symbol,
                 platform_capital,
-                self.risk_per_trade
+                effective_risk  # Use enhanced risk instead of fixed risk
             )
 
             if 'error' in pos_info:
@@ -1615,6 +1711,127 @@ class HighRiskFuturesAgent:
             logger.warning(f"Error checking exit conditions for {symbol}: {e}")
             return None
 
+    def _create_binance_signature(self, query_string: str) -> str:
+        """Create HMAC SHA256 signature for Binance API"""
+        secret_key = os.getenv('BINANCE_TESTNET_SECRET_KEY', '')
+        return hmac.new(
+            secret_key.encode('utf-8'),
+            query_string.encode('utf-8'), 
+            hashlib.sha256
+        ).hexdigest()
+
+    def _get_binance_account_info(self) -> Optional[Dict]:
+        """Get account information directly from Binance API"""
+        try:
+            api_key = os.getenv('BINANCE_TESTNET_API_KEY', '')
+            base_url = 'https://testnet.binancefuture.com'
+            endpoint = '/fapi/v2/account'
+            timestamp = int(time.time() * 1000)
+            query_string = f'timestamp={timestamp}'
+            signature = self._create_binance_signature(query_string)
+            
+            headers = {'X-MBX-APIKEY': api_key}
+            url = f'{base_url}{endpoint}?{query_string}&signature={signature}'
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            return response.json() if response.status_code == 200 else None
+        except Exception as e:
+            logger.warning(f"Error getting Binance account info: {e}")
+            return None
+
+    def _close_position_via_api(self, symbol: str, side: str, quantity: float) -> bool:
+        """Close position directly via Binance API as fallback"""
+        try:
+            api_key = os.getenv('BINANCE_TESTNET_API_KEY', '')
+            base_url = 'https://testnet.binancefuture.com'
+            endpoint = '/fapi/v1/order'
+            timestamp = int(time.time() * 1000)
+            
+            params = {
+                'symbol': symbol,
+                'side': side,
+                'type': 'MARKET',
+                'quantity': quantity,
+                'timestamp': timestamp
+            }
+            
+            query_string = urlencode(params)
+            signature = self._create_binance_signature(query_string)
+            
+            headers = {'X-MBX-APIKEY': api_key}
+            url = f'{base_url}{endpoint}'
+            
+            params['signature'] = signature
+            
+            response = requests.post(url, headers=headers, params=params, timeout=10)
+            result = response.json()
+            
+            if response.status_code == 200 and 'orderId' in result:
+                logger.info(f"✅ Successfully closed {symbol} via direct API: Order {result['orderId']}")
+                return True
+            else:
+                logger.error(f"❌ API closure failed for {symbol}: {result}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Exception in API closure for {symbol}: {e}")
+            return False
+
+    def force_sync_and_close_all_positions(self) -> bool:
+        """Emergency function to sync with platform and close all positions"""
+        try:
+            logger.warning("🚨 EMERGENCY: Force syncing and closing all platform positions")
+            
+            # Get actual positions from platform
+            account = self._get_binance_account_info()
+            if not account or 'positions' not in account:
+                logger.error("❌ Could not fetch account info for emergency closure")
+                return False
+            
+            # Find active positions
+            active_positions = [pos for pos in account['positions'] if float(pos['positionAmt']) != 0]
+            
+            if not active_positions:
+                logger.info("✅ No active positions found on platform")
+                return True
+            
+            logger.warning(f"🚨 Found {len(active_positions)} active positions on platform")
+            
+            # Close all positions
+            success_count = 0
+            for pos in active_positions:
+                symbol = pos['symbol']
+                position_amt = float(pos['positionAmt'])
+                
+                if position_amt == 0:
+                    continue
+                    
+                # Determine close side and quantity
+                if position_amt > 0:
+                    close_side = 'SELL'
+                    quantity = abs(position_amt)
+                else:
+                    close_side = 'BUY'
+                    quantity = abs(position_amt)
+                
+                logger.warning(f"🚨 Emergency closing {symbol} {close_side} {quantity}")
+                
+                if self._close_position_via_api(symbol, close_side, quantity):
+                    success_count += 1
+                    # Remove from internal tracking if exists
+                    if symbol in self.positions:
+                        del self.positions[symbol]
+                        logger.info(f"🗑️ Removed {symbol} from internal tracking")
+                
+                time.sleep(0.5)  # Rate limiting
+            
+            logger.warning(f"🚨 Emergency closure complete: {success_count}/{len(active_positions)} positions closed")
+            return success_count == len(active_positions)
+            
+        except Exception as e:
+            logger.error(f"❌ Emergency closure failed: {e}")
+            return False
+
     def close_position(self, symbol: str, reason: str):
         """Close a position on the platform and update tracking"""
         if symbol not in self.positions:
@@ -1647,11 +1864,30 @@ class HighRiskFuturesAgent:
             pnl_amount = pnl_pct * quantity * leverage
             self.daily_pnl += pnl_amount
 
+            # 🎯 UPDATE PERFORMANCE METRICS for Kelly sizing
+            if pnl_amount > 0:
+                self.win_count += 1
+                self.total_wins += pnl_amount
+                self.consecutive_losses = 0
+                logger.info(f"✅ WIN: {symbol} +${pnl_amount:.2f} (Total wins: {self.win_count})")
+            else:
+                self.loss_count += 1
+                self.total_losses += pnl_amount  # Store as negative
+                self.consecutive_losses += 1
+                logger.warning(f"❌ LOSS: {symbol} ${pnl_amount:.2f} (Consecutive losses: {self.consecutive_losses})")
+            
+            # Log current performance stats
+            total_trades = self.win_count + self.loss_count
+            if total_trades > 0:
+                win_rate = self.win_count / total_trades
+                logger.info(f"📊 Performance: {self.win_count}W/{self.loss_count}L = {win_rate:.1%} win rate")
+
             logger.info(f"🔄 Closing {symbol} position: {reason}")
             logger.info(f"   Entry: ${entry_price:.2f} | Exit: ${exit_price:.2f}")
             logger.info(f"   P&L: ${pnl_amount:.2f} ({pnl_pct:.2%})")
 
             # Actually close the position on the platform
+            platform_closed = False
             try:
                 # Determine the opposite side for closing
                 close_side = 'sell' if side == 'buy' else 'buy'
@@ -1665,14 +1901,34 @@ class HighRiskFuturesAgent:
 
                 if 'error' in close_result:
                     logger.error(f"❌ Failed to close {symbol} position on platform: {close_result['error']}")
-                    # Still remove from tracking even if platform close failed
-                    logger.warning(f"⚠️ Removing {symbol} from tracking despite platform close failure")
+                    logger.warning(f"🔄 Attempting direct API closure as fallback...")
+                    
+                    # 🚨 FALLBACK: Use direct API closure
+                    api_close_side = 'SELL' if side == 'buy' else 'BUY'
+                    platform_closed = self._close_position_via_api(symbol, api_close_side, abs(quantity))
+                    
+                    if not platform_closed:
+                        logger.error(f"❌ Both platform and API closure failed for {symbol}")
+                        logger.warning(f"⚠️ Removing {symbol} from tracking despite closure failures")
                 else:
                     logger.info(f"✅ Successfully closed {symbol} position on platform")
+                    platform_closed = True
 
             except Exception as e:
                 logger.error(f"❌ Exception closing {symbol} position on platform: {e}")
-                logger.warning(f"⚠️ Removing {symbol} from tracking despite platform close failure")
+                logger.warning(f"🔄 Attempting direct API closure as fallback...")
+                
+                # 🚨 FALLBACK: Use direct API closure
+                try:
+                    api_close_side = 'SELL' if side == 'buy' else 'BUY'
+                    platform_closed = self._close_position_via_api(symbol, api_close_side, abs(quantity))
+                    
+                    if not platform_closed:
+                        logger.error(f"❌ Both platform and API closure failed for {symbol}")
+                        logger.warning(f"⚠️ Removing {symbol} from tracking despite closure failures")
+                except Exception as api_e:
+                    logger.error(f"❌ API fallback also failed for {symbol}: {api_e}")
+                    logger.warning(f"⚠️ Removing {symbol} from tracking despite all closure failures")
 
             # Send close notification
             self.notify("close", {
@@ -1685,6 +1941,10 @@ class HighRiskFuturesAgent:
                 "pnl": pnl_amount,
                 "reason": reason
             })
+
+            # 🔍 LARGE LOSS ANALYSIS - Post-mortem for significant losses
+            if pnl_amount < -100:  # If loss > $100
+                self.analyze_large_loss(symbol, position, exit_price, pnl_amount, reason)
 
             # Record exit in trade log
             exit_record = {
@@ -1880,6 +2140,16 @@ class HighRiskFuturesAgent:
             
             if 'error' in status:
                 logger.warning(f"❌ Could not sync positions: {status['error']}")
+                logger.warning("🚨 Attempting emergency sync via direct API...")
+                
+                # 🚨 EMERGENCY: If agent's preferred status fails, check if there are
+                # positions that need to be closed for ultra-conservative mode
+                if hasattr(self, 'risk_per_trade') and self.risk_per_trade <= 0.005:  # Ultra-conservative mode
+                    logger.warning("🚨 Ultra-conservative mode detected - checking for legacy positions to close")
+                    emergency_closed = self.force_sync_and_close_all_positions()
+                    if emergency_closed:
+                        logger.warning("🚨 Emergency closure completed - ultra-conservative mode fully active")
+                    return emergency_closed
                 return False
             
             platform_positions = status.get('positions', [])
@@ -1887,6 +2157,22 @@ class HighRiskFuturesAgent:
             
             # Log what we found on the platform
             logger.info(f"🔍 Found {len(platform_positions)} positions on platform to sync")
+            
+            # 🚨 ULTRA-CONSERVATIVE CHECK: If we're in ultra-conservative mode and there are 
+            # legacy positions, force close them immediately
+            emergency_close_enabled = int(os.getenv('FUTURES_EMERGENCY_CLOSE_LEGACY', 1))
+            if (emergency_close_enabled and hasattr(self, 'risk_per_trade') and 
+                self.risk_per_trade <= 0.005 and len(platform_positions) > 0):
+                
+                logger.warning(f"🚨 ULTRA-CONSERVATIVE MODE: Found {len(platform_positions)} legacy positions")
+                logger.warning("🚨 These positions exceed ultra-conservative limits - forcing closure")
+                
+                emergency_closed = self.force_sync_and_close_all_positions()
+                if emergency_closed:
+                    logger.warning("🚨 All legacy positions closed - ultra-conservative mode fully active")
+                    return True
+                else:
+                    logger.error("❌ Could not close all legacy positions - manual intervention required")
             
             for pos in platform_positions:
                 symbol = pos.get('symbol', '').replace('USDT', '') + 'USDT'  # Normalize symbol
@@ -1930,6 +2216,101 @@ class HighRiskFuturesAgent:
         except Exception as e:
             logger.error(f"Error syncing existing positions: {e}")
             return False
+
+    def analyze_large_loss(self, symbol: str, position: Dict, exit_price: float, 
+                          pnl_amount: float, exit_reason: str):
+        """Analyze large losses to identify patterns and improve future trades"""
+        try:
+            entry_price = position.get('entry_price', 0)
+            entry_time = position.get('timestamp', datetime.now())
+            leverage = position.get('leverage', 1)
+            side = position.get('side', 'buy')
+            
+            # Calculate metrics
+            if isinstance(entry_time, str):
+                entry_time = datetime.fromisoformat(entry_time.replace('Z', '+00:00'))
+            
+            hold_duration = datetime.now(timezone.utc) - entry_time.replace(tzinfo=timezone.utc)
+            price_move = ((exit_price - entry_price) / entry_price) if entry_price > 0 else 0
+            if side == 'sell':
+                price_move = -price_move
+            
+            # Determine loss category
+            if abs(pnl_amount) > 200:
+                severity = "CRITICAL"
+            elif abs(pnl_amount) > 150:
+                severity = "MAJOR"
+            else:
+                severity = "SIGNIFICANT"
+            
+            # Log comprehensive analysis
+            logger.error(f"🚨 {severity} LOSS ANALYSIS for {symbol}")
+            logger.error(f"   💸 Loss Amount: ${pnl_amount:.2f}")
+            logger.error(f"   📊 Entry: ${entry_price:.4f} → Exit: ${exit_price:.4f}")
+            logger.error(f"   📈 Price Move: {price_move:.2%} against position")
+            logger.error(f"   ⏱️  Hold Duration: {hold_duration}")
+            logger.error(f"   🎯 Leverage: {leverage}x")
+            logger.error(f"   🚪 Exit Reason: {exit_reason}")
+            logger.error(f"   📅 Entry Time: {entry_time}")
+            
+            # Identify potential issues
+            issues = []
+            if abs(price_move) > 0.1:  # > 10% price move
+                issues.append(f"Large adverse move: {price_move:.2%}")
+            if leverage > 15:
+                issues.append(f"High leverage: {leverage}x")
+            if hold_duration.total_seconds() < 1800:  # < 30 minutes
+                issues.append(f"Quick exit: {hold_duration}")
+            if "stop_loss" not in exit_reason.lower():
+                issues.append("No stop loss protection")
+            
+            if issues:
+                logger.error(f"   ⚠️  Identified Issues:")
+                for issue in issues:
+                    logger.error(f"      - {issue}")
+            
+            # Add to loss analysis file for pattern recognition
+            try:
+                loss_analysis = {
+                    'timestamp': datetime.now().isoformat(),
+                    'symbol': symbol,
+                    'loss_amount': pnl_amount,
+                    'entry_price': entry_price,
+                    'exit_price': exit_price,
+                    'price_move_pct': price_move,
+                    'leverage': leverage,
+                    'side': side,
+                    'hold_duration_seconds': hold_duration.total_seconds(),
+                    'exit_reason': exit_reason,
+                    'severity': severity,
+                    'issues': issues
+                }
+                
+                # Append to loss analysis file
+                import json
+                loss_file = 'futures_loss_analysis.json'
+                try:
+                    with open(loss_file, 'r') as f:
+                        loss_data = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    loss_data = []
+                
+                loss_data.append(loss_analysis)
+                
+                # Keep only last 100 loss records
+                if len(loss_data) > 100:
+                    loss_data = loss_data[-100:]
+                
+                with open(loss_file, 'w') as f:
+                    json.dump(loss_data, f, indent=2)
+                
+                logger.info(f"📝 Loss analysis saved to futures_loss_analysis.json")
+                
+            except Exception as e:
+                logger.error(f"Failed to save loss analysis: {e}")
+                
+        except Exception as e:
+            logger.error(f"Error in large loss analysis: {e}")
 
 def main():
     """Main function"""

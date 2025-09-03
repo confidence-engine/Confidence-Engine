@@ -62,7 +62,7 @@ try:
     from data_pipeline import data_pipeline
     from error_recovery import execute_with_recovery
     from config_manager import get_trading_config, get_api_config
-    from pplx_key_manager import get_sentiment_analysis, get_narrative_summary
+    from local_sentiment_analyzer import get_local_sentiment_analysis, get_local_narrative_summary
     from system_health import get_system_health, start_health_monitoring, HealthStatus
     
     INFRASTRUCTURE_AVAILABLE = True
@@ -70,9 +70,9 @@ try:
     logger.info("✅ Priority 1 infrastructure modules loaded successfully")
     logger.info("   🎯 Precision manager: Symbol-specific rounding and validation")
     logger.info("   📊 Data pipeline: Unified OHLCV from all providers")
+    logger.info("   🧠 Local sentiment analyzer: FinBERT-based analysis (no external APIs)")
     logger.info("   🛡️ Error recovery: Automatic retry with circuit breaker")
     logger.info("   ⚙️ Config manager: Unified configuration system")
-    logger.info("   🔑 PPLX key manager: Multi-key rotation and failover")
     logger.info("   🏥 System health: Real-time monitoring and alerting")
     
 except ImportError as e:
@@ -420,7 +420,8 @@ class AsyncProcessor:
             if api_news:
                 news_resp = api_news.get_news(_normalize_symbol(symbol), limit=10)
                 headlines = [item.headline for item in news_resp]
-                sentiment, _ = sentiment_via_perplexity(headlines)
+                from local_sentiment_analyzer import sentiment_via_local
+                sentiment, _ = sentiment_via_local(headlines)
                 return sentiment
             else:
                 return 0.5
@@ -1995,7 +1996,8 @@ def fetch_bars(symbol: str, timeframe: str, lookback: int) -> pd.DataFrame:
     
     # 🎯 INFRASTRUCTURE: Use data pipeline for standardized OHLCV format
     if INFRASTRUCTURE_AVAILABLE and 'data_pipeline' in globals():
-        bars = data_pipeline.standardize_ohlcv(bars, source="alpaca", symbol=symbol)
+        from data_pipeline import DataProvider
+        bars = data_pipeline.standardizer.standardize_data(bars, DataProvider.ALPACA, symbol)
         logger.debug(f"📊 Data pipeline: Standardized {symbol} {timeframe} bars with {len(bars)} rows")
     
     return bars
@@ -2039,98 +2041,15 @@ def atr(df: pd.DataFrame, length: int = 14) -> pd.Series:
 
 
 # ==========================
-# Perplexity Sentiment
+# Local Sentiment Analysis (Replaces Perplexity)
 # ==========================
 
+from local_sentiment_analyzer import sentiment_via_local as sentiment_via_perplexity
+
+# Legacy function name for backward compatibility
 def _pplx_headers(api_key: str) -> dict:
-    return {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-
-
-@CircuitBreaker(failure_threshold=3, recovery_timeout=60)
-def sentiment_via_perplexity(headlines: list[str]) -> Tuple[float, Optional[str]]:
-    """
-    Ask Perplexity to score sentiment in [0,1] for Bitcoin given the provided headlines.
-    Rotates through settings.pplx_api_keys. Returns (score, error_or_none).
-    """
-    if OFFLINE:
-        # Deterministic mock sentiment in offline mode; no network calls
-        return 0.62, None
-    keys = settings.pplx_api_keys or []
-    if not keys:
-        return 0.0, "No Perplexity API keys"
-    # Build a compact prompt; require strict JSON
-    system_msg = (
-        "You are an analysis API. Respond ONLY with a JSON object: {\"sentiment\": <float 0..1>}"
-    )
-    joined = "\n".join([h.strip() for h in headlines if h.strip()])[:2000]
-    user_msg = (
-        "Given these recent Bitcoin headlines, output a single scalar sentiment score in [0,1] "
-        "where 0 is strongly bearish and 1 is strongly bullish.\n"
-        f"Headlines:\n{joined}"
-    )
-    payload = {
-        "model": "sonar",
-        "messages": [
-            {"role": "system", "content": system_msg},
-            {"role": "user", "content": user_msg},
-        ],
-        "temperature": 0.0,
-        "top_p": 1.0,
-        "web_search_options": {"enable_citation": False},
-    }
-    last_err: Optional[str] = None
-    with httpx.Client(timeout=PPLX_TIMEOUT) as client:
-        for key in keys:
-            try:
-                def _post() -> httpx.Response:
-                    return client.post(
-                        "https://api.perplexity.ai/chat/completions",
-                        headers=_pplx_headers(key),
-                        json=payload,
-                    )
-                def _on_retry(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
-                    logger.warning(
-                        f"[retry] pplx attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s"
-                    )
-                r = retry_call(
-                    _post,
-                    attempts=int(os.getenv("TB_RETRY_ATTEMPTS", "5")),
-                    retry_exceptions=(httpx.TimeoutException, httpx.TransportError, TimeoutError, ConnectionError),
-                    retry_status_codes=RETRY_STATUS_CODES,
-                    on_retry=_on_retry,
-                )
-                if r.status_code != 200:
-                    last_err = f"HTTP {r.status_code} {r.text[:160]}"; continue
-                data = r.json()
-                content = (data.get("choices", [{}])[0].get("message", {}) or {}).get("content", "")
-                text = str(content or "").strip()
-                # Extract JSON object
-                if text.startswith("```"):
-                    lines = text.splitlines()
-                    if lines and lines[0].startswith("```"): lines = lines[1:]
-                    if lines and lines[-1].startswith("```"): lines = lines[:-1]
-                    text = "\n".join(lines)
-                start = text.find("{")
-                end = text.rfind("}")
-                if start != -1 and end != -1 and end > start:
-                    obj = {}
-                    try:
-                        import json
-                        obj = json.loads(text[start:end+1])
-                    except Exception:
-                        pass
-                    val = obj.get("sentiment") if isinstance(obj, dict) else None
-                    try:
-                        score = float(val)
-                        if 0.0 <= score <= 1.0:
-                            return score, None
-                    except Exception:
-                        pass
-                last_err = "Invalid JSON response"
-            except Exception as e:
-                last_err = str(e)
-    return 0.0, last_err
-
+    """Deprecated - kept for compatibility"""
+    return {}
 
 # ==========================
 # Execution
