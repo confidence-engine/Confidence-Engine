@@ -55,48 +55,47 @@ import asyncio
 import concurrent.futures
 
 # =============================================================================
-# INTELLIGENT TP/SL CONFIGURATION FOR CRYPTO TRADING
+# WORLD-CLASS TECHNICAL ANALYSIS INTEGRATION
 # =============================================================================
 
-# Trade Quality Levels for Crypto (conservative approach)
-CRYPTO_TRADE_QUALITY_LEVELS = {
-    'excellent': {
-        'tp_range': (0.12, 0.20),  # 12-20% TP for excellent signals
-        'sl_base': 0.05,           # 5% SL
-        'description': 'High conviction setup, strong confluence'
-    },
-    'good': {
-        'tp_range': (0.08, 0.12),  # 8-12% TP for good signals  
-        'sl_base': 0.04,           # 4% SL
-        'description': 'Good setup, decent confidence'
-    },
-    'fair': {
-        'tp_range': (0.05, 0.08),  # 5-8% TP for fair signals
-        'sl_base': 0.03,           # 3% SL
-        'description': 'Marginal setup, lower confidence'
-    }
+# Import the world-class technical analysis engine
+try:
+    from world_class_technical_analysis import (
+        TechnicalAnalysisEngine, 
+        calculate_world_class_crypto_targets,
+        MarketRegime,
+        RiskTargets
+    )
+    WORLD_CLASS_TA_AVAILABLE = True
+    logger.info("✅ World-class technical analysis engine loaded successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import world-class TA engine: {e}")
+    WORLD_CLASS_TA_AVAILABLE = False
+
+# Initialize the technical analysis engine
+if WORLD_CLASS_TA_AVAILABLE:
+    TA_ENGINE = TechnicalAnalysisEngine(
+        atr_period=14,
+        rsi_period=14,
+        bb_period=20,
+        bb_std_dev=2.0,
+        min_bars_required=50
+    )
+else:
+    TA_ENGINE = None
+
+# DEPRECATED: Legacy hardcoded levels (kept for emergency fallback only)
+LEGACY_CRYPTO_TRADE_QUALITY_LEVELS = {
+    'excellent': {'tp_range': (0.08, 0.15), 'sl_base': 0.04},
+    'good': {'tp_range': (0.06, 0.10), 'sl_base': 0.03},  
+    'fair': {'tp_range': (0.04, 0.06), 'sl_base': 0.025}
 }
 
-# Asset Difficulty for Crypto (liquidity and market cap based)
-CRYPTO_ASSET_DIFFICULTY = {
-    'BTC': 1.5,   # Hardest to move significantly
-    'ETH': 1.3,   # Major crypto, good liquidity
-    'SOL': 1.1,   # Top 10, decent liquidity
-    'AVAX': 1.0,  # Top 20, moderate liquidity
-    'LINK': 1.1,  # Established DeFi
-    'UNI': 1.0,   # DEX token, baseline
-    'AAVE': 0.9,  # DeFi, smaller
-    'COMP': 0.8,  # Smaller DeFi
-    'YFI': 0.7,   # Smallest, highest volatility
-    'XTZ': 0.8,   # Alt L1
-    'LTC': 1.0,   # Legacy crypto
-    'BCH': 1.0,   # Bitcoin fork
-    'DOT': 0.9,   # Parachain platform
-    'MKR': 0.8,   # DeFi governance
-    'CRV': 0.7,   # DeFi protocol
-    'SNX': 0.7,   # Derivatives protocol
-    'SUSHI': 0.6, # DEX protocol
-    'GRT': 0.6,   # Indexing protocol
+# DEPRECATED: Legacy asset difficulty (replaced by world-class technical analysis)
+LEGACY_CRYPTO_ASSET_DIFFICULTY = {
+    'BTC': 1.5, 'ETH': 1.3, 'SOL': 1.1, 'AVAX': 1.0, 'LINK': 1.1, 'UNI': 1.0, 'AAVE': 0.9,
+    'COMP': 0.8, 'YFI': 0.7, 'XTZ': 0.8, 'LTC': 1.0, 'BCH': 1.0, 'DOT': 0.9, 'MKR': 0.8,
+    'CRV': 0.7, 'SNX': 0.7, 'SUSHI': 0.6, 'GRT': 0.6
 }
 
 # =============================================================================
@@ -1392,59 +1391,155 @@ def get_crypto_asset_symbol_clean(symbol: str) -> str:
     """Clean symbol for asset lookup"""
     return symbol.replace('/USD', '').replace('USD', '').upper()
 
+def calculate_world_class_crypto_targets_with_bars(df: pd.DataFrame, symbol: str, 
+                                                 signal_strength: float = 0.7,
+                                                 sentiment: float = 0.5,
+                                                 cross_up: bool = False,
+                                                 cross_up_1h: bool = False, 
+                                                 trend_up: bool = False,
+                                                 volatility: float = 0.0) -> Dict[str, float]:
+    """
+    Calculate world-class TP/SL targets using comprehensive technical analysis
+    This replaces all hardcoded percentage-based calculations
+    """
+    try:
+        if not WORLD_CLASS_TA_AVAILABLE or TA_ENGINE is None:
+            logger.warning("⚠️  World-class TA engine not available, using legacy fallback")
+            return calculate_legacy_targets_fallback(symbol, df['close'].iloc[-1], signal_strength, sentiment, volatility)
+        
+        # Calculate confidence from signal confluence
+        confidence = calculate_signal_confidence(
+            signal_strength, sentiment, cross_up, cross_up_1h, trend_up, volatility
+        )
+        
+        # Use world-class technical analysis engine
+        targets = TA_ENGINE.calculate_world_class_targets(
+            df=df,
+            side='buy',  # Assuming long positions for crypto
+            confidence=confidence,
+            symbol=symbol
+        )
+        
+        logger.info(f"🎯 World-class targets for {symbol}: "
+                   f"Entry=${targets.entry_price:.4f}, "
+                   f"SL=${targets.stop_loss:.4f} ({targets.sl_method}), "
+                   f"TP=${targets.take_profit_1:.4f} ({targets.tp_method}), "
+                   f"R/R={targets.risk_reward_ratio:.2f}")
+        
+        # Return in legacy format for compatibility
+        return {
+            'tp_pct': abs(targets.take_profit_1 - targets.entry_price) / targets.entry_price,
+            'sl_pct': abs(targets.stop_loss - targets.entry_price) / targets.entry_price,
+            'trade_quality': f"confidence_{confidence:.2f}",
+            'difficulty': targets.position_size_multiplier,
+            'quality_description': f"{targets.sl_method}|{targets.tp_method}",
+            'tp_price': targets.take_profit_1,
+            'sl_price': targets.stop_loss,
+            'tp_price_2': targets.take_profit_2,
+            'position_size_multiplier': targets.position_size_multiplier,
+            'risk_reward_ratio': targets.risk_reward_ratio,
+            'confidence': confidence,
+            'method': 'world_class_technical_analysis'
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error in world-class TA calculation: {e}")
+        return calculate_legacy_targets_fallback(symbol, df['close'].iloc[-1], signal_strength, sentiment, volatility)
+
+def calculate_signal_confidence(signal_strength: float, sentiment: float, 
+                               cross_up: bool, cross_up_1h: bool, 
+                               trend_up: bool, volatility: float) -> float:
+    """
+    Calculate overall trade confidence from multiple signals
+    Returns value between 0.3 and 0.95
+    """
+    base_confidence = signal_strength
+    
+    # Add confluence bonuses
+    signal_count = sum([cross_up, cross_up_1h, trend_up])
+    confluence_bonus = signal_count * 0.1  # +10% per signal
+    
+    # Sentiment adjustment
+    if sentiment > 0.7:
+        sentiment_bonus = 0.15
+    elif sentiment > 0.6:
+        sentiment_bonus = 0.10
+    elif sentiment < 0.3:
+        sentiment_bonus = -0.15
+    elif sentiment < 0.4:
+        sentiment_bonus = -0.10
+    else:
+        sentiment_bonus = 0.0
+    
+    # Volatility adjustment (moderate volatility is ideal)
+    if 0.02 <= volatility <= 0.06:
+        vol_bonus = 0.05  # Sweet spot
+    elif volatility > 0.10:
+        vol_bonus = -0.15  # Too volatile
+    elif volatility < 0.01:
+        vol_bonus = -0.10  # Too quiet
+    else:
+        vol_bonus = 0.0
+    
+    # Combine all factors
+    final_confidence = base_confidence + confluence_bonus + sentiment_bonus + vol_bonus
+    
+    # Clamp to reasonable range
+    return max(0.3, min(0.95, final_confidence))
+
+def calculate_legacy_targets_fallback(symbol: str, entry_price: float,
+                                    signal_strength: float, sentiment: float, 
+                                    volatility: float) -> Dict[str, float]:
+    """
+    Emergency fallback using simplified legacy calculations
+    Only used when world-class TA engine fails
+    """
+    logger.warning(f"⚠️  Using legacy fallback targets for {symbol}")
+    
+    # Use conservative legacy ranges
+    quality_config = LEGACY_CRYPTO_TRADE_QUALITY_LEVELS['fair']  # Always use most conservative
+    difficulty = LEGACY_CRYPTO_ASSET_DIFFICULTY.get(get_crypto_asset_symbol_clean(symbol), 1.0)
+    
+    # Calculate conservative targets
+    tp_min, tp_max = quality_config['tp_range']
+    base_tp = tp_min  # Use minimum TP for safety
+    sl_pct = quality_config['sl_base']
+    
+    # Apply minimal difficulty adjustment
+    adjusted_tp = base_tp * min(difficulty, 1.2)  # Cap difficulty multiplier
+    
+    tp_price = entry_price * (1 + adjusted_tp)
+    sl_price = entry_price * (1 - sl_pct)
+    
+    return {
+        'tp_pct': adjusted_tp,
+        'sl_pct': sl_pct,
+        'trade_quality': 'legacy_fallback',
+        'difficulty': difficulty,
+        'quality_description': 'emergency_fallback',
+        'tp_price': tp_price,
+        'sl_price': sl_price,
+        'position_size_multiplier': 0.7,  # Conservative sizing
+        'risk_reward_ratio': adjusted_tp / sl_pct,
+        'confidence': 0.5,
+        'method': 'legacy_fallback'
+    }
+
+# DEPRECATED: Legacy functions kept for compatibility
 def analyze_crypto_trade_quality(symbol: str, signal_strength: float = 0.5, 
                                 sentiment: float = 0.5, volatility: float = 0.0,
                                 cross_up: bool = False, cross_up_1h: bool = False,
                                 trend_up: bool = False) -> str:
-    """
-    Analyze crypto trade quality based on multiple factors
-    More sophisticated signal analysis than the position manager version
-    """
-    symbol_clean = get_crypto_asset_symbol_clean(symbol)
+    """DEPRECATED: Use calculate_world_class_crypto_targets_with_bars instead"""
+    logger.warning("⚠️  Using deprecated analyze_crypto_trade_quality function")
+    confidence = calculate_signal_confidence(signal_strength, sentiment, cross_up, cross_up_1h, trend_up, volatility)
     
-    # Start with base quality assessment
-    base_quality = 'fair'  # Default
-    
-    # Assess confluence of signals
-    signal_count = sum([cross_up, cross_up_1h, trend_up])
-    
-    if signal_count >= 3:  # Perfect confluence
-        base_quality = 'excellent'
-    elif signal_count == 2:  # Good confluence
-        base_quality = 'good'
-    else:  # Single signal
-        base_quality = 'fair'
-    
-    # Adjust for sentiment
-    if sentiment > 0.7:  # Very positive sentiment
-        if base_quality == 'fair':
-            base_quality = 'good'
-        elif base_quality == 'good':
-            base_quality = 'excellent'
-    elif sentiment < 0.3:  # Very negative sentiment
-        if base_quality == 'excellent':
-            base_quality = 'good'
-        elif base_quality == 'good':
-            base_quality = 'fair'
-    
-    # Adjust for volatility (moderate volatility is better for crypto)
-    if 0.02 <= volatility <= 0.06:  # Sweet spot for crypto
-        # Good volatility, keep quality
-        pass
-    elif volatility > 0.10:  # Too volatile
-        if base_quality == 'excellent':
-            base_quality = 'good'
-        elif base_quality == 'good':
-            base_quality = 'fair'
-    elif volatility < 0.01:  # Too quiet
-        if base_quality == 'excellent':
-            base_quality = 'good'
-    
-    # Asset-specific adjustments
-    if symbol_clean in ['BTC', 'ETH'] and base_quality == 'fair':
-        base_quality = 'good'  # Blue chips get benefit of doubt
-    
-    return base_quality
+    if confidence >= 0.8:
+        return 'excellent'
+    elif confidence >= 0.6:
+        return 'good'
+    else:
+        return 'fair'
 
 def calculate_intelligent_crypto_targets(symbol: str, entry_price: float, 
                                        signal_strength: float = 0.5,
@@ -1453,41 +1548,9 @@ def calculate_intelligent_crypto_targets(symbol: str, entry_price: float,
                                        cross_up_1h: bool = False, 
                                        trend_up: bool = False,
                                        volatility: float = 0.0) -> Dict[str, float]:
-    """Calculate intelligent TP/SL for crypto based on trade quality and asset difficulty"""
-    symbol_clean = get_crypto_asset_symbol_clean(symbol)
-    
-    # Analyze trade quality
-    trade_quality = analyze_crypto_trade_quality(
-        symbol, signal_strength, sentiment, volatility, cross_up, cross_up_1h, trend_up
-    )
-    quality_config = CRYPTO_TRADE_QUALITY_LEVELS[trade_quality]
-    
-    # Get asset difficulty multiplier
-    difficulty = CRYPTO_ASSET_DIFFICULTY.get(symbol_clean, 1.0)
-    
-    # Calculate base TP (use middle of range)
-    tp_min, tp_max = quality_config['tp_range']
-    base_tp = (tp_min + tp_max) / 2
-    
-    # Adjust TP for asset difficulty
-    adjusted_tp = base_tp * difficulty
-    
-    # SL stays consistent regardless of difficulty (risk management)
-    sl_pct = quality_config['sl_base']
-    
-    # Calculate target prices
-    tp_price = entry_price * (1 + adjusted_tp)
-    sl_price = entry_price * (1 - sl_pct)
-    
-    return {
-        'tp_pct': adjusted_tp,
-        'sl_pct': sl_pct,
-        'trade_quality': trade_quality,
-        'difficulty': difficulty,
-        'quality_description': quality_config['description'],
-        'tp_price': tp_price,
-        'sl_price': sl_price
-    }
+    """DEPRECATED: Use calculate_world_class_crypto_targets_with_bars instead"""
+    logger.warning("⚠️  Using deprecated calculate_intelligent_crypto_targets function")
+    return calculate_legacy_targets_fallback(symbol, entry_price, signal_strength, sentiment, volatility)
 
 # =============================================================================
 
@@ -2425,26 +2488,30 @@ def main() -> int:
                 use_intelligent_tpsl = os.getenv("TB_INTELLIGENT_CRYPTO_TPSL", "1") == "1"
                 
                 if use_intelligent_tpsl:
-                    # Calculate intelligent targets based on trade quality at entry
-                    # Note: We don't have the original entry signals, so we estimate
-                    # In a full implementation, these would be stored with the position
-                    estimated_volatility = calculate_atr(bars_15) / price if len(bars_15) >= 14 else 0.05
-                    
-                    targets = calculate_intelligent_crypto_targets(
-                        symbol=symbol,
-                        entry_price=entry_price,
-                        signal_strength=0.6,  # Default estimate
-                        sentiment=sentiment,
-                        cross_up=cross_up,     # Current state (not entry state)
-                        cross_up_1h=cross_up_1h,
-                        trend_up=trend_up,
-                        volatility=estimated_volatility
-                    )
-                    
-                    intelligent_tp_pct = targets['tp_pct']
-                    intelligent_sl_pct = targets['sl_pct']
-                    
-                    logger.debug(f"🧠 {symbol} intelligent targets: TP={intelligent_tp_pct:.1%} SL={intelligent_sl_pct:.1%} Quality={targets['trade_quality']}")
+                    # Calculate world-class targets using comprehensive technical analysis
+                    try:
+                        targets = calculate_world_class_crypto_targets_with_bars(
+                            df=bars_15,  # Use 15min bars for technical analysis
+                            symbol=symbol,
+                            signal_strength=0.6,  # Default estimate  
+                            sentiment=sentiment,
+                            cross_up=cross_up,
+                            cross_up_1h=cross_up_1h,
+                            trend_up=trend_up,
+                            volatility=calculate_atr(bars_15) / price if len(bars_15) >= 14 else 0.05
+                        )
+                        
+                        intelligent_tp_pct = targets['tp_pct']
+                        intelligent_sl_pct = targets['sl_pct']
+                        
+                        logger.info(f"🎯 {symbol} world-class targets: TP={intelligent_tp_pct:.1%} SL={intelligent_sl_pct:.1%} "
+                                   f"Method={targets['method']} R/R={targets.get('risk_reward_ratio', 0):.2f}")
+                        
+                    except Exception as e:
+                        logger.error(f"❌ World-class TA failed for {symbol}: {e}, using fallback")
+                        # Emergency fallback to conservative values
+                        intelligent_tp_pct = 0.04  # 4% TP
+                        intelligent_sl_pct = 0.025  # 2.5% SL
                 else:
                     # Fall back to fixed levels from promoted_params.json
                     intelligent_tp_pct = TP_PCT
@@ -2515,27 +2582,41 @@ def main() -> int:
                     position_value = equity * MAX_PORTFOLIO_RISK  # Use the 1% risk sizing
                     qty = position_value / price
                     
-                    # Use intelligent TP/SL if enabled
+                    # Use world-class TP/SL calculation
                     use_intelligent_tpsl = os.getenv("TB_INTELLIGENT_CRYPTO_TPSL", "1") == "1"
                     
                     if use_intelligent_tpsl:
-                        # Calculate intelligent targets based on signal quality
+                        # Calculate world-class targets using comprehensive technical analysis
                         signal_strength = 0.8 if cross_up and cross_up_1h else 0.6
-                        volatility = calculate_atr(bars_15) / price if len(bars_15) >= 14 else 0.05
                         
-                        targets = calculate_intelligent_crypto_targets(
-                            symbol=symbol,
-                            entry_price=price,
-                            signal_strength=signal_strength,
-                            sentiment=sentiment,
-                            cross_up=cross_up,
-                            cross_up_1h=cross_up_1h,
-                            trend_up=trend_up,
-                            volatility=volatility
-                        )
-                        
-                        tp_price = price * (1 + targets['tp_pct'])
-                        sl_price = price * (1 - targets['sl_pct'])
+                        try:
+                            targets = calculate_world_class_crypto_targets_with_bars(
+                                df=bars_15,  # Use 15min bars for technical analysis
+                                symbol=symbol,
+                                signal_strength=signal_strength,
+                                sentiment=sentiment,
+                                cross_up=cross_up,
+                                cross_up_1h=cross_up_1h,
+                                trend_up=trend_up,
+                                volatility=calculate_atr(bars_15) / price if len(bars_15) >= 14 else 0.05
+                            )
+                            
+                            tp_price = targets['tp_price']
+                            sl_price = targets['sl_price']
+                            
+                            # Adjust position size based on technical analysis
+                            size_multiplier = targets.get('position_size_multiplier', 1.0)
+                            qty = qty * size_multiplier
+                            
+                            logger.info(f"🎯 {symbol} world-class entry targets: "
+                                       f"TP=${tp_price:.4f} SL=${sl_price:.4f} "
+                                       f"Method={targets['method']} Size={size_multiplier:.2f}x")
+                            
+                        except Exception as e:
+                            logger.error(f"❌ World-class TA failed for {symbol} entry: {e}")
+                            # Emergency fallback
+                            tp_price = price * 1.05  # 5% TP
+                            sl_price = price * 0.97  # 3% SL
                         
                         logger.info(f"🧠 {symbol} intelligent entry: TP={targets['tp_pct']:.1%} SL={targets['sl_pct']:.1%} Quality={targets['trade_quality']}")
                     else:

@@ -133,31 +133,37 @@ if positions_data:
 
             active_positions.append(position_info)
 
-            # Check if position is underwater (beyond stop loss threshold)
-            if pnl_pct <= -3.0:  # 3% stop loss
+            # Check if position is underwater (use leveraged ROI for threshold)
+            leveraged_roi = pnl_pct * 25  # 25x leverage
+            if leveraged_roi <= -75.0:  # 75% leveraged loss (3% price loss * 25x = 75%)
                 underwater_positions.append(position_info)
 
     if active_positions:
         print(f'📊 Active positions: {len(active_positions)}')
         for pos in active_positions:
             pnl_symbol = '+' if pos['pnl'] >= 0 else ''
-            print(f'  {pos["symbol"]} {pos["side"]}: {pos["size"]} @ ${pos["entry_price"]:.2f} | P&L: {pnl_symbol}${pos["pnl"]:.2f} ({pos["pnl_pct"]:.2f}%)')
+            # Calculate leveraged ROI% (P&L relative to margin, not position size)
+            leveraged_roi = pos['pnl_pct'] * 25  # 25x leverage multiplier
+            print(f'  {pos["symbol"]} {pos["side"]}: {pos["size"]} @ ${pos["entry_price"]:.2f}')
+            print(f'    💰 P&L: {pnl_symbol}${pos["pnl"]:.2f} | Price: {pos["pnl_pct"]:+.2f}% | Leveraged ROI: {leveraged_roi:+.2f}%')
 
-        # Handle underwater positions
+        # Handle underwater positions (use leveraged ROI for threshold)
         if underwater_positions:
-            print(f'\n🚨 Found {len(underwater_positions)} underwater positions (beyond 3% stop loss):')
+            print(f'\n🚨 Found {len(underwater_positions)} underwater positions (beyond 75% leveraged loss):')
             for pos in underwater_positions:
-                print(f'  ❌ {pos["symbol"]} {pos["side"]}: {pos["pnl_pct"]:.2f}% loss')
+                leveraged_loss = pos['pnl_pct'] * 25
+                print(f'  ❌ {pos["symbol"]} {pos["side"]}: {leveraged_loss:.2f}% leveraged loss')
 
             print(f'\n🔄 Closing underwater positions...')
             for pos in underwater_positions:
+                leveraged_loss = pos['pnl_pct'] * 25
                 success = close_position(pos['symbol'], pos['side'], pos['size'])
                 if success:
-                    print(f'✅ Closed {pos["symbol"]} position')
+                    print(f'✅ Closed {pos["symbol"]} position (leveraged loss: {leveraged_loss:.1f}%)')
                 else:
                     print(f'❌ Failed to close {pos["symbol"]} position')
         else:
-            print('\n✅ No underwater positions found (all above 3% stop loss threshold)')
+            print('\n✅ No underwater positions found (all above -75% leveraged ROI threshold)')
     else:
         print('📊 No active positions found')
 else:

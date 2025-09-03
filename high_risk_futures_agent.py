@@ -36,6 +36,32 @@ from futures_integration import (
     calculate_smart_leverage
 )
 
+# Import world-class technical analysis engine
+try:
+    from world_class_technical_analysis import (
+        TechnicalAnalysisEngine,
+        RiskTargets, 
+        MarketRegime,
+        calculate_world_class_crypto_targets
+    )
+    WORLD_CLASS_TA_AVAILABLE = True
+    print("✅ World-class technical analysis engine loaded for futures agent")
+except ImportError as e:
+    print(f"❌ Failed to import world-class TA engine for futures: {e}")
+    WORLD_CLASS_TA_AVAILABLE = False
+
+# Initialize the technical analysis engine
+if WORLD_CLASS_TA_AVAILABLE:
+    TA_ENGINE = TechnicalAnalysisEngine(
+        atr_period=14,
+        rsi_period=14,
+        bb_period=20,
+        bb_std_dev=2.0,
+        min_bars_required=30  # Reduced for futures (faster timeframes)
+    )
+else:
+    TA_ENGINE = None
+
 # Import notification modules
 try:
     from scripts.discord_sender import send_discord_digest_to
@@ -56,18 +82,18 @@ logger = logging.getLogger(__name__)
 # Trade Quality Levels for Futures (more aggressive due to leverage)
 FUTURES_TRADE_QUALITY_LEVELS = {
     'excellent': {
-        'tp_range': (0.15, 0.25),  # 15-25% TP for excellent signals
-        'sl_base': 0.06,           # 6% SL (tighter due to leverage)
+        'tp_range': (0.02, 0.03),  # 2-3% TP for excellent signals (with 25x = 50-75% ROI)
+        'sl_base': 0.02,           # 2% SL (with 25x = 50% ROI loss)
         'description': 'High conviction setup, strong confluence'
     },
     'good': {
-        'tp_range': (0.10, 0.15),  # 10-15% TP for good signals  
-        'sl_base': 0.05,           # 5% SL
+        'tp_range': (0.015, 0.025),  # 1.5-2.5% TP for good signals (with 25x = 37-62% ROI)
+        'sl_base': 0.02,             # 2% SL (with 25x = 50% ROI loss)
         'description': 'Good setup, decent confidence'
     },
     'fair': {
-        'tp_range': (0.06, 0.10),  # 6-10% TP for fair signals
-        'sl_base': 0.04,           # 4% SL
+        'tp_range': (0.01, 0.02),  # 1-2% TP for fair signals (with 25x = 25-50% ROI)
+        'sl_base': 0.015,          # 1.5% SL (with 25x = 37% ROI loss)
         'description': 'Marginal setup, lower confidence'
     }
 }
@@ -209,48 +235,340 @@ class HighRiskFuturesAgent:
         
         return base_quality
     
-    def calculate_intelligent_futures_targets(self, symbol: str, entry_price: float, 
-                                            side: str, signal_strength: float = 0.5,
-                                            volatility: float = 0.0) -> Dict[str, float]:
-        """Calculate intelligent TP/SL for futures based on trade quality and asset difficulty"""
-        symbol_clean = self.get_asset_symbol_clean(symbol)
+    def calculate_world_class_futures_targets(self, symbol: str, entry_price: float, side: str) -> Dict[str, float]:
+        """
+        Calculate world-class TP/SL targets using comprehensive technical analysis
+        Replaces all hardcoded percentage-based calculations
+        """
+        try:
+            if not WORLD_CLASS_TA_AVAILABLE or TA_ENGINE is None:
+                logger.warning(f"⚠️  World-class TA engine not available for {symbol}, using fallback")
+                return self.calculate_legacy_technical_targets(symbol, entry_price, side)
+            
+            # Get bars data for technical analysis
+            bars = self.get_comprehensive_bars_data(symbol)
+            if bars is None or len(bars) < 30:
+                logger.warning(f"Insufficient bars data for {symbol}, using legacy fallback")
+                return self.calculate_legacy_technical_targets(symbol, entry_price, side)
+            
+            # Calculate trade confidence for futures (typically higher risk tolerance)
+            confidence = self.calculate_futures_trade_confidence(symbol, bars, side)
+            
+            # Use world-class technical analysis engine
+            targets = TA_ENGINE.calculate_world_class_targets(
+                df=bars,
+                side=side,
+                confidence=confidence,
+                symbol=symbol
+            )
+            
+            logger.info(f"🎯 World-class futures targets for {symbol}:")
+            logger.info(f"   📊 Entry: ${targets.entry_price:.4f}")
+            logger.info(f"   🛑 Stop Loss: ${targets.stop_loss:.4f} ({targets.sl_method})")
+            logger.info(f"   🎯 Take Profit: ${targets.take_profit_1:.4f} ({targets.tp_method})")
+            logger.info(f"   📈 R/R Ratio: {targets.risk_reward_ratio:.2f}")
+            logger.info(f"   📊 Size Multiplier: {targets.position_size_multiplier:.2f}")
+            logger.info(f"   🎲 Confidence: {confidence:.2f}")
+            
+            # Return in legacy format for compatibility
+            return {
+                'tp_pct': abs(targets.take_profit_1 - entry_price) / entry_price,
+                'sl_pct': abs(targets.stop_loss - entry_price) / entry_price,
+                'tp_price': targets.take_profit_1,
+                'sl_price': targets.stop_loss,
+                'tp_price_2': targets.take_profit_2,
+                'signal_strength': confidence,
+                'volatility': self.estimate_volatility_from_bars(bars),
+                'position_size_multiplier': targets.position_size_multiplier,
+                'risk_reward_ratio': targets.risk_reward_ratio,
+                'method': 'world_class_technical_analysis',
+                'sl_method': targets.sl_method,
+                'tp_method': targets.tp_method,
+                'confidence': confidence
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ World-class TA failed for {symbol}: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            return self.get_emergency_fallback_targets(side, symbol)
+    
+    def get_comprehensive_bars_data(self, symbol: str) -> Optional[pd.DataFrame]:
+        """Get comprehensive bars data for technical analysis"""
+        try:
+            # Try enhanced futures bars first
+            bars = enhanced_futures_bars(symbol, '15m', limit=100)
+            if bars is not None and len(bars) >= 30:
+                return bars
+            
+            # Fallback: direct Binance API
+            logger.info(f"Trying direct Binance API for {symbol}...")
+            bars = self.get_bars_from_binance(symbol, '15m', 100)
+            if bars is not None and len(bars) >= 30:
+                df = pd.DataFrame(bars)
+                return df
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting bars data for {symbol}: {e}")
+            return None
+    
+    def calculate_futures_trade_confidence(self, symbol: str, bars: pd.DataFrame, side: str) -> float:
+        """
+        Calculate trade confidence specific to futures trading
+        Futures typically allow higher risk tolerance due to leverage
+        """
+        try:
+            base_confidence = 0.7  # Higher base for futures
+            
+            # Volatility bonus (futures traders like volatility)
+            vol_pct = bars['close'].pct_change().std() * (24 ** 0.5)  # Daily volatility
+            if 0.03 <= vol_pct <= 0.08:  # Sweet spot for futures
+                vol_bonus = 0.1
+            elif vol_pct > 0.08:  # High volatility
+                vol_bonus = 0.05  # Still bonus, but less
+            else:
+                vol_bonus = -0.05  # Too quiet
+            
+            # Trend alignment bonus
+            ema_short = bars['close'].ewm(span=12).mean().iloc[-1]
+            ema_long = bars['close'].ewm(span=26).mean().iloc[-1]
+            current_price = bars['close'].iloc[-1]
+            
+            if side.lower() in ['long', 'buy']:
+                trend_bonus = 0.1 if current_price > ema_short > ema_long else -0.1
+            else:
+                trend_bonus = 0.1 if current_price < ema_short < ema_long else -0.1
+            
+            # Volume confirmation
+            recent_volume = bars['volume'].iloc[-5:].mean() if 'volume' in bars.columns else 0
+            avg_volume = bars['volume'].mean() if 'volume' in bars.columns else 0
+            
+            if recent_volume > avg_volume * 1.2:
+                volume_bonus = 0.05
+            else:
+                volume_bonus = -0.02
+            
+            final_confidence = base_confidence + vol_bonus + trend_bonus + volume_bonus
+            return max(0.4, min(0.95, final_confidence))
+            
+        except Exception as e:
+            logger.error(f"Error calculating futures confidence: {e}")
+            return 0.6  # Default futures confidence
+    
+    def estimate_volatility_from_bars(self, bars: pd.DataFrame) -> float:
+        """Estimate current volatility from bars data"""
+        try:
+            returns = bars['close'].pct_change().dropna()
+            daily_vol = returns.std() * (24 ** 0.5)  # Annualized daily volatility
+            return max(0.01, min(0.15, daily_vol))
+        except:
+            return 0.03  # Default volatility estimate
+    
+    def calculate_legacy_technical_targets(self, symbol: str, entry_price: float, side: str) -> Dict[str, float]:
+        """
+        Legacy technical analysis fallback when world-class engine is unavailable
+        Still uses technical analysis, just less sophisticated
+        """
+        try:
+            # Get bars data
+            bars = enhanced_futures_bars(symbol, '15m', limit=50)
+            if bars is None:
+                bars = self.get_bars_from_binance(symbol, '15m', 50)
+            
+            if bars is None or len(bars) < 20:
+                return self.get_emergency_fallback_targets(side, symbol)
+            
+            # Calculate basic technical indicators
+            closes = bars['close'].values
+            highs = bars['high'].values  
+            lows = bars['low'].values
+            
+            # ATR-based targets
+            atr = self.calculate_atr(highs, lows, closes, period=14)
+            atr_multiplier_tp = 2.5  # Slightly more aggressive for futures
+            atr_multiplier_sl = 1.2
+            
+            # RSI and Bollinger Bands
+            rsi = self.calculate_rsi(closes, period=14)
+            bb_upper, bb_lower, bb_middle = self.calculate_bollinger_bands(closes, period=20, std=2)
+            
+            current_price = closes[-1]
+            
+            if side.lower() in ['long', 'buy']:
+                atr_tp = entry_price + (atr * atr_multiplier_tp)
+                tp_price = min(atr_tp, bb_upper) if bb_upper > entry_price else atr_tp
+                
+                atr_sl = entry_price - (atr * atr_multiplier_sl)
+                sl_price = max(atr_sl, bb_lower) if bb_lower < entry_price else atr_sl
+            else:
+                atr_tp = entry_price - (atr * atr_multiplier_tp)
+                tp_price = max(atr_tp, bb_lower) if bb_lower < entry_price else atr_tp
+                
+                atr_sl = entry_price + (atr * atr_multiplier_sl)
+                sl_price = min(atr_sl, bb_upper) if bb_upper > entry_price else atr_sl
+            
+            tp_pct = abs(tp_price - entry_price) / entry_price
+            sl_pct = abs(sl_price - entry_price) / entry_price
+            
+            # Calculate signal strength
+            if side.lower() in ['long', 'buy']:
+                signal_strength = max(0.4, min(0.8, (50 - rsi) / 50 + 0.6))
+            else:
+                signal_strength = max(0.4, min(0.8, (rsi - 50) / 50 + 0.6))
+            
+            recent_volatility = bars['close'].pct_change().std() * (24 ** 0.5)
+            
+            logger.info(f"📊 Legacy TA for {symbol}: ATR=${atr:.4f}, RSI={rsi:.1f}, Vol={recent_volatility:.1%}")
+            
+            return {
+                'tp_pct': tp_pct,
+                'sl_pct': sl_pct,
+                'tp_price': tp_price,
+                'sl_price': sl_price,
+                'signal_strength': signal_strength,
+                'volatility': recent_volatility,
+                'atr': atr,
+                'rsi': rsi,
+                'method': 'legacy_technical_analysis'
+            }
+            
+        except Exception as e:
+            logger.error(f"Legacy TA failed for {symbol}: {e}")
+            return self.get_emergency_fallback_targets(side, symbol)
+            
+        except Exception as e:
+            logger.warning(f"Error calculating world-class targets for {symbol}: {e}")
+            return self.get_emergency_fallback_targets(side, symbol)
+    
+    def get_emergency_fallback_targets(self, side: str, symbol: str) -> Dict[str, float]:
+        """
+        Emergency fallback when world-class TA completely fails
+        Uses minimal technical analysis instead of hardcoded percentages
+        """
+        logger.warning(f"⚠️  Using emergency fallback for {symbol}")
         
-        # Analyze trade quality
-        trade_quality = self.analyze_futures_trade_quality(symbol, signal_strength, volatility)
-        quality_config = FUTURES_TRADE_QUALITY_LEVELS[trade_quality]
+        try:
+            # Try to get at least basic ATR from recent bars
+            bars = self.get_bars_from_binance(symbol, '15m', 50)
+            if bars and len(bars) >= 14:
+                df = pd.DataFrame(bars)
+                atr = self.calculate_atr(df['high'], df['low'], df['close'], 14)
+                current_price = df['close'].iloc[-1]
+                atr_pct = atr / current_price if current_price > 0 else 0.02
+                
+                # Conservative ATR-based targets
+                tp_pct = atr_pct * 2.0  # 2x ATR for TP
+                sl_pct = atr_pct * 1.0  # 1x ATR for SL
+                
+                # Cap at reasonable values
+                tp_pct = max(0.01, min(0.05, tp_pct))  # 1% to 5%
+                sl_pct = max(0.005, min(0.03, sl_pct))  # 0.5% to 3%
+                
+                return {
+                    'tp_pct': tp_pct,
+                    'sl_pct': sl_pct,
+                    'signal_strength': 0.3,  # Low confidence
+                    'volatility': atr_pct,
+                    'method': 'emergency_atr_based'
+                }
+            else:
+                raise Exception("No bars available for ATR calculation")
+                
+        except Exception as e:
+            logger.error(f"❌ Emergency fallback failed: {e}")
+            # Last resort: ultra-conservative hardcoded values
+            return {
+                'tp_pct': 0.015,  # 1.5% TP (very conservative)
+                'sl_pct': 0.01,   # 1% SL (very tight)
+                'signal_strength': 0.2,  # Very low confidence
+                'volatility': 0.02,
+                'method': 'last_resort_hardcoded'
+            }
+    
+    def calculate_atr(self, highs, lows, closes, period=14):
+        """Calculate Average True Range"""
+        import numpy as np
         
-        # Get asset difficulty multiplier
-        difficulty = FUTURES_ASSET_DIFFICULTY.get(symbol_clean, 1.0)
+        high_low = highs - lows
+        high_close = np.abs(highs - np.roll(closes, 1))
+        low_close = np.abs(lows - np.roll(closes, 1))
         
-        # Calculate base TP (use middle of range)
-        tp_min, tp_max = quality_config['tp_range']
-        base_tp = (tp_min + tp_max) / 2
+        true_range = np.maximum(high_low, np.maximum(high_close, low_close))
+        atr = np.mean(true_range[-period:])  # Simple average of last N periods
         
-        # Adjust TP for asset difficulty and leverage
-        leverage_multiplier = 1.2  # Futures already have built-in leverage
-        adjusted_tp = base_tp * difficulty * leverage_multiplier
+        return atr
+    
+    def calculate_rsi(self, closes, period=14):
+        """Calculate RSI"""
+        import numpy as np
         
-        # SL adjusted for leverage (tighter stops)
-        sl_pct = quality_config['sl_base']
+        deltas = np.diff(closes)
+        seed = deltas[:period+1]
+        up = seed[seed >= 0].sum() / period
+        down = -seed[seed < 0].sum() / period
         
-        # Calculate target prices based on side
-        if side.lower() in ['long', 'buy']:
-            tp_price = entry_price * (1 + adjusted_tp)
-            sl_price = entry_price * (1 - sl_pct)
-        else:  # short/sell
-            tp_price = entry_price * (1 - adjusted_tp)
-            sl_price = entry_price * (1 + sl_pct)
+        if down == 0:
+            return 100
         
-        return {
-            'tp_pct': adjusted_tp,
-            'sl_pct': sl_pct,
-            'trade_quality': trade_quality,
-            'difficulty': difficulty,
-            'quality_description': quality_config['description'],
-            'tp_price': tp_price,
-            'sl_price': sl_price,
-            'side': side
-        }
+        rs = up / down
+        rsi = 100 - (100 / (1 + rs))
+        
+        return rsi
+    
+    def calculate_bollinger_bands(self, closes, period=20, std=2):
+        """Calculate Bollinger Bands"""
+        import numpy as np
+        
+        sma = np.mean(closes[-period:])
+        std_dev = np.std(closes[-period:])
+        
+        upper = sma + (std * std_dev)
+        lower = sma - (std * std_dev)
+        
+        return upper, lower, sma
+    
+    def get_binance_bars_direct(self, symbol: str, interval: str, limit: int):
+        """Get bars directly from Binance API as fallback"""
+        try:
+            import requests
+            import pandas as pd
+            
+            base_url = 'https://testnet.binancefuture.com'
+            endpoint = '/fapi/v1/klines'
+            
+            params = {
+                'symbol': symbol,
+                'interval': interval,
+                'limit': limit
+            }
+            
+            response = requests.get(base_url + endpoint, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Convert to DataFrame
+                df = pd.DataFrame(data, columns=[
+                    'timestamp', 'open', 'high', 'low', 'close', 'volume',
+                    'close_time', 'quote_volume', 'count', 'taker_buy_volume',
+                    'taker_buy_quote_volume', 'ignore'
+                ])
+                
+                # Convert to proper types
+                for col in ['open', 'high', 'low', 'close', 'volume']:
+                    df[col] = pd.to_numeric(df[col])
+                
+                logger.info(f"✅ Got {len(df)} bars for {symbol} from direct API")
+                return df
+            else:
+                logger.warning(f"Direct API failed for {symbol}: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            logger.warning(f"Error in direct API call for {symbol}: {e}")
+            return None
 
     # =============================================================================
 
@@ -809,19 +1127,23 @@ class HighRiskFuturesAgent:
                 side = position.get('side', 'buy')
                 leverage = position.get('leverage', 1) or 1
 
-                # Calculate current P&L
+                # Calculate current P&L (unleveraged price movement)
                 if side == 'buy':
                     pnl_pct = (current_price - entry_price) / entry_price
                 else:
                     pnl_pct = (entry_price - current_price) / entry_price
 
+                # Calculate leveraged ROI (what's shown on live platform)
+                leveraged_roi = pnl_pct * leverage
+                
                 logger.info(f"📈 {symbol}: Entry=${entry_price:.2f}, Current=${current_price:.2f}, P&L={pnl_pct:.2%}")
+                logger.info(f"⚡ {symbol}: Leveraged ROI={leveraged_roi:+.1%} (Price: {pnl_pct:+.2%} × {leverage}x leverage)")
 
                 # Update trailing stop levels
                 self.update_trailing_stops(symbol, current_price, position)
 
-                # Check exit conditions
-                exit_reason = self.should_exit_position(symbol, current_price, pnl_pct, position)
+                # Check exit conditions using leveraged ROI
+                exit_reason = self.should_exit_position(symbol, current_price, pnl_pct, leveraged_roi, position)
 
                 if exit_reason:
                     logger.info(f"🚨 Exit condition met for {symbol}: {exit_reason}")
@@ -855,7 +1177,7 @@ class HighRiskFuturesAgent:
         except Exception as e:
             logger.warning(f"Error updating trailing stops for {symbol}: {e}")
 
-    def should_exit_position(self, symbol: str, current_price: float, pnl_pct: float, position: Dict) -> str:
+    def should_exit_position(self, symbol: str, current_price: float, pnl_pct: float, leveraged_roi: float, position: Dict) -> str:
         """Determine if position should be exited based on intelligent TP/SL conditions"""
         try:
             side = position.get('side', 'buy')
@@ -865,35 +1187,49 @@ class HighRiskFuturesAgent:
             use_intelligent_tpsl = os.getenv("TB_INTELLIGENT_FUTURES_TPSL", "1") == "1"
             
             if use_intelligent_tpsl:
-                # Calculate intelligent targets based on trade quality
-                signal_strength = position.get('signal_strength', 0.6)  # Default to good
-                volatility = position.get('volatility', 0.05)  # Default moderate vol
+                # Calculate technical analysis-based targets
+                logger.info(f"🔬 Calculating technical targets for {symbol}...")
+                targets = self.calculate_world_class_futures_targets(symbol, entry_price, side)
                 
-                targets = self.calculate_intelligent_futures_targets(
-                    symbol, entry_price, side, signal_strength, volatility
-                )
-                
+                # Use technical analysis targets
                 profit_target_pct = targets['tp_pct']
-                stop_loss_threshold = -targets['sl_pct']
+                stop_loss_pct = targets['sl_pct']
                 
-                logger.info(f"🧠 {symbol} intelligent targets: TP={profit_target_pct:.1%} SL={stop_loss_threshold:.1%} Quality={targets['trade_quality']}")
+                method = targets.get('method', 'technical')
+                if method == 'technical_analysis':
+                    logger.info(f"🧠 {symbol} TECHNICAL targets: TP={profit_target_pct:+.1%} SL={-stop_loss_pct:+.1%} PRICE")
+                    logger.info(f"   📊 Based on: ATR=${targets.get('atr', 0):.4f} | RSI={targets.get('rsi', 50):.1f} | Volatility={targets.get('volatility', 0):.1%}")
+                    logger.info(f"   🎯 TP Price: ${targets.get('tp_price', 0):.2f} | SL Price: ${targets.get('sl_price', 0):.2f}")
+                else:
+                    logger.info(f"🔧 {symbol} DEFAULT targets: TP={profit_target_pct:+.1%} SL={-stop_loss_pct:+.1%} PRICE (technical analysis failed)")
+                
+                # Show leveraged ROI equivalent for reference  
+                leverage = position.get('leverage', 25) or 25
+                roi_tp_example = profit_target_pct * leverage
+                roi_sl_example = -stop_loss_pct * leverage
+                logger.info(f"   💡 Leveraged ROI equivalent: TP≈{roi_tp_example:+.0%} SL≈{roi_sl_example:+.0%} (for reference)")
             else:
-                # Fall back to fixed levels
-                profit_target_pct = position.get('profit_target_pct', 0.08)
-                stop_loss_threshold = -0.05  # 5% stop loss
+                # Fall back to fixed levels (PRICE-based, not leveraged!)
+                profit_target_pct = 0.015  # 1.5% price movement (37% ROI with 25x)
+                stop_loss_pct = 0.02       # 2% price movement (50% ROI loss with 25x)
                 
-                logger.info(f"🔍 {symbol} fixed targets: TP={profit_target_pct:.1%} SL={stop_loss_threshold:.1%}")
+                leverage = position.get('leverage', 25) or 25
+                roi_tp_example = profit_target_pct * leverage
+                roi_sl_example = -stop_loss_pct * leverage
+                
+                logger.info(f"🔍 {symbol} fixed targets: TP={profit_target_pct:+.1%} SL={-stop_loss_pct:+.1%} PRICE")
+                logger.info(f"   💡 Leveraged ROI equivalent: TP≈{roi_tp_example:+.0%} SL≈{roi_sl_example:+.0%} (for reference)")
 
-            # 1. Profit target hit
+            # 1. Profit target hit (compare unleveraged price movement to price targets)
             if pnl_pct >= profit_target_pct:
-                quality_info = f" ({targets['trade_quality']})" if use_intelligent_tpsl else ""
-                logger.info(f"🎯 {symbol} hit profit target: {pnl_pct:.2%} >= {profit_target_pct:.1%}{quality_info}")
+                logger.info(f"🎯 {symbol} hit profit target: {pnl_pct:+.2%} >= {profit_target_pct:+.1%} PRICE")
+                logger.info(f"   🚀 Leveraged ROI: {leveraged_roi:+.1%}")
                 return 'profit_target'
 
-            # 2. Stop loss hit
-            if pnl_pct <= stop_loss_threshold:
-                quality_info = f" ({targets['trade_quality']})" if use_intelligent_tpsl else ""
-                logger.info(f"🛑 {symbol} hit stop loss: {pnl_pct:.2%} <= {stop_loss_threshold:.1%}{quality_info}")
+            # 2. Stop loss hit (compare unleveraged price movement to price targets)
+            if pnl_pct <= -stop_loss_pct:
+                logger.info(f"🛑 {symbol} hit stop loss: {pnl_pct:+.2%} <= {-stop_loss_pct:+.1%} PRICE")
+                logger.info(f"   💸 Leveraged ROI: {leveraged_roi:+.1%}")
                 return 'stop_loss'
 
             # 3. Trailing stop hit
@@ -907,10 +1243,11 @@ class HighRiskFuturesAgent:
                     logger.info(f"🎣 {symbol} trailing stop hit (short): ${current_price:.2f} >= ${trailing_stop_price:.2f}")
                     return 'trailing_stop'
 
-            # 4. Maximum loss limit (10% from entry)
-            max_loss_threshold = -0.10
-            if pnl_pct <= max_loss_threshold:
-                logger.info(f"💀 {symbol} hit max loss limit: {pnl_pct:.2%} <= {max_loss_threshold:.1%}")
+            # 4. Maximum loss limit (4% price loss = 100% leveraged ROI loss with 25x)
+            max_loss_pct = -0.04  # 4% price loss
+            if pnl_pct <= max_loss_pct:
+                logger.info(f"💀 {symbol} hit max loss limit: {pnl_pct:+.2%} <= {max_loss_pct:+.1%} PRICE")
+                logger.info(f"   💸 Leveraged ROI: {leveraged_roi:+.1%}")
                 return 'max_loss_limit'
 
             # 5. Time-based exit (if position is too old)
