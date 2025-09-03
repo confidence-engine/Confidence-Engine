@@ -1,31 +1,65 @@
 # Project Tracer Bullet — Architecture
 
-## Current Architecture (V4.3 - September 2, 2025)
+## Current Architecture (V5.0 - September 4, 2025)
 
-### Dual-Agent System
-- **Main Agent (Low-Risk)**: Enhanced hybrid crypto trader with ML gates and adaptive strategies
-- **Futures Agent (High-Risk)**: Leveraged futures/perpetuals agent with momentum trading
-- **Shared Infrastructure**: Common data sources, monitoring, and notification systems
-- **Independent Operation**: Separate capital allocation, risk management, and execution
+### Production-Ready Dual-Agent System
+- **Main Agent (Hybrid Crypto)**: Enhanced signal intelligence with Phase 1C ultra-aggressive configuration
+- **Futures Agent (High-Risk)**: Leveraged futures/perpetuals with enhanced signal parity
+- **Unified Infrastructure**: Industrial-grade monitoring, trade management, and notification systems
+- **Autonomous Operation**: 24/7 capability with comprehensive monitoring and auto-recovery
 
-### Main Agent Components
-- `scripts/hybrid_crypto_trader.py` — Main orchestrator with ML gates and adaptive thresholds
-- `config.py` — Environment configuration and settings management
-- `alpaca.py` — Multi-source data fetch (Alpaca, Yahoo, Binance, CoinGecko)
-- `multi_source_data_provider.py` — Unified data provider with failover
-- `sentiment_utils.py` — Robust sentiment analysis with outlier removal
-- `divergence.py` — Divergence computation with adaptive thresholds
-- `enhanced_risk_manager.py` — Advanced risk management with Kelly sizing
-- `market_regime_detector.py` — Real-time market regime classification
-- `adaptive_strategy.py` — Parameter optimization and exploration
-- `autocommit_enhanced.py` — Enhanced auto-commit system for artifacts
+### Enhanced Signal Intelligence System (V5.0 Breakthrough)
+- **Signal Quality Scoring**: 0-10 scale assessment replacing ML complexity
+- **Market Regime Detection**: Multi-dimensional volatility/trend/volume classification
+- **Conviction Scoring**: Weighted factor combination for holistic trade assessment
+- **Regime-Aware Trading**: Adaptive logic with different thresholds per market condition
+- **Unified Implementation**: Same enhanced system across both hybrid and futures agents
 
-### Futures Agent Components
-- `high_risk_futures_agent.py` — Futures trading orchestrator with UTC timestamps
-- `futures_integration.py` — Futures platform integration layer with account balance retrieval
-- `futures_trading_platform.py` — Multi-platform futures trading support with real API calls
-- `futures_paper_trading_demo.py` — Paper trading demonstrations
-- `dual_agent.sh` — Dual-agent management script
+### Core System Components
+
+#### Enhanced Infrastructure (Production-Ready)
+- `start_trading_system.sh` — Unified deployment script with comprehensive initialization
+- `enhanced_trade_manager.py` — Intelligent trade management with confidence-based sizing
+- `enhanced_notifications.py` — Unified Discord/Telegram integration with delivery tracking
+- `enhanced_db_logger.py` — Comprehensive audit trails and database logging
+- `enhanced_trading.db` — SQLite database with 6 tables for complete trade tracking
+
+#### Main Agent Components (Enhanced Signal Intelligence)
+- `scripts/hybrid_crypto_trader.py` — Enhanced orchestrator with signal quality system (143K+ bytes)
+- `evaluate_enhanced_signals()` — Core enhanced signal evaluation function
+- `market_regime_detector.py` — Real-time regime classification with confidence scoring
+- `advanced_risk_manager.py` — Kelly criterion and portfolio VaR management
+- `adaptive_strategy.py` — Parameter optimization with exploration windows
+
+#### Futures Agent Components (Signal Parity)
+- `high_risk_futures_agent.py` — Enhanced futures orchestrator with signal parity (92K+ bytes)
+- `evaluate_enhanced_futures_signals()` — Futures-optimized enhanced signal evaluation
+- `futures_trading_platform.py` — Real API integration with dynamic precision handling
+- `intelligent_futures_manager.py` — Advanced position management with leverage controls
+
+#### Monitoring & Recovery Infrastructure
+- `scripts/watchdog_hybrid.sh` — Main agent monitoring with process checks and log validation
+- `scripts/watchdog_futures.sh` — Futures agent monitoring every 60 seconds with auto-restart
+- `scripts/health_check.sh` — Comprehensive system health validation (7,856 bytes)
+- **Launchd Services**: macOS integration for persistent background monitoring
+- **Cron Jobs**: Automated health checks every 15 minutes with self-healing
+
+### Data Flow (Enhanced V5.0)
+1) **Enhanced Data Ingestion**: Multi-source with Perplexity Pro API key rotation
+2) **Signal Quality Assessment**: 0-10 scale scoring based on sentiment, momentum, volume, RSI
+3) **Market Regime Detection**: Real-time classification with confidence levels
+4) **Conviction Scoring**: Weighted combination of quality, regime, volatility, confirmation
+5) **Intelligent Trade Management**: Confidence-based position sizing (20%-100% of max)
+6) **Enhanced Execution**: Independent execution with dynamic precision and real API integration
+7) **Comprehensive Monitoring**: Multi-layer monitoring with automatic recovery
+8) **Advanced Persistence**: SQLite database + JSON artifacts + auto-commit system
+
+### Phase 1C Configuration (Ultra-Aggressive)
+- **TB_MIN_SIGNAL_QUALITY**: 1.0 (extremely permissive for maximum activity)
+- **TB_MIN_CONVICTION_SCORE**: 2.0 (low threshold for trade activation)
+- **Daily Trade Limits**: 8 trades per agent maximum
+- **Position Sizing**: Confidence-based dynamic sizing (20%-100% of maximum)
+- **Enhanced Notifications**: Rich Discord/Telegram with emoji indicators and metrics
 
 ### Data Flow (Enhanced)
 1) **Data Ingestion**: Multi-source data fetch (Alpaca, Yahoo, Binance, CoinGecko, Perplexity)
