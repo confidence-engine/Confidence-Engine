@@ -315,21 +315,24 @@ class HighRiskFuturesAgent:
             )
             results['conviction_score'] = conviction_score
             
-            # 4. Futures-specific trading logic (more aggressive)
+            # 4. Futures-specific trading logic (more aggressive, using dynamic thresholds)
             regime_suitable = False
             reason = f"Futures Regime: {regime_state.trend_regime} trend, {regime_state.volatility_regime} vol"
             
+            # Use dynamic thresholds based on agent settings (Phase 1 compatible)
+            base_quality_threshold = self.min_signal_quality  # Use agent's threshold
+            
             # Futures trading is more aggressive - trade in more conditions
-            if regime_state.volatility_regime in ['high', 'extreme'] and signal_quality >= 3.0:
+            if regime_state.volatility_regime in ['high', 'extreme'] and signal_quality >= (base_quality_threshold * 0.8):
                 regime_suitable = True
                 reason = f"High volatility futures opportunity (Q:{signal_quality:.1f})"
-            elif regime_state.trend_regime in ['bull', 'strong_bull'] and signal_quality >= 3.0:
+            elif regime_state.trend_regime in ['bull', 'strong_bull'] and signal_quality >= (base_quality_threshold * 0.8):
                 regime_suitable = True
                 reason = f"Trending futures momentum (Q:{signal_quality:.1f})"
-            elif regime_state.trend_regime == 'sideways' and signal_quality >= 4.0:
+            elif regime_state.trend_regime == 'sideways' and signal_quality >= base_quality_threshold:
                 regime_suitable = True
                 reason = f"Range-bound futures scalping (Q:{signal_quality:.1f})"
-            elif signal_quality >= 6.0:  # High quality signals trade in any regime
+            elif signal_quality >= (base_quality_threshold * 2.0):  # High quality signals trade in any regime
                 regime_suitable = True
                 reason = f"High-quality futures signal (Q:{signal_quality:.1f})"
             
