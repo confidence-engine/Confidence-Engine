@@ -28,5 +28,18 @@ bars_canary_*/
 scripts/*.py
 tests/*.py
 
-# Exception: track the main live trader so we can patch it
+# Exception: track essential scripts and core system files
 !scripts/hybrid_crypto_trader.py
+!scripts/start_enhanced_hybrid.sh
+
+# Demo and prototype files (not tracked)
+*_demo.py
+*_paper_trading_demo.py
+industrial_upgrade_plan.py
+test_hard_cap.py
+test_multi_source_data.py
+test_new_key.py
+test_pplx_comprehensive.py
+test_pplx_keys.py
+advanced_entry_exit_logic.py
+paper_trading_optimizer.py
