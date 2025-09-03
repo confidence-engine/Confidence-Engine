@@ -12,25 +12,33 @@ is_running() {
 
 # Function to start main agent
 start_main_agent() {
-    echo "🔄 Starting Main Agent (Low-Risk)..."
+    echo "🔄 Starting Main Agent (Enhanced Hybrid with Intelligent TP/SL)..."
     if is_running "hybrid_crypto_trader.py"; then
         echo "✅ Main agent already running"
     else
-        nohup python3 scripts/hybrid_crypto_trader.py > main_agent.log 2>&1 &
-        echo "✅ Main agent started (PID: $!)"
+        # Set enhanced environment variables
+        export TB_INTELLIGENT_CRYPTO_TPSL=1  # Enable intelligent TP/SL
+        export TB_USE_ENHANCED_RISK=1
+        export TB_USE_ADAPTIVE_STRATEGY=1
+        export TB_USE_REGIME_DETECTION=1
+        
+        nohup bash scripts/start_hybrid_loop.sh > main_agent.log 2>&1 &
+        echo "✅ Enhanced main agent started (PID: $!) with intelligent TP/SL"
     fi
 }
 
 # Function to start futures agent
 start_futures_agent() {
-    echo "🔄 Starting Futures Agent (High-Risk)..."
+    echo "🔄 Starting Futures Agent (High-Risk with Intelligent TP/SL)..."
     if is_running "high_risk_futures_agent.py"; then
         echo "✅ Futures agent already running"
     else
-        # Load futures-specific config
-        export $(grep -v '^#' futures_agent_config.env | xargs)
+        # Load futures-specific config and enable intelligent TP/SL
+        export $(grep -v '^#' futures_agent_config.env | xargs) 2>/dev/null || true
+        export TB_INTELLIGENT_FUTURES_TPSL=1  # Enable intelligent TP/SL
+        
         nohup python3 high_risk_futures_agent.py --continuous > futures_agent.log 2>&1 &
-        echo "✅ Futures agent started (PID: $!)"
+        echo "✅ Enhanced futures agent started (PID: $!) with intelligent TP/SL"
     fi
 }
 
@@ -191,8 +199,12 @@ case $1 in
         echo "🚀 Dual Agent Management Script"
         echo "==============================="
         echo ""
+        echo "🧠 ENHANCED WITH INTELLIGENT TP/SL SYSTEM"
+        echo "📊 Crypto: Trade-quality based targets (Excellent: 12-20%, Good: 8-12%, Fair: 5-8%)"
+        echo "🚀 Futures: Leverage-adjusted targets (Excellent: 15-25%, Good: 10-15%, Fair: 6-10%)"
+        echo ""
         echo "Usage:"
-        echo "  ./dual_agent.sh start          # Start both agents"
+        echo "  ./dual_agent.sh start          # Start both enhanced agents"
         echo "  ./dual_agent.sh stop           # Stop both agents"
         echo "  ./dual_agent.sh restart        # Restart both agents"
         echo "  ./dual_agent.sh status         # Check agent status"
@@ -205,7 +217,7 @@ case $1 in
         echo "  ./dual_agent.sh futures stop   # Stop only futures agent"
         echo ""
         echo "Examples:"
-        echo "  ./dual_agent.sh start          # Start everything"
+        echo "  ./dual_agent.sh start          # Start everything with intelligent TP/SL"
         echo "  ./dual_agent.sh status         # Check what's running"
         echo "  ./dual_agent.sh logs futures   # Monitor futures agent"
         ;;

@@ -49,6 +49,47 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# INTELLIGENT TP/SL CONFIGURATION FOR FUTURES
+# =============================================================================
+
+# Trade Quality Levels for Futures (more aggressive due to leverage)
+FUTURES_TRADE_QUALITY_LEVELS = {
+    'excellent': {
+        'tp_range': (0.15, 0.25),  # 15-25% TP for excellent signals
+        'sl_base': 0.06,           # 6% SL (tighter due to leverage)
+        'description': 'High conviction setup, strong confluence'
+    },
+    'good': {
+        'tp_range': (0.10, 0.15),  # 10-15% TP for good signals  
+        'sl_base': 0.05,           # 5% SL
+        'description': 'Good setup, decent confidence'
+    },
+    'fair': {
+        'tp_range': (0.06, 0.10),  # 6-10% TP for fair signals
+        'sl_base': 0.04,           # 4% SL
+        'description': 'Marginal setup, lower confidence'
+    }
+}
+
+# Asset Difficulty for Futures (adjusted for leverage and volatility)
+FUTURES_ASSET_DIFFICULTY = {
+    'BTC': 1.6,   # Hardest to move significantly
+    'ETH': 1.4,   # Major crypto, decent liquidity
+    'SOL': 1.2,   # Top 10, good liquidity
+    'AVAX': 1.1,  # Top 20, moderate liquidity
+    'LINK': 1.1,  # Established DeFi
+    'UNI': 1.0,   # DEX token, baseline
+    'AAVE': 0.9,  # DeFi, smaller
+    'COMP': 0.8,  # Smaller DeFi
+    'YFI': 0.7,   # Smallest, highest volatility
+    'XTZ': 0.8,   # Alt L1
+    'LTC': 1.0,   # Legacy crypto
+    'BCH': 1.0,   # Bitcoin fork
+}
+
+# =============================================================================
+
 class HighRiskFuturesAgent:
     """High-risk futures trading agent - separate from main agent"""
 
@@ -115,6 +156,103 @@ class HighRiskFuturesAgent:
         logger.info(f"📊 Max Volatility Threshold: {self.max_volatility_threshold*100:.1f}%")
         logger.info(f"📢 Notifications: {'Enabled' if self.enable_notifications else 'Disabled'}")
         logger.info(f"💓 Heartbeat: {'Enabled' if self.enable_heartbeat else 'Disabled'} (every {self.heartbeat_every_n} runs)")
+
+    # =============================================================================
+    # INTELLIGENT TP/SL METHODS FOR FUTURES
+    # =============================================================================
+    
+    def get_asset_symbol_clean(self, symbol: str) -> str:
+        """Clean symbol for asset lookup"""
+        return symbol.replace('USDT', '').replace('/USD', '').replace('USD', '').upper()
+    
+    def analyze_futures_trade_quality(self, symbol: str, entry_signal_strength: float = 0.5, 
+                                    volatility: float = 0.0, volume_profile: float = 1.0) -> str:
+        """
+        Analyze futures trade quality based on multiple factors
+        More sophisticated than the crypto version
+        """
+        symbol_clean = self.get_asset_symbol_clean(symbol)
+        
+        # Base quality assessment from signal strength
+        base_quality = 'fair'  # Default
+        
+        if entry_signal_strength > 0.8:
+            base_quality = 'excellent'
+        elif entry_signal_strength > 0.6:
+            base_quality = 'good'
+        else:
+            base_quality = 'fair'
+        
+        # Adjust for volatility (moderate volatility is better for futures)
+        if 0.02 <= volatility <= 0.08:  # Sweet spot for futures
+            # Good volatility, keep quality
+            pass
+        elif volatility > 0.12:  # Too volatile
+            if base_quality == 'excellent':
+                base_quality = 'good'
+            elif base_quality == 'good':
+                base_quality = 'fair'
+        elif volatility < 0.01:  # Too quiet
+            if base_quality == 'excellent':
+                base_quality = 'good'
+        
+        # Adjust for volume profile
+        if volume_profile < 0.5:  # Low volume
+            if base_quality == 'excellent':
+                base_quality = 'good'
+            elif base_quality == 'good':
+                base_quality = 'fair'
+        
+        # Asset-specific adjustments
+        if symbol_clean in ['BTC', 'ETH'] and base_quality == 'fair':
+            base_quality = 'good'  # Blue chips get benefit of doubt
+        
+        return base_quality
+    
+    def calculate_intelligent_futures_targets(self, symbol: str, entry_price: float, 
+                                            side: str, signal_strength: float = 0.5,
+                                            volatility: float = 0.0) -> Dict[str, float]:
+        """Calculate intelligent TP/SL for futures based on trade quality and asset difficulty"""
+        symbol_clean = self.get_asset_symbol_clean(symbol)
+        
+        # Analyze trade quality
+        trade_quality = self.analyze_futures_trade_quality(symbol, signal_strength, volatility)
+        quality_config = FUTURES_TRADE_QUALITY_LEVELS[trade_quality]
+        
+        # Get asset difficulty multiplier
+        difficulty = FUTURES_ASSET_DIFFICULTY.get(symbol_clean, 1.0)
+        
+        # Calculate base TP (use middle of range)
+        tp_min, tp_max = quality_config['tp_range']
+        base_tp = (tp_min + tp_max) / 2
+        
+        # Adjust TP for asset difficulty and leverage
+        leverage_multiplier = 1.2  # Futures already have built-in leverage
+        adjusted_tp = base_tp * difficulty * leverage_multiplier
+        
+        # SL adjusted for leverage (tighter stops)
+        sl_pct = quality_config['sl_base']
+        
+        # Calculate target prices based on side
+        if side.lower() in ['long', 'buy']:
+            tp_price = entry_price * (1 + adjusted_tp)
+            sl_price = entry_price * (1 - sl_pct)
+        else:  # short/sell
+            tp_price = entry_price * (1 - adjusted_tp)
+            sl_price = entry_price * (1 + sl_pct)
+        
+        return {
+            'tp_pct': adjusted_tp,
+            'sl_pct': sl_pct,
+            'trade_quality': trade_quality,
+            'difficulty': difficulty,
+            'quality_description': quality_config['description'],
+            'tp_price': tp_price,
+            'sl_price': sl_price,
+            'side': side
+        }
+
+    # =============================================================================
 
     def check_internet_connectivity(self) -> bool:
         """Check if internet connectivity is available with multiple fallback methods"""
@@ -718,24 +856,44 @@ class HighRiskFuturesAgent:
             logger.warning(f"Error updating trailing stops for {symbol}: {e}")
 
     def should_exit_position(self, symbol: str, current_price: float, pnl_pct: float, position: Dict) -> str:
-        """Determine if position should be exited based on various conditions"""
+        """Determine if position should be exited based on intelligent TP/SL conditions"""
         try:
             side = position.get('side', 'buy')
             entry_price = position.get('entry_price', 0)
-            profit_target_pct = position.get('profit_target_pct', 0.08)
-            trailing_stop_pct = position.get('trailing_stop_pct', 0.05)
-
-            logger.info(f"🔍 Checking exit conditions for {symbol}: P&L={pnl_pct:.2%}, Target={profit_target_pct:.1%}, Stop={-0.03:.1%}")
+            
+            # Use intelligent TP/SL if enabled, otherwise fall back to fixed levels
+            use_intelligent_tpsl = os.getenv("TB_INTELLIGENT_FUTURES_TPSL", "1") == "1"
+            
+            if use_intelligent_tpsl:
+                # Calculate intelligent targets based on trade quality
+                signal_strength = position.get('signal_strength', 0.6)  # Default to good
+                volatility = position.get('volatility', 0.05)  # Default moderate vol
+                
+                targets = self.calculate_intelligent_futures_targets(
+                    symbol, entry_price, side, signal_strength, volatility
+                )
+                
+                profit_target_pct = targets['tp_pct']
+                stop_loss_threshold = -targets['sl_pct']
+                
+                logger.info(f"🧠 {symbol} intelligent targets: TP={profit_target_pct:.1%} SL={stop_loss_threshold:.1%} Quality={targets['trade_quality']}")
+            else:
+                # Fall back to fixed levels
+                profit_target_pct = position.get('profit_target_pct', 0.08)
+                stop_loss_threshold = -0.05  # 5% stop loss
+                
+                logger.info(f"🔍 {symbol} fixed targets: TP={profit_target_pct:.1%} SL={stop_loss_threshold:.1%}")
 
             # 1. Profit target hit
             if pnl_pct >= profit_target_pct:
-                logger.info(f"🎯 {symbol} hit profit target: {pnl_pct:.2%} >= {profit_target_pct:.1%}")
+                quality_info = f" ({targets['trade_quality']})" if use_intelligent_tpsl else ""
+                logger.info(f"🎯 {symbol} hit profit target: {pnl_pct:.2%} >= {profit_target_pct:.1%}{quality_info}")
                 return 'profit_target'
 
-            # 2. Stop loss hit (fixed percentage from entry)
-            stop_loss_threshold = -0.05  # 5% stop loss (increased from 3% for leverage)
+            # 2. Stop loss hit
             if pnl_pct <= stop_loss_threshold:
-                logger.info(f"🛑 {symbol} hit stop loss: {pnl_pct:.2%} <= {stop_loss_threshold:.1%}")
+                quality_info = f" ({targets['trade_quality']})" if use_intelligent_tpsl else ""
+                logger.info(f"🛑 {symbol} hit stop loss: {pnl_pct:.2%} <= {stop_loss_threshold:.1%}{quality_info}")
                 return 'stop_loss'
 
             # 3. Trailing stop hit

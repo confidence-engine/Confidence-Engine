@@ -57,7 +57,7 @@ export TB_ML_GATE_MODEL_PATH=${TB_ML_GATE_MODEL_PATH:-eval_runs/ml/latest/model.
 export TB_ML_FEATURES_PATH=${TB_ML_FEATURES_PATH:-eval_runs/ml/latest/features.csv}
 export TB_ML_GATE_MIN_PROB=${TB_ML_GATE_MIN_PROB:-0.5}
 export TB_ML_GATE_SOFT=${TB_ML_GATE_SOFT:-1}
-export TB_ML_RETRAIN_EVERY_SEC=${TB_ML_RETRAIN_EVERY_SEC:-3600}
+export TB_ML_RETRAIN_EVERY_SEC=${TB_ML_RETRAIN_EVERY_SEC:-2592000}
 
 # Live trading defaults (set to 1 for dry run)
 export TB_TRADER_OFFLINE=${TB_TRADER_OFFLINE:-0}

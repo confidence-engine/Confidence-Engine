@@ -54,6 +54,53 @@ except ImportError as e:
 import asyncio
 import concurrent.futures
 
+# =============================================================================
+# INTELLIGENT TP/SL CONFIGURATION FOR CRYPTO TRADING
+# =============================================================================
+
+# Trade Quality Levels for Crypto (conservative approach)
+CRYPTO_TRADE_QUALITY_LEVELS = {
+    'excellent': {
+        'tp_range': (0.12, 0.20),  # 12-20% TP for excellent signals
+        'sl_base': 0.05,           # 5% SL
+        'description': 'High conviction setup, strong confluence'
+    },
+    'good': {
+        'tp_range': (0.08, 0.12),  # 8-12% TP for good signals  
+        'sl_base': 0.04,           # 4% SL
+        'description': 'Good setup, decent confidence'
+    },
+    'fair': {
+        'tp_range': (0.05, 0.08),  # 5-8% TP for fair signals
+        'sl_base': 0.03,           # 3% SL
+        'description': 'Marginal setup, lower confidence'
+    }
+}
+
+# Asset Difficulty for Crypto (liquidity and market cap based)
+CRYPTO_ASSET_DIFFICULTY = {
+    'BTC': 1.5,   # Hardest to move significantly
+    'ETH': 1.3,   # Major crypto, good liquidity
+    'SOL': 1.1,   # Top 10, decent liquidity
+    'AVAX': 1.0,  # Top 20, moderate liquidity
+    'LINK': 1.1,  # Established DeFi
+    'UNI': 1.0,   # DEX token, baseline
+    'AAVE': 0.9,  # DeFi, smaller
+    'COMP': 0.8,  # Smaller DeFi
+    'YFI': 0.7,   # Smallest, highest volatility
+    'XTZ': 0.8,   # Alt L1
+    'LTC': 1.0,   # Legacy crypto
+    'BCH': 1.0,   # Bitcoin fork
+    'DOT': 0.9,   # Parachain platform
+    'MKR': 0.8,   # DeFi governance
+    'CRV': 0.7,   # DeFi protocol
+    'SNX': 0.7,   # Derivatives protocol
+    'SUSHI': 0.6, # DEX protocol
+    'GRT': 0.6,   # Indexing protocol
+}
+
+# =============================================================================
+
 class CircuitBreaker:
     """Prevents API failures from crashing the agent"""
     def __init__(self, failure_threshold=3, recovery_timeout=60):
@@ -1337,6 +1384,113 @@ def build_ml_features(bars_15, bars_1h, sentiment):
     
     return torch.tensor(features[:37], dtype=torch.float32)
 
+# =============================================================================
+# INTELLIGENT TP/SL FUNCTIONS FOR CRYPTO TRADING
+# =============================================================================
+
+def get_crypto_asset_symbol_clean(symbol: str) -> str:
+    """Clean symbol for asset lookup"""
+    return symbol.replace('/USD', '').replace('USD', '').upper()
+
+def analyze_crypto_trade_quality(symbol: str, signal_strength: float = 0.5, 
+                                sentiment: float = 0.5, volatility: float = 0.0,
+                                cross_up: bool = False, cross_up_1h: bool = False,
+                                trend_up: bool = False) -> str:
+    """
+    Analyze crypto trade quality based on multiple factors
+    More sophisticated signal analysis than the position manager version
+    """
+    symbol_clean = get_crypto_asset_symbol_clean(symbol)
+    
+    # Start with base quality assessment
+    base_quality = 'fair'  # Default
+    
+    # Assess confluence of signals
+    signal_count = sum([cross_up, cross_up_1h, trend_up])
+    
+    if signal_count >= 3:  # Perfect confluence
+        base_quality = 'excellent'
+    elif signal_count == 2:  # Good confluence
+        base_quality = 'good'
+    else:  # Single signal
+        base_quality = 'fair'
+    
+    # Adjust for sentiment
+    if sentiment > 0.7:  # Very positive sentiment
+        if base_quality == 'fair':
+            base_quality = 'good'
+        elif base_quality == 'good':
+            base_quality = 'excellent'
+    elif sentiment < 0.3:  # Very negative sentiment
+        if base_quality == 'excellent':
+            base_quality = 'good'
+        elif base_quality == 'good':
+            base_quality = 'fair'
+    
+    # Adjust for volatility (moderate volatility is better for crypto)
+    if 0.02 <= volatility <= 0.06:  # Sweet spot for crypto
+        # Good volatility, keep quality
+        pass
+    elif volatility > 0.10:  # Too volatile
+        if base_quality == 'excellent':
+            base_quality = 'good'
+        elif base_quality == 'good':
+            base_quality = 'fair'
+    elif volatility < 0.01:  # Too quiet
+        if base_quality == 'excellent':
+            base_quality = 'good'
+    
+    # Asset-specific adjustments
+    if symbol_clean in ['BTC', 'ETH'] and base_quality == 'fair':
+        base_quality = 'good'  # Blue chips get benefit of doubt
+    
+    return base_quality
+
+def calculate_intelligent_crypto_targets(symbol: str, entry_price: float, 
+                                       signal_strength: float = 0.5,
+                                       sentiment: float = 0.5,
+                                       cross_up: bool = False,
+                                       cross_up_1h: bool = False, 
+                                       trend_up: bool = False,
+                                       volatility: float = 0.0) -> Dict[str, float]:
+    """Calculate intelligent TP/SL for crypto based on trade quality and asset difficulty"""
+    symbol_clean = get_crypto_asset_symbol_clean(symbol)
+    
+    # Analyze trade quality
+    trade_quality = analyze_crypto_trade_quality(
+        symbol, signal_strength, sentiment, volatility, cross_up, cross_up_1h, trend_up
+    )
+    quality_config = CRYPTO_TRADE_QUALITY_LEVELS[trade_quality]
+    
+    # Get asset difficulty multiplier
+    difficulty = CRYPTO_ASSET_DIFFICULTY.get(symbol_clean, 1.0)
+    
+    # Calculate base TP (use middle of range)
+    tp_min, tp_max = quality_config['tp_range']
+    base_tp = (tp_min + tp_max) / 2
+    
+    # Adjust TP for asset difficulty
+    adjusted_tp = base_tp * difficulty
+    
+    # SL stays consistent regardless of difficulty (risk management)
+    sl_pct = quality_config['sl_base']
+    
+    # Calculate target prices
+    tp_price = entry_price * (1 + adjusted_tp)
+    sl_price = entry_price * (1 - sl_pct)
+    
+    return {
+        'tp_pct': adjusted_tp,
+        'sl_pct': sl_pct,
+        'trade_quality': trade_quality,
+        'difficulty': difficulty,
+        'quality_description': quality_config['description'],
+        'tp_price': tp_price,
+        'sl_price': sl_price
+    }
+
+# =============================================================================
+
 # ==========================
 # Helpers
 # ==========================
@@ -1882,6 +2036,10 @@ def calc_position_size(equity: float, entry: float, stop: float) -> float:
 
 
 def place_bracket(api: REST, symbol: str, qty: float, entry: float, tp: float, sl: float) -> Tuple[bool, Optional[str], Optional[str]]:
+    """
+    Place market order only (bracket orders don't work reliably with Alpaca paper trading)
+    Position monitoring handles TP/SL via manual exit logic
+    """
     try:
         # Enforce optional hard notional cap per trade at submission time as a safety net
         try:
@@ -1893,18 +2051,20 @@ def place_bracket(api: REST, symbol: str, qty: float, entry: float, tp: float, s
                 qty = min(float(qty), cap_notional / float(entry))
             except Exception:
                 pass
+                
         def _submit():
+            # Place simple market order (TP/SL handled by position monitoring)
             return api.submit_order(
                 symbol=_normalize_symbol(symbol),
                 side="buy",
                 type="market",
                 time_in_force="gtc",
-                qty=qty,
-                take_profit={"limit_price": round(tp, _decimals_for(symbol))},
-                stop_loss={"stop_price": round(sl, _decimals_for(symbol))},
+                qty=qty
             )
+            
         def _on_retry(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
             logger.warning(f"[retry] submit_order attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s")
+            
         order = retry_call(
             _submit,
             attempts=int(os.getenv("TB_RETRY_ATTEMPTS", "5")),
@@ -1913,6 +2073,10 @@ def place_bracket(api: REST, symbol: str, qty: float, entry: float, tp: float, s
             on_retry=_on_retry,
         )
         oid = getattr(order, "id", None) or getattr(order, "client_order_id", None)
+        
+        # Log the entry with TP/SL targets for monitoring
+        logger.info(f"📊 Position opened: {symbol} qty={qty:.4f} entry=${entry:.2f} TP=${tp:.2f} SL=${sl:.2f}")
+        
         # Per-fill logging: order submission
         try:
             log_order_event(
@@ -2257,19 +2421,50 @@ def main() -> int:
                 should_exit = False
                 exit_reason = ""
                 
-                # Exit conditions
+                # Use intelligent TP/SL if enabled, otherwise fall back to fixed levels
+                use_intelligent_tpsl = os.getenv("TB_INTELLIGENT_CRYPTO_TPSL", "1") == "1"
+                
+                if use_intelligent_tpsl:
+                    # Calculate intelligent targets based on trade quality at entry
+                    # Note: We don't have the original entry signals, so we estimate
+                    # In a full implementation, these would be stored with the position
+                    estimated_volatility = calculate_atr(bars_15) / price if len(bars_15) >= 14 else 0.05
+                    
+                    targets = calculate_intelligent_crypto_targets(
+                        symbol=symbol,
+                        entry_price=entry_price,
+                        signal_strength=0.6,  # Default estimate
+                        sentiment=sentiment,
+                        cross_up=cross_up,     # Current state (not entry state)
+                        cross_up_1h=cross_up_1h,
+                        trend_up=trend_up,
+                        volatility=estimated_volatility
+                    )
+                    
+                    intelligent_tp_pct = targets['tp_pct']
+                    intelligent_sl_pct = targets['sl_pct']
+                    
+                    logger.debug(f"🧠 {symbol} intelligent targets: TP={intelligent_tp_pct:.1%} SL={intelligent_sl_pct:.1%} Quality={targets['trade_quality']}")
+                else:
+                    # Fall back to fixed levels from promoted_params.json
+                    intelligent_tp_pct = TP_PCT
+                    intelligent_sl_pct = SL_PCT
+                
+                # Exit conditions with intelligent or fixed TP/SL
                 if cross_down:
                     should_exit = True
                     exit_reason = "EMA cross down"
                 elif cross_down_1h:
                     should_exit = True
                     exit_reason = "1H EMA cross down"
-                elif current_pnl_pct <= -SL_PCT:
+                elif current_pnl_pct <= -intelligent_sl_pct:
                     should_exit = True
-                    exit_reason = "Stop loss hit"
-                elif current_pnl_pct >= TP_PCT:
+                    quality_info = f" ({targets['trade_quality']})" if use_intelligent_tpsl else ""
+                    exit_reason = f"Stop loss hit{quality_info}"
+                elif current_pnl_pct >= intelligent_tp_pct:
                     should_exit = True
-                    exit_reason = "Take profit hit"
+                    quality_info = f" ({targets['trade_quality']})" if use_intelligent_tpsl else ""
+                    exit_reason = f"Take profit hit{quality_info}"
                 elif sentiment < 0.3:
                     should_exit = True
                     exit_reason = "Negative sentiment"
@@ -2292,6 +2487,78 @@ def main() -> int:
             if not can_trade:
                 logger.info("[%s] Cannot trade: %s", symbol, reason)
                 continue
+            
+            # ENTRY LOGIC - Generate BUY signals if no position exists
+            if symbol not in current_positions:
+                # Check for entry signals
+                entry_signal = False
+                entry_reason = ""
+                
+                # EMA cross-up signal (15m)
+                if cross_up:
+                    entry_signal = True
+                    entry_reason = "EMA cross-up (15m)"
+                
+                # Optional 1h confirmation
+                elif cross_up_1h and trend_up and USE_1H_ENTRY:
+                    entry_signal = True
+                    entry_reason = "EMA cross-up (1h) + trend"
+                
+                # Sentiment boost for weaker signals
+                elif cross_up and sentiment > 0.7:
+                    entry_signal = True
+                    entry_reason = "EMA cross-up + strong sentiment"
+                
+                if entry_signal:
+                    # Calculate position size
+                    equity = get_account_equity(api) if not OFFLINE else 100000.0
+                    position_value = equity * MAX_PORTFOLIO_RISK  # Use the 1% risk sizing
+                    qty = position_value / price
+                    
+                    # Use intelligent TP/SL if enabled
+                    use_intelligent_tpsl = os.getenv("TB_INTELLIGENT_CRYPTO_TPSL", "1") == "1"
+                    
+                    if use_intelligent_tpsl:
+                        # Calculate intelligent targets based on signal quality
+                        signal_strength = 0.8 if cross_up and cross_up_1h else 0.6
+                        volatility = calculate_atr(bars_15) / price if len(bars_15) >= 14 else 0.05
+                        
+                        targets = calculate_intelligent_crypto_targets(
+                            symbol=symbol,
+                            entry_price=price,
+                            signal_strength=signal_strength,
+                            sentiment=sentiment,
+                            cross_up=cross_up,
+                            cross_up_1h=cross_up_1h,
+                            trend_up=trend_up,
+                            volatility=volatility
+                        )
+                        
+                        tp_price = price * (1 + targets['tp_pct'])
+                        sl_price = price * (1 - targets['sl_pct'])
+                        
+                        logger.info(f"🧠 {symbol} intelligent entry: TP={targets['tp_pct']:.1%} SL={targets['sl_pct']:.1%} Quality={targets['trade_quality']}")
+                    else:
+                        # Use fixed levels from promoted_params
+                        tp_price = price * (1 + TP_PCT)
+                        sl_price = price * (1 - SL_PCT)
+                    
+                    # Create BUY decision
+                    decision = {
+                        'symbol': symbol,
+                        'action': 'BUY',
+                        'qty': qty,
+                        'price': price,
+                        'take_profit': tp_price,
+                        'stop_loss': sl_price,
+                        'reason': entry_reason,
+                        'sentiment': sentiment,
+                        'confidence': signal_strength if use_intelligent_tpsl else 0.6
+                    }
+                    trading_decisions.append(decision)
+                    
+                    logger.info("[%s] ENTRY SIGNAL: %s (Price: $%.2f, Sentiment: %.2f)", 
+                               symbol, entry_reason, price, sentiment)
         
         except Exception as e:
             logger.error("Error processing %s: %s", symbol, e)
