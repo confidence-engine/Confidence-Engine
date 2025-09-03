@@ -39,6 +39,9 @@ export TB_CONFIDENCE_BASED_SIZING=1
 # Notification Configuration
 export TB_ENABLE_DISCORD=1
 export TB_TRADER_NOTIFY=1
+export TB_ENHANCED_AUTOCOMMIT=1
+export TB_NO_TELEGRAM=0
+export TB_PAPER_TRADING=1
 export TB_TRADER_NOTIFY_HEARTBEAT=1
 export TB_HEARTBEAT_EVERY_N=12
 export TB_NO_TELEGRAM=0  # Enable Telegram
@@ -57,12 +60,14 @@ echo "✅ Configuration applied:"
 echo "   Signal Quality: ${TB_MIN_SIGNAL_QUALITY} (ultra-permissive)"
 echo "   Conviction Score: ${TB_MIN_CONVICTION_SCORE} (ultra-permissive)"
 echo "   Trade Limits: ${TB_MAX_TRADES_PER_AGENT_DAILY} daily / ${TB_MAX_TRADES_PER_AGENT_WEEKLY} weekly per agent"
-echo "   Hybrid Max Trade: $${TB_HYBRID_MAX_TRADE_SIZE} (spot trading)"
-echo "   Futures Max Trade: $${TB_FUTURES_MAX_TRADE_SIZE} (25x leverage = $2500 exposure)"
+echo "   Hybrid Max Trade: ${TB_HYBRID_MAX_TRADE_SIZE} (spot trading)"
+echo "   Futures Max Trade: ${TB_FUTURES_MAX_TRADE_SIZE} (25x leverage exposure)"
 echo "   Dynamic Sizing: ${TB_CONFIDENCE_BASED_SIZING}"
 echo "   Discord: ${TB_ENABLE_DISCORD}"
 echo "   Telegram: $([ "${TB_NO_TELEGRAM}" = "0" ] && echo "ENABLED" || echo "DISABLED")"
-echo "   Database: ${TB_DB_PATH}"
+echo "   Database Auto-Commit: ${TB_ENHANCED_AUTOCOMMIT}"
+echo "   Notifications: Telegram + Discord"
+echo "   Paper Trading: ${TB_PAPER_TRADING} (Phase 1C ultra-aggressive)"
 echo
 
 # ============================================================================
@@ -243,8 +248,8 @@ try:
     hybrid_size = tm.calculate_position_size('hybrid_agent', 8.5, 7.8, 'BTC/USD')
     futures_size = tm.calculate_position_size('futures_agent', 9.1, 8.9, 'BTCUSDT')
     
-    print(f'   📊 Hybrid Agent: High confidence trade = ${hybrid_size:.2f} (max $1000)')
-    print(f'   📊 Futures Agent: High confidence trade = ${futures_size:.2f} (max $100, 25x leverage)')
+    print(f'   📊 Hybrid Agent: High confidence trade = ${hybrid_size:.2f} (max $$1000)')
+    print(f'   📊 Futures Agent: High confidence trade = ${futures_size:.2f} (max $$100, 25x leverage)')
     
 except ImportError:
     print('⚠️  Enhanced trade manager not available - using basic limits')
@@ -372,61 +377,13 @@ cat << EOF | crontab -
 */2 * * * * cd $ROOT_DIR && bash scripts/watchdog_futures.sh >/dev/null 2>&1
 
 # Health check: Comprehensive system check every 30 minutes
-*/30 * * * * cd $ROOT_DIR && bash scripts/health_check.sh >/dev/null 2>&1
+0,30 * * * * cd $ROOT_DIR && bash scripts/health_check.sh >/dev/null 2>&1
 
 # Database cleanup: Clean old logs every 6 hours (keep last 30 days)
-0 */6 * * * cd $ROOT_DIR && python3 -c "
-import sqlite3
-from datetime import datetime, timedelta
-conn = sqlite3.connect('enhanced_trading.db')
-cursor = conn.cursor()
-cutoff = (datetime.now() - timedelta(days=30)).isoformat()
-tables = ['signal_logs', 'heartbeat_logs', 'notification_logs']
-for table in tables:
-    cursor.execute(f'DELETE FROM {table} WHERE timestamp < ?', (cutoff,))
-conn.commit()
-conn.close()
-print(f'Database cleanup completed: removed records older than 30 days')
-" >/dev/null 2>&1
+0 */6 * * * cd $ROOT_DIR && python3 database_cleanup.py >/dev/null 2>&1
 
 # Performance report: Generate weekly performance summary
-0 9 * * 1 cd $ROOT_DIR && python3 -c "
-import sqlite3
-import json
-from datetime import datetime, timedelta
-
-conn = sqlite3.connect('enhanced_trading.db')
-cursor = conn.cursor()
-
-# Get weekly performance
-week_ago = (datetime.now() - timedelta(days=7)).isoformat()
-cursor.execute('''
-    SELECT agent_type, COUNT(*) as trades, 
-           AVG(signal_quality) as avg_quality,
-           AVG(conviction_score) as avg_conviction,
-           COUNT(CASE WHEN win_loss = 'win' THEN 1 END) as wins,
-           SUM(pnl) as total_pnl
-    FROM enhanced_trades 
-    WHERE timestamp > ? 
-    GROUP BY agent_type
-''', (week_ago,))
-
-results = cursor.fetchall()
-report = {'week_ending': datetime.now().isoformat(), 'performance': {}}
-for row in results:
-    agent, trades, quality, conviction, wins, pnl = row
-    win_rate = (wins / trades * 100) if trades > 0 else 0
-    report['performance'][agent] = {
-        'trades': trades, 'avg_signal_quality': quality,
-        'avg_conviction': conviction, 'win_rate': win_rate, 'total_pnl': pnl
-    }
-
-with open('weekly_performance_report.json', 'w') as f:
-    json.dump(report, f, indent=2)
-
-conn.close()
-print('Weekly performance report generated')
-" >/dev/null 2>&1
+0 9 * * 1 cd $ROOT_DIR && python3 generate_performance_report.py >/dev/null 2>&1
 
 # Daily restart: Fresh start at 6 AM with system check
 0 6 * * * cd $ROOT_DIR && bash start_trading_system.sh --quick-restart >/dev/null 2>&1
@@ -522,7 +479,7 @@ echo "🚀 UNIFIED TRADING SYSTEM DEPLOYMENT COMPLETE!"
 echo "==============================================="
 echo "✅ Both agents running with Phase 1C ultra-aggressive thresholds"
 echo "✅ Intelligent trade management with confidence-based sizing"
-echo "✅ Hard caps: 8 trades/day per agent, $1000 hybrid / $100 futures per trade"
+echo "✅ Hard caps: 8 trades/day per agent, \$1000 hybrid / \$100 futures per trade"
 echo "✅ Comprehensive monitoring and auto-recovery active"
 echo "✅ Discord/Telegram notifications configured"
 echo "✅ Database logging for performance assessment enabled"
