@@ -11,7 +11,7 @@ import json
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import logging
 import asyncio
 import traceback
@@ -71,6 +71,24 @@ except ImportError:
     NOTIFICATIONS_AVAILABLE = False
     send_discord_digest_to = None
     send_telegram = None
+
+# Import enhanced Discord notifications
+try:
+    from enhanced_discord_notifications import send_enhanced_trade_notification, send_enhanced_heartbeat
+    ENHANCED_DISCORD_AVAILABLE = True
+except ImportError:
+    print("Enhanced Discord notifications not available for futures agent")
+    ENHANCED_DISCORD_AVAILABLE = False
+
+# Import signal quality and market regime detection
+try:
+    from divergence import calculate_signal_quality, calculate_conviction_score
+    from scripts.market_regime_detector import detect_market_regime, RegimeState
+    SIGNAL_QUALITY_AVAILABLE = True
+    print("✅ Enhanced signal quality modules loaded for futures agent")
+except ImportError as e:
+    print(f"Signal quality modules not available for futures agent: {e}")
+    SIGNAL_QUALITY_AVAILABLE = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -158,6 +176,12 @@ class HighRiskFuturesAgent:
         self.correlation_matrix = {}  # Initialize as empty dict
         self.trailing_stops = {}  # Track trailing stop levels
 
+        # Enhanced Signal Quality Settings
+        self.min_signal_quality = float(os.getenv("TB_MIN_SIGNAL_QUALITY", "4.0"))  # More aggressive for futures
+        self.min_conviction_score = float(os.getenv("TB_MIN_CONVICTION_SCORE", "5.0"))  # More aggressive for futures
+        self.use_enhanced_signals = os.getenv("TB_USE_ENHANCED_SIGNALS", "1") == "1"
+        self.use_regime_filtering = os.getenv("TB_USE_REGIME_FILTERING", "1") == "1"
+
         # Heartbeat and notification tracking
         self.run_count = 0
         self.last_heartbeat = time.time()
@@ -182,6 +206,159 @@ class HighRiskFuturesAgent:
         logger.info(f"📊 Max Volatility Threshold: {self.max_volatility_threshold*100:.1f}%")
         logger.info(f"📢 Notifications: {'Enabled' if self.enable_notifications else 'Disabled'}")
         logger.info(f"💓 Heartbeat: {'Enabled' if self.enable_heartbeat else 'Disabled'} (every {self.heartbeat_every_n} runs)")
+        logger.info(f"🧠 Enhanced Signals: {'Enabled' if self.use_enhanced_signals else 'Disabled'}")
+        logger.info(f"🎯 Min Signal Quality: {self.min_signal_quality}/10")
+        logger.info(f"🎯 Min Conviction Score: {self.min_conviction_score}/10")
+        logger.info(f"🔍 Regime Filtering: {'Enabled' if self.use_regime_filtering else 'Disabled'}")
+
+    # =============================================================================
+    # ENHANCED SIGNAL EVALUATION FOR FUTURES
+    # =============================================================================
+    
+    def evaluate_enhanced_futures_signals(self, bars: pd.DataFrame, symbol: str, 
+                                         sentiment: float = 0.5, side: str = 'long') -> Dict[str, Any]:
+        """
+        Enhanced signal evaluation for futures trading with quality scoring and regime detection
+        Similar to hybrid agent but optimized for futures characteristics
+        """
+        results = {
+            'signal_quality': 0.0,
+            'conviction_score': 0.0,
+            'regime_state': None,
+            'should_trade': False,
+            'reason': 'No signals detected',
+            'regime_suitable': False
+        }
+        
+        try:
+            if not SIGNAL_QUALITY_AVAILABLE:
+                # Fallback to basic logic
+                results['should_trade'] = True  # Futures agent is more aggressive
+                results['reason'] = "Basic signal logic (enhanced modules not available)"
+                results['signal_quality'] = 5.0
+                results['conviction_score'] = 5.0
+                return results
+            
+            # 1. Detect market regime
+            regime_state = detect_market_regime(bars)
+            results['regime_state'] = regime_state
+            
+            # 2. Calculate signal quality using enhanced function
+            close_prices = bars['close']
+            volume = bars['volume'] if 'volume' in bars.columns else pd.Series([1000] * len(bars))
+            
+            # Calculate price momentum (more sensitive for futures)
+            if len(close_prices) >= 3:
+                price_momentum = (close_prices.iloc[-1] - close_prices.iloc[-3]) / close_prices.iloc[-3]
+                price_momentum = max(-1.0, min(1.0, price_momentum * 15))  # More sensitive scaling for futures
+            else:
+                price_momentum = 0.0
+            
+            # Calculate volume Z-score
+            if len(volume) >= 10:  # Shorter window for futures
+                volume_mean = volume.rolling(10).mean().iloc[-1]
+                volume_std = volume.rolling(10).std().iloc[-1]
+                if volume_std > 0:
+                    volume_z_score = (volume.iloc[-1] - volume_mean) / volume_std
+                else:
+                    volume_z_score = 0.0
+            else:
+                volume_z_score = 0.0
+            
+            # Calculate RSI
+            if len(close_prices) >= 14:
+                delta = close_prices.diff()
+                gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                rs = gain / loss
+                rsi = 100 - (100 / (1 + rs)).iloc[-1]
+            else:
+                rsi = 50.0
+            
+            signal_quality = calculate_signal_quality(
+                sentiment_score=sentiment,
+                price_momentum=price_momentum,
+                volume_z_score=volume_z_score,
+                news_volume=3,  # Assume fewer news items for futures
+                rsi=rsi
+            )
+            results['signal_quality'] = signal_quality
+            
+            # 3. Calculate conviction score for futures
+            # Regime alignment for futures (more aggressive)
+            regime_alignment = 0.6  # Default for futures
+            if regime_state.trend_regime in ['bull', 'strong_bull'] and side == 'long':
+                regime_alignment = 0.9
+            elif regime_state.trend_regime in ['bear', 'strong_bear'] and side == 'short':
+                regime_alignment = 0.9
+            elif regime_state.trend_regime == 'sideways':
+                regime_alignment = 0.8  # Futures like volatility
+            
+            # Volatility score for futures (high volatility is good)
+            vol_score_map = {'low': 0.5, 'normal': 0.7, 'high': 0.9, 'extreme': 0.8}
+            volatility_score = vol_score_map.get(regime_state.volatility_regime, 0.7)
+            
+            # Confirmation score
+            confirmation_score = 0.5  # Base for futures
+            if abs(sentiment) > 0.6:
+                confirmation_score += 0.3
+            if abs(price_momentum) > 0.3:
+                confirmation_score += 0.2
+            
+            confirmation_score = min(1.0, confirmation_score)
+            
+            conviction_score = calculate_conviction_score(
+                signal_quality=signal_quality,
+                regime_alignment=regime_alignment,
+                volatility_score=volatility_score,
+                confirmation_score=confirmation_score
+            )
+            results['conviction_score'] = conviction_score
+            
+            # 4. Futures-specific trading logic (more aggressive)
+            regime_suitable = False
+            reason = f"Futures Regime: {regime_state.trend_regime} trend, {regime_state.volatility_regime} vol"
+            
+            # Futures trading is more aggressive - trade in more conditions
+            if regime_state.volatility_regime in ['high', 'extreme'] and signal_quality >= 3.0:
+                regime_suitable = True
+                reason = f"High volatility futures opportunity (Q:{signal_quality:.1f})"
+            elif regime_state.trend_regime in ['bull', 'strong_bull'] and signal_quality >= 3.0:
+                regime_suitable = True
+                reason = f"Trending futures momentum (Q:{signal_quality:.1f})"
+            elif regime_state.trend_regime == 'sideways' and signal_quality >= 4.0:
+                regime_suitable = True
+                reason = f"Range-bound futures scalping (Q:{signal_quality:.1f})"
+            elif signal_quality >= 6.0:  # High quality signals trade in any regime
+                regime_suitable = True
+                reason = f"High-quality futures signal (Q:{signal_quality:.1f})"
+            
+            results['regime_suitable'] = regime_suitable
+            results['should_trade'] = (regime_suitable and 
+                                     conviction_score >= self.min_conviction_score and 
+                                     signal_quality >= self.min_signal_quality)
+            results['reason'] = reason
+            
+            # Add quality check reasoning
+            if not results['should_trade']:
+                if conviction_score < self.min_conviction_score:
+                    results['reason'] += f" (Conv:{conviction_score:.1f}<{self.min_conviction_score})"
+                if signal_quality < self.min_signal_quality:
+                    results['reason'] += f" (Qual:{signal_quality:.1f}<{self.min_signal_quality})"
+            
+            logger.info(f"🧠 Futures {symbol} Enhanced Signals: Quality={signal_quality:.1f}/10 "
+                       f"Conviction={conviction_score:.1f}/10 Regime={regime_state.trend_regime}/"
+                       f"{regime_state.volatility_regime} Trade={results['should_trade']}")
+            
+        except Exception as e:
+            logger.error(f"Error in enhanced futures signal evaluation for {symbol}: {e}")
+            # Emergency fallback for futures (more aggressive)
+            results['should_trade'] = True
+            results['reason'] = f"Fallback due to error: {e}"
+            results['signal_quality'] = 4.0
+            results['conviction_score'] = 4.0
+        
+        return results
 
     # =============================================================================
     # INTELLIGENT TP/SL METHODS FOR FUTURES
@@ -905,14 +1082,14 @@ class HighRiskFuturesAgent:
             return min(self.max_leverage, max_platform_leverage)
 
     def calculate_momentum_signal(self, symbol: str) -> Dict:
-        """Calculate momentum-based trading signal"""
+        """Calculate momentum-based trading signal with enhanced evaluation"""
         try:
             # Get recent data
-            data = enhanced_futures_bars(symbol, '1h', self.momentum_window + 10)
+            data = enhanced_futures_bars(symbol, '15m', 100)  # Get more data for better analysis
             if data is None or len(data) < self.momentum_window:
                 return {'signal': 'neutral', 'strength': 0, 'reason': 'insufficient_data'}
 
-            # Calculate momentum
+            # Calculate basic momentum
             prices = data['close']
             momentum = (prices.iloc[-1] - prices.iloc[-self.momentum_window]) / prices.iloc[-self.momentum_window]
 
@@ -920,31 +1097,85 @@ class HighRiskFuturesAgent:
             returns = prices.pct_change().dropna()
             volatility = returns.std() * np.sqrt(24)  # Annualized daily volatility
 
-            # Signal logic
-            if momentum > self.min_momentum_threshold and volatility < self.max_volatility_threshold:
+            # Enhanced signal evaluation if available
+            if self.use_enhanced_signals and SIGNAL_QUALITY_AVAILABLE:
+                logger.info(f"🧠 Using enhanced signal evaluation for futures {symbol}")
+                
+                # Determine trade side based on momentum
+                side = 'long' if momentum > 0 else 'short'
+                
+                # Get sentiment estimate (simplified for futures)
+                sentiment = max(-1.0, min(1.0, momentum * 5))  # Convert momentum to sentiment proxy
+                
+                # Evaluate enhanced signals
+                enhanced_eval = self.evaluate_enhanced_futures_signals(
+                    bars=data,
+                    symbol=symbol,
+                    sentiment=sentiment,
+                    side=side
+                )
+                
+                signal_quality = enhanced_eval['signal_quality']
+                conviction_score = enhanced_eval['conviction_score']
+                should_trade_enhanced = enhanced_eval['should_trade']
+                
+                # Determine signal based on enhanced evaluation
+                if should_trade_enhanced and abs(momentum) > self.min_momentum_threshold:
+                    signal_type = 'buy' if momentum > 0 else 'sell'
+                    strength = conviction_score / 10.0  # Convert to 0-1 scale
+                else:
+                    signal_type = 'neutral'
+                    strength = 0
+                
                 return {
-                    'signal': 'buy',
-                    'strength': abs(momentum),
+                    'signal': signal_type,
+                    'strength': strength,
                     'momentum': momentum,
                     'volatility': volatility,
-                    'reason': f'momentum_{momentum:.4f}_vol_{volatility:.4f}'
+                    'signal_quality': signal_quality,
+                    'conviction_score': conviction_score,
+                    'regime_state': enhanced_eval['regime_state'],
+                    'sentiment': sentiment,
+                    'reason': enhanced_eval['reason']
                 }
-            elif momentum < -self.min_momentum_threshold and volatility < self.max_volatility_threshold:
-                return {
-                    'signal': 'sell',
-                    'strength': abs(momentum),
-                    'momentum': momentum,
-                    'volatility': volatility,
-                    'reason': f'momentum_{momentum:.4f}_vol_{volatility:.4f}'
-                }
+            
             else:
-                return {
-                    'signal': 'neutral',
-                    'strength': 0,
-                    'momentum': momentum,
-                    'volatility': volatility,
-                    'reason': 'weak_signal_or_high_volatility'
-                }
+                # Fallback to basic signal logic
+                logger.info(f"📊 Using basic signal evaluation for futures {symbol}")
+                
+                if momentum > self.min_momentum_threshold and volatility < self.max_volatility_threshold:
+                    return {
+                        'signal': 'buy',
+                        'strength': abs(momentum),
+                        'momentum': momentum,
+                        'volatility': volatility,
+                        'signal_quality': 5.0,  # Default quality
+                        'conviction_score': 5.0,  # Default conviction
+                        'sentiment': 0.5,
+                        'reason': f'basic_momentum_{momentum:.4f}_vol_{volatility:.4f}'
+                    }
+                elif momentum < -self.min_momentum_threshold and volatility < self.max_volatility_threshold:
+                    return {
+                        'signal': 'sell',
+                        'strength': abs(momentum),
+                        'momentum': momentum,
+                        'volatility': volatility,
+                        'signal_quality': 5.0,  # Default quality
+                        'conviction_score': 5.0,  # Default conviction
+                        'sentiment': 0.5,
+                        'reason': f'basic_momentum_{momentum:.4f}_vol_{volatility:.4f}'
+                    }
+                else:
+                    return {
+                        'signal': 'neutral',
+                        'strength': 0,
+                        'momentum': momentum,
+                        'volatility': volatility,
+                        'signal_quality': 0.0,
+                        'conviction_score': 0.0,
+                        'sentiment': 0.5,
+                        'reason': 'weak_signal_or_high_volatility'
+                    }
 
         except Exception as e:
             logger.warning(f"Error calculating momentum for {symbol}: {e}")
@@ -1049,17 +1280,17 @@ class HighRiskFuturesAgent:
 
                 logger.info(f"✅ {side.upper()} {symbol} x{smart_leverage} @ ${entry_price:.2f} on {self.current_platform}")
 
-                # Send trade notification
-                self.notify("trade", {
-                    "symbol": symbol,
-                    "action": side.upper(),
-                    "price": entry_price,
-                    "qty": quantity,
-                    "leverage": smart_leverage,
-                    "platform": self.current_platform,
-                    "status": "executed",
-                    "reason": signal['reason']
-                })
+                # Enhanced trade notification with signal quality metrics
+                self.send_enhanced_trade_notification(
+                    symbol=symbol,
+                    action=side.upper(),
+                    price=entry_price,
+                    quantity=quantity,
+                    leverage=smart_leverage,
+                    platform=self.current_platform,
+                    signal=signal,
+                    reason=signal['reason']
+                )
 
                 return True
             else:
@@ -1069,6 +1300,107 @@ class HighRiskFuturesAgent:
         except Exception as e:
             logger.error(f"Error executing trade for {symbol}: {e}")
             return False
+
+    def send_enhanced_trade_notification(self, symbol: str, action: str, price: float, 
+                                       quantity: float, leverage: int, platform: str, 
+                                       signal: Dict, reason: str):
+        """Send enhanced Discord notification for futures trades"""
+        try:
+            if not ENHANCED_DISCORD_AVAILABLE or not self.enable_notifications:
+                # Fallback to basic notification
+                self.notify("trade", {
+                    "symbol": symbol,
+                    "action": action,
+                    "price": price,
+                    "qty": quantity,
+                    "leverage": leverage,
+                    "platform": platform,
+                    "status": "executed",
+                    "reason": reason
+                })
+                return
+            
+            # Extract enhanced signal metrics if available
+            signal_quality = signal.get('signal_quality', 5.0)
+            conviction_score = signal.get('conviction_score', 5.0)
+            regime_state = signal.get('regime_state')
+            sentiment = signal.get('sentiment', 0.5)
+            volatility = signal.get('volatility', 0.05)
+            
+            # Calculate position value
+            position_value = quantity * price
+            
+            # Send enhanced notification
+            send_enhanced_trade_notification(
+                symbol=symbol,
+                action=action,
+                price=price,
+                quantity=quantity,
+                signal_quality=signal_quality,
+                conviction_score=conviction_score,
+                regime_state=regime_state,
+                reason=reason,
+                agent_type="futures",
+                sentiment=sentiment,
+                volatility=volatility,
+                leverage=leverage,
+                platform=platform,
+                position_value=position_value,
+                webhook_url=self.discord_webhook
+            )
+            
+            logger.info(f"📨 Enhanced futures trade notification sent for {symbol}")
+            
+        except Exception as e:
+            logger.error(f"Failed to send enhanced trade notification: {e}")
+            # Fallback to basic notification
+            try:
+                self.notify("trade", {
+                    "symbol": symbol,
+                    "action": action,
+                    "price": price,
+                    "qty": quantity,
+                    "leverage": leverage,
+                    "platform": platform,
+                    "status": "executed",
+                    "reason": reason
+                })
+            except Exception as fallback_error:
+                logger.error(f"Even fallback notification failed: {fallback_error}")
+
+    def send_enhanced_heartbeat_notification(self):
+        """Send enhanced heartbeat notification with futures-specific metrics"""
+        try:
+            if not ENHANCED_DISCORD_AVAILABLE or not self.enable_heartbeat:
+                return
+            
+            # Calculate performance metrics
+            open_positions = len(self.positions)
+            total_pnl = sum(pos.get('pnl', 0) for pos in self.positions.values())
+            
+            # Get account balance
+            account_balance = get_account_balance(self.current_platform)
+            
+            # Market regime summary
+            regime_summary = "Multiple regimes" if len(self.symbols) > 1 else "Unknown"
+            
+            # Send enhanced heartbeat
+            send_enhanced_heartbeat(
+                agent_type="futures",
+                run_count=self.run_count,
+                open_positions=open_positions,
+                total_pnl=total_pnl,
+                account_balance=account_balance,
+                market_regime=regime_summary,
+                platform=self.current_platform,
+                daily_trades=self.trades_today,
+                webhook_url=self.discord_webhook
+            )
+            
+            logger.info(f"💓 Enhanced futures heartbeat sent (run #{self.run_count})")
+            
+        except Exception as e:
+            logger.error(f"Failed to send enhanced heartbeat: {e}")
 
     def check_positions(self):
         """Check and manage open positions with advanced exit timing"""
@@ -1413,8 +1745,8 @@ class HighRiskFuturesAgent:
         logger.info(f"💓 Heartbeat enabled: {self.enable_heartbeat}, Notifications enabled: {self.enable_notifications}")
         
         if self.enable_heartbeat and self.run_count % self.heartbeat_every_n == 0:
-            logger.info(f"💓 HEARTBEAT CONDITION MET - Sending heartbeat for run {self.run_count}")
-            self.notify("heartbeat", {"status": "active"})
+            logger.info(f"💓 HEARTBEAT CONDITION MET - Sending enhanced heartbeat for run {self.run_count}")
+            self.send_enhanced_heartbeat_notification()
         else:
             logger.info(f"💓 Heartbeat condition not met: {self.enable_heartbeat} and {self.run_count % self.heartbeat_every_n == 0}")
 

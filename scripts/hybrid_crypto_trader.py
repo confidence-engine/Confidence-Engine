@@ -37,6 +37,50 @@ from scripts.discord_sender import send_discord_digest_to
 from telegram_bot import send_message as send_telegram
 from scripts.retry_utils import retry_call, RETRY_STATUS_CODES
 
+# Import enhanced Discord notifications
+try:
+    from enhanced_discord_notifications import send_enhanced_trade_notification, send_enhanced_heartbeat
+    ENHANCED_DISCORD_AVAILABLE = True
+except ImportError:
+    print("Enhanced Discord notifications not available")
+    ENHANCED_DISCORD_AVAILABLE = False
+
+# Import signal quality and market regime detection
+try:
+    from divergence import calculate_signal_quality, calculate_conviction_score
+    # Import from scripts directory where the correct regime detector is
+    from scripts.market_regime_detector import detect_market_regime, RegimeState
+    SIGNAL_QUALITY_AVAILABLE = True
+except ImportError as e:
+    print(f"Signal quality modules not available: {e}")
+    SIGNAL_QUALITY_AVAILABLE = False
+
+# ========== PRIORITY 1 INFRASTRUCTURE INTEGRATION ==========
+# Bulletproof infrastructure modules for institutional-grade reliability
+try:
+    from precision_manager import precision_manager
+    from data_pipeline import data_pipeline
+    from error_recovery import execute_with_recovery
+    from config_manager import get_trading_config, get_api_config
+    from pplx_key_manager import get_sentiment_analysis, get_narrative_summary
+    from system_health import get_system_health, start_health_monitoring, HealthStatus
+    
+    INFRASTRUCTURE_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.info("✅ Priority 1 infrastructure modules loaded successfully")
+    logger.info("   🎯 Precision manager: Symbol-specific rounding and validation")
+    logger.info("   📊 Data pipeline: Unified OHLCV from all providers")
+    logger.info("   🛡️ Error recovery: Automatic retry with circuit breaker")
+    logger.info("   ⚙️ Config manager: Unified configuration system")
+    logger.info("   🔑 PPLX key manager: Multi-key rotation and failover")
+    logger.info("   🏥 System health: Real-time monitoring and alerting")
+    
+except ImportError as e:
+    INFRASTRUCTURE_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning(f"⚠️ Priority 1 infrastructure not available: {e}")
+    logger.warning("   Falling back to legacy implementations")
+
 # ========== VALIDATION IMPROVEMENTS ==========
 try:
     from validation_analyzer import ValidationAnalyzer
@@ -1123,6 +1167,12 @@ LOG_ALL_SIGNALS = os.getenv("TB_LOG_ALL_SIGNALS", "0") == "1"
 MIN_CONFIDENCE = float(os.getenv("TB_MIN_CONFIDENCE", "0.65"))
 DIVERGENCE_THRESHOLD = float(os.getenv("TB_DIVERGENCE_THRESHOLD", "0.5"))
 
+# Enhanced Signal Quality Settings
+MIN_SIGNAL_QUALITY = float(os.getenv("TB_MIN_SIGNAL_QUALITY", "5.0"))  # 0-10 scale
+MIN_CONVICTION_SCORE = float(os.getenv("TB_MIN_CONVICTION_SCORE", "6.0"))  # 0-10 scale
+USE_ENHANCED_SIGNALS = os.getenv("TB_USE_ENHANCED_SIGNALS", "1") == "1"
+USE_REGIME_FILTERING = os.getenv("TB_USE_REGIME_FILTERING", "1") == "1"
+
 # State/cooldown
 COOLDOWN_SEC = int(os.getenv("TB_TRADER_COOLDOWN_SEC", "3600"))
 STATE_DIR = Path("state")
@@ -1350,6 +1400,163 @@ def calculate_atr(bars, period=14):
     # ATR is the moving average of True Range
     atr = pd.Series(tr).rolling(window=period).mean().iloc[-1]
     return atr if not np.isnan(atr) else 0.01
+
+
+def evaluate_enhanced_signals(bars_15: pd.DataFrame, bars_1h: pd.DataFrame, 
+                             sentiment: float, cross_up: bool, cross_up_1h: bool, 
+                             trend_up: bool, symbol: str) -> Dict[str, Any]:
+    """
+    Enhanced signal evaluation with quality scoring and regime detection
+    Returns signal quality score (0-10), conviction score, and regime state
+    """
+    results = {
+        'signal_quality': 0.0,
+        'conviction_score': 0.0,
+        'regime_state': None,
+        'should_trade': False,
+        'reason': 'No signals detected',
+        'regime_suitable': False
+    }
+    
+    try:
+        # 1. Detect market regime
+        if SIGNAL_QUALITY_AVAILABLE:
+            regime_state = detect_market_regime(bars_15)
+            results['regime_state'] = regime_state
+            
+            # 2. Calculate signal quality using our enhanced function
+            # Need to compute the required parameters from bars data
+            close_prices = bars_15['close']
+            volume = bars_15['volume'] if 'volume' in bars_15.columns else pd.Series([1000] * len(bars_15))
+            
+            # Calculate price momentum (recent price change)
+            if len(close_prices) >= 5:
+                price_momentum = (close_prices.iloc[-1] - close_prices.iloc[-5]) / close_prices.iloc[-5]
+                price_momentum = max(-1.0, min(1.0, price_momentum * 10))  # Normalize to -1,1
+            else:
+                price_momentum = 0.0
+            
+            # Calculate volume Z-score
+            if len(volume) >= 20:
+                volume_mean = volume.rolling(20).mean().iloc[-1]
+                volume_std = volume.rolling(20).std().iloc[-1]
+                if volume_std > 0:
+                    volume_z_score = (volume.iloc[-1] - volume_mean) / volume_std
+                else:
+                    volume_z_score = 0.0
+            else:
+                volume_z_score = 0.0
+            
+            # Calculate RSI
+            if len(close_prices) >= 14:
+                delta = close_prices.diff()
+                gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                rs = gain / loss
+                rsi = 100 - (100 / (1 + rs)).iloc[-1]
+            else:
+                rsi = 50.0
+            
+            signal_quality = calculate_signal_quality(
+                sentiment_score=sentiment,
+                price_momentum=price_momentum,
+                volume_z_score=volume_z_score,
+                news_volume=5,  # Default news volume
+                rsi=rsi
+            )
+            results['signal_quality'] = signal_quality
+            
+            # 3. Calculate conviction score
+            # Compute required parameters for conviction scoring
+            
+            # Regime alignment (0-1): how well the signal fits the current regime
+            regime_alignment = 0.5  # Default
+            if regime_state.trend_regime in ['bull', 'strong_bull'] and cross_up:
+                regime_alignment = 0.9  # Strong alignment
+            elif regime_state.trend_regime == 'sideways' and abs(sentiment) > 0.6:
+                regime_alignment = 0.8  # Good for divergence trades
+            elif regime_state.trend_regime in ['bear', 'strong_bear'] and not cross_up:
+                regime_alignment = 0.7  # Some alignment for bear market
+            
+            # Volatility score (0-1): 0.5 = normal, higher = more favorable
+            vol_score_map = {'low': 0.8, 'normal': 0.6, 'high': 0.4, 'extreme': 0.2}
+            volatility_score = vol_score_map.get(regime_state.volatility_regime, 0.6)
+            
+            # Confirmation score (0-1): combination of cross_up and sentiment
+            confirmation_score = 0.0
+            if cross_up:
+                confirmation_score += 0.5
+            if sentiment > 0.6:
+                confirmation_score += 0.3
+            elif sentiment > 0.4:
+                confirmation_score += 0.2
+            
+            confirmation_score = min(1.0, confirmation_score)
+            
+            conviction_score = calculate_conviction_score(
+                signal_quality=signal_quality,
+                regime_alignment=regime_alignment,
+                volatility_score=volatility_score,
+                confirmation_score=confirmation_score
+            )
+            results['conviction_score'] = conviction_score
+            
+            # 4. Regime-specific trading logic
+            regime_suitable = False
+            reason = f"Regime: {regime_state.trend_regime} trend, {regime_state.volatility_regime} vol"
+            
+            # Only trade in suitable regimes
+            if regime_state.trend_regime in ['sideways'] and signal_quality >= 6.0:
+                # Ranging markets: require high-quality divergence signals
+                regime_suitable = True
+                reason = f"High-quality divergence signal in ranging market (Q:{signal_quality:.1f})"
+            elif regime_state.trend_regime in ['bull', 'strong_bull'] and signal_quality >= 4.0:
+                # Trending up markets: accept momentum + divergence
+                regime_suitable = True  
+                reason = f"Momentum signal in bull market (Q:{signal_quality:.1f})"
+            elif regime_state.trend_regime in ['bear', 'strong_bear'] and signal_quality >= 7.0:
+                # Bear markets: require very high quality signals
+                regime_suitable = True
+                reason = f"High-conviction signal in bear market (Q:{signal_quality:.1f})"
+            
+            # Additional volatility constraints
+            if regime_state.volatility_regime == 'extreme' and signal_quality < 8.0:
+                regime_suitable = False
+                reason = f"Extreme volatility requires exceptional signals (Q:{signal_quality:.1f} < 8.0)"
+            
+            results['regime_suitable'] = regime_suitable
+            results['should_trade'] = (regime_suitable and 
+                                     conviction_score >= MIN_CONVICTION_SCORE and 
+                                     signal_quality >= MIN_SIGNAL_QUALITY)
+            results['reason'] = reason
+            
+            # Add quality check reasoning
+            if not results['should_trade']:
+                if conviction_score < MIN_CONVICTION_SCORE:
+                    results['reason'] += f" (Conv:{conviction_score:.1f}<{MIN_CONVICTION_SCORE})"
+                if signal_quality < MIN_SIGNAL_QUALITY:
+                    results['reason'] += f" (Qual:{signal_quality:.1f}<{MIN_SIGNAL_QUALITY})"
+            
+            logger.info(f"🧠 {symbol} Enhanced Signals: Quality={signal_quality:.1f}/10 "
+                       f"Conviction={conviction_score:.1f}/10 Regime={regime_state.trend_regime}/"
+                       f"{regime_state.volatility_regime} Trade={results['should_trade']}")
+            
+        else:
+            # Fallback to basic logic if signal quality modules not available
+            results['should_trade'] = cross_up and sentiment > 0.5
+            results['reason'] = "Basic signal logic (enhanced modules not available)"
+            results['signal_quality'] = 5.0 if cross_up else 2.0
+            results['conviction_score'] = 5.0 if (cross_up and sentiment > 0.6) else 3.0
+        
+    except Exception as e:
+        logger.error(f"Error in enhanced signal evaluation for {symbol}: {e}")
+        # Emergency fallback
+        results['should_trade'] = cross_up and sentiment > 0.5
+        results['reason'] = f"Fallback due to error: {e}"
+        results['signal_quality'] = 3.0
+        results['conviction_score'] = 3.0
+    
+    return results
 
 def build_ml_features(bars_15, bars_1h, sentiment):
     """Build feature vector for ML model"""
@@ -1739,17 +1946,31 @@ def fetch_bars(symbol: str, timeframe: str, lookback: int) -> pd.DataFrame:
     else:
         raise ValueError(f"Unsupported timeframe: {timeframe}")
     start = end - delta
-    def _get_bars():
-        return api.get_crypto_bars(sym, timeframe, start.isoformat(), end.isoformat())
-    def _on_retry(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
-        logger.warning(f"[retry] get_bars attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s")
-    bars_resp = retry_call(
-        _get_bars,
-        attempts=int(os.getenv("TB_RETRY_ATTEMPTS", "5")),
-        retry_exceptions=(Exception,),
-        retry_status_codes=RETRY_STATUS_CODES,
-        on_retry=_on_retry,
-    )
+    
+    # 🎯 INFRASTRUCTURE: Use error recovery for reliable data fetching
+    if INFRASTRUCTURE_AVAILABLE and 'error_recovery' in globals():
+        def _get_bars():
+            return api.get_crypto_bars(sym, timeframe, start.isoformat(), end.isoformat())
+        
+        bars_resp = error_recovery.execute_with_recovery(
+            _get_bars,
+            operation_name=f"get_crypto_bars_{symbol}_{timeframe}",
+            context={"symbol": symbol, "timeframe": timeframe, "lookback": lookback}
+        )
+        logger.debug(f"🔄 Error recovery: Successfully fetched {symbol} {timeframe} bars")
+    else:
+        # Fallback to manual retry logic
+        def _get_bars():
+            return api.get_crypto_bars(sym, timeframe, start.isoformat(), end.isoformat())
+        def _on_retry(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
+            logger.warning(f"[retry] get_bars attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s")
+        bars_resp = retry_call(
+            _get_bars,
+            attempts=int(os.getenv("TB_RETRY_ATTEMPTS", "5")),
+            retry_exceptions=(Exception,),
+            retry_status_codes=RETRY_STATUS_CODES,
+            on_retry=_on_retry,
+        )
     bars = bars_resp.df
     if isinstance(bars.index, pd.MultiIndex):
         bars = bars.xs(sym, level=0)
@@ -1771,6 +1992,12 @@ def fetch_bars(symbol: str, timeframe: str, lookback: int) -> pd.DataFrame:
     # keep only required columns
     bars = bars[["open", "high", "low", "close", "volume"]].copy()
     bars.sort_index(inplace=True)
+    
+    # 🎯 INFRASTRUCTURE: Use data pipeline for standardized OHLCV format
+    if INFRASTRUCTURE_AVAILABLE and 'data_pipeline' in globals():
+        bars = data_pipeline.standardize_ohlcv(bars, source="alpaca", symbol=symbol)
+        logger.debug(f"📊 Data pipeline: Standardized {symbol} {timeframe} bars with {len(bars)} rows")
+    
     return bars
 
 
@@ -2087,6 +2314,7 @@ def calc_position_size(equity: float, entry: float, stop: float) -> float:
     risk_amt = equity * MAX_PORTFOLIO_RISK
     per_unit_risk = max(entry - stop, 1e-9)
     qty = risk_amt / per_unit_risk
+    
     # Enforce optional hard notional cap per trade
     try:
         cap_notional = float(os.getenv("TB_MAX_NOTIONAL_PER_TRADE", "0"))
@@ -2095,7 +2323,15 @@ def calc_position_size(equity: float, entry: float, stop: float) -> float:
     if cap_notional > 0:
         max_qty = cap_notional / max(entry, 1e-9)
         qty = min(qty, max_qty)
-    return max(0.0, float(qty))
+    
+    # 🎯 INFRASTRUCTURE: Use precision manager for symbol-specific quantity rounding
+    if INFRASTRUCTURE_AVAILABLE:
+        # Default to BTC if symbol not provided (legacy compatibility)
+        rounded_qty = precision_manager.round_quantity("BTC/USD", qty)
+        logger.debug(f"📏 Precision manager: qty {qty:.8f} → {rounded_qty:.8f}")
+        return max(0.0, rounded_qty)
+    else:
+        return max(0.0, float(qty))
 
 
 def place_bracket(api: REST, symbol: str, qty: float, entry: float, tp: float, sl: float) -> Tuple[bool, Optional[str], Optional[str]]:
@@ -2114,6 +2350,14 @@ def place_bracket(api: REST, symbol: str, qty: float, entry: float, tp: float, s
                 qty = min(float(qty), cap_notional / float(entry))
             except Exception:
                 pass
+        
+        # 🎯 INFRASTRUCTURE: Use precision manager for order precision
+        if INFRASTRUCTURE_AVAILABLE:
+            qty = precision_manager.round_quantity(symbol, qty)
+            entry = precision_manager.round_price(symbol, entry)
+            tp = precision_manager.round_price(symbol, tp)
+            sl = precision_manager.round_price(symbol, sl)
+            logger.debug(f"📏 Precision rounded: {symbol} qty={qty} entry=${entry} tp=${tp} sl=${sl}")
                 
         def _submit():
             # Place simple market order (TP/SL handled by position monitoring)
@@ -2557,14 +2801,34 @@ def main() -> int:
             
             # ENTRY LOGIC - Generate BUY signals if no position exists
             if symbol not in current_positions:
-                # Check for entry signals
-                entry_signal = False
-                entry_reason = ""
+                # ENHANCED SIGNAL EVALUATION
+                signal_evaluation = evaluate_enhanced_signals(
+                    bars_15=bars_15,
+                    bars_1h=bars_1h,
+                    sentiment=sentiment,
+                    cross_up=cross_up,
+                    cross_up_1h=cross_up_1h,
+                    trend_up=trend_up,
+                    symbol=symbol
+                )
                 
-                # EMA cross-up signal (15m)
-                if cross_up:
-                    entry_signal = True
-                    entry_reason = "EMA cross-up (15m)"
+                entry_signal = signal_evaluation['should_trade']
+                entry_reason = signal_evaluation['reason']
+                signal_quality = signal_evaluation['signal_quality']
+                conviction_score = signal_evaluation['conviction_score']
+                
+                # Log enhanced signal analysis
+                logger.info(f"📊 {symbol} Signal Analysis: Quality={signal_quality:.1f}/10 "
+                           f"Conviction={conviction_score:.1f}/10 Entry={entry_signal}")
+                
+                # Fallback to basic signals if enhanced evaluation says no trade
+                if not entry_signal:
+                    # Check basic EMA signals as fallback
+                    if cross_up and sentiment > 0.7:
+                        entry_signal = True
+                        entry_reason = "Basic EMA cross-up + strong sentiment (fallback)"
+                        signal_quality = 4.0  # Lower quality for fallback
+                        conviction_score = 4.0
                 
                 # Optional 1h confirmation
                 elif cross_up_1h and trend_up and USE_1H_ENTRY:
@@ -2577,17 +2841,46 @@ def main() -> int:
                     entry_reason = "EMA cross-up + strong sentiment"
                 
                 if entry_signal:
-                    # Calculate position size
+                    # ENHANCED VOLATILITY-BASED POSITION SIZING
                     equity = get_account_equity(api) if not OFFLINE else 100000.0
-                    position_value = equity * MAX_PORTFOLIO_RISK  # Use the 1% risk sizing
-                    qty = position_value / price
+                    
+                    # Calculate ATR for volatility-based sizing
+                    atr = calculate_atr(bars_15)
+                    current_volatility = atr / price if price > 0 else 0.05
+                    
+                    # Base position size using risk management
+                    base_position_value = equity * MAX_PORTFOLIO_RISK  # Use the 1% risk sizing
+                    
+                    # Volatility-based size adjustment
+                    # If current volatility is higher than normal (0.05), reduce size
+                    # If lower than normal, can increase size slightly
+                    normal_volatility = 0.05  # 5% expected volatility
+                    volatility_multiplier = min(1.5, max(0.3, normal_volatility / current_volatility))
+                    
+                    # Signal quality-based sizing
+                    quality_multiplier = min(1.3, max(0.5, signal_quality / 10.0))
+                    
+                    # Conviction-based sizing
+                    conviction_multiplier = min(1.2, max(0.6, conviction_score / 10.0))
+                    
+                    # Combined sizing
+                    total_multiplier = volatility_multiplier * quality_multiplier * conviction_multiplier
+                    adjusted_position_value = base_position_value * total_multiplier
+                    qty = adjusted_position_value / price
+                    
+                    logger.info(f"📐 {symbol} Position Sizing: Base=${base_position_value:.0f} "
+                               f"Vol={current_volatility:.1%}(x{volatility_multiplier:.2f}) "
+                               f"Qual={signal_quality:.1f}(x{quality_multiplier:.2f}) "
+                               f"Conv={conviction_score:.1f}(x{conviction_multiplier:.2f}) "
+                               f"Final=${adjusted_position_value:.0f}")
                     
                     # Use world-class TP/SL calculation
                     use_intelligent_tpsl = os.getenv("TB_INTELLIGENT_CRYPTO_TPSL", "1") == "1"
                     
                     if use_intelligent_tpsl:
-                        # Calculate world-class targets using comprehensive technical analysis
-                        signal_strength = 0.8 if cross_up and cross_up_1h else 0.6
+                        # ENHANCED DYNAMIC TP/SL USING SIGNAL QUALITY & MARKET STRUCTURE
+                        # Use our signal quality and conviction for signal strength
+                        signal_strength = conviction_score / 10.0  # Convert to 0-1 scale
                         
                         try:
                             targets = calculate_world_class_crypto_targets_with_bars(
@@ -2598,33 +2891,66 @@ def main() -> int:
                                 cross_up=cross_up,
                                 cross_up_1h=cross_up_1h,
                                 trend_up=trend_up,
-                                volatility=calculate_atr(bars_15) / price if len(bars_15) >= 14 else 0.05
+                                volatility=current_volatility
                             )
                             
-                            tp_price = targets['tp_price']
-                            sl_price = targets['sl_price']
+                            # Adjust TP/SL based on signal quality and volatility
+                            base_tp_pct = targets['tp_pct']
+                            base_sl_pct = targets['sl_pct']
                             
-                            # Adjust position size based on technical analysis
-                            size_multiplier = targets.get('position_size_multiplier', 1.0)
-                            qty = qty * size_multiplier
+                            # Higher quality signals can have wider TP, tighter SL
+                            if signal_quality >= 8.0:
+                                tp_multiplier = 1.4  # 40% wider TP for excellent signals
+                                sl_multiplier = 0.8  # 20% tighter SL
+                            elif signal_quality >= 6.0:
+                                tp_multiplier = 1.2  # 20% wider TP for good signals
+                                sl_multiplier = 0.9  # 10% tighter SL
+                            else:
+                                tp_multiplier = 0.8  # 20% tighter TP for weak signals
+                                sl_multiplier = 1.2  # 20% wider SL
                             
-                            logger.info(f"🎯 {symbol} world-class entry targets: "
-                                       f"TP=${tp_price:.4f} SL=${sl_price:.4f} "
-                                       f"Method={targets['method']} Size={size_multiplier:.2f}x")
+                            # Adjust for volatility regime
+                            regime_state = signal_evaluation.get('regime_state')
+                            if regime_state and regime_state.volatility_regime == 'high':
+                                tp_multiplier *= 1.3  # Wider targets in high vol
+                                sl_multiplier *= 1.3  
+                            elif regime_state and regime_state.volatility_regime == 'low':
+                                tp_multiplier *= 0.8  # Tighter targets in low vol
+                                sl_multiplier *= 0.8
+                            
+                            adjusted_tp_pct = base_tp_pct * tp_multiplier
+                            adjusted_sl_pct = base_sl_pct * sl_multiplier
+                            
+                            tp_price = price * (1 + adjusted_tp_pct)
+                            sl_price = price * (1 - adjusted_sl_pct)
+                            
+                            logger.info(f"🎯 {symbol} Enhanced Targets: "
+                                       f"TP={adjusted_tp_pct:.1%}(x{tp_multiplier:.2f}) "
+                                       f"SL={adjusted_sl_pct:.1%}(x{sl_multiplier:.2f}) "
+                                       f"Quality={signal_quality:.1f}/10")
                             
                         except Exception as e:
-                            logger.error(f"❌ World-class TA failed for {symbol} entry: {e}")
-                            # Emergency fallback
-                            tp_price = price * 1.05  # 5% TP
-                            sl_price = price * 0.97  # 3% SL
+                            logger.error(f"❌ Enhanced TA failed for {symbol} entry: {e}")
+                            # Enhanced fallback based on signal quality
+                            if signal_quality >= 7.0:
+                                tp_price = price * 1.06  # 6% TP for high quality
+                                sl_price = price * 0.975  # 2.5% SL
+                            else:
+                                tp_price = price * 1.04  # 4% TP for lower quality
+                                sl_price = price * 0.97   # 3% SL
                         
-                        logger.info(f"🧠 {symbol} intelligent entry: TP={targets['tp_pct']:.1%} SL={targets['sl_pct']:.1%} Quality={targets['trade_quality']}")
+                        logger.info(f"🧠 {symbol} Final Entry: TP=${tp_price:.4f} SL=${sl_price:.4f} "
+                                   f"Quality={signal_quality:.1f} Conviction={conviction_score:.1f}")
                     else:
-                        # Use fixed levels from promoted_params
-                        tp_price = price * (1 + TP_PCT)
-                        sl_price = price * (1 - SL_PCT)
+                        # Enhanced fixed levels based on signal quality
+                        if signal_quality >= 7.0:
+                            tp_price = price * (1 + TP_PCT * 1.2)  # 20% wider TP
+                            sl_price = price * (1 - SL_PCT * 0.8)  # 20% tighter SL
+                        else:
+                            tp_price = price * (1 + TP_PCT)
+                            sl_price = price * (1 - SL_PCT)
                     
-                    # Create BUY decision
+                    # Create ENHANCED BUY decision with signal quality metrics
                     decision = {
                         'symbol': symbol,
                         'action': 'BUY',
@@ -2634,12 +2960,17 @@ def main() -> int:
                         'stop_loss': sl_price,
                         'reason': entry_reason,
                         'sentiment': sentiment,
-                        'confidence': signal_strength if use_intelligent_tpsl else 0.6
+                        'signal_quality': signal_quality,
+                        'conviction_score': conviction_score,
+                        'confidence': conviction_score / 10.0,  # Convert to 0-1 scale
+                        'volatility': current_volatility,
+                        'regime_state': signal_evaluation.get('regime_state'),
+                        'sizing_multiplier': total_multiplier
                     }
                     trading_decisions.append(decision)
                     
-                    logger.info("[%s] ENTRY SIGNAL: %s (Price: $%.2f, Sentiment: %.2f)", 
-                               symbol, entry_reason, price, sentiment)
+                    logger.info("[%s] 🚀 ENTRY SIGNAL: %s (Price: $%.2f, Quality: %.1f/10, Conviction: %.1f/10)", 
+                               symbol, entry_reason, price, signal_quality, conviction_score)
         
         except Exception as e:
             logger.error("Error processing %s: %s", symbol, e)
@@ -2688,6 +3019,28 @@ def main() -> int:
                         executed_trades.append(decision)
                         logger.info("✅ Executed BUY for %s: %.4f @ $%.2f", 
                                    symbol, decision['qty'], decision['price'])
+                        
+                        # Send enhanced Discord notification
+                        if ENHANCED_DISCORD_AVAILABLE:
+                            try:
+                                send_enhanced_trade_notification(
+                                    symbol=symbol,
+                                    action='BUY',
+                                    price=decision['price'],
+                                    quantity=decision['qty'],
+                                    signal_quality=decision.get('signal_quality'),
+                                    conviction_score=decision.get('conviction_score'),
+                                    regime_state=decision.get('regime_state'),
+                                    reason=decision.get('reason', ''),
+                                    agent_type='hybrid',
+                                    take_profit=decision.get('take_profit'),
+                                    stop_loss=decision.get('stop_loss'),
+                                    sentiment=decision.get('sentiment'),
+                                    volatility=decision.get('volatility')
+                                )
+                                logger.info("📢 Enhanced Discord notification sent for %s BUY", symbol)
+                            except Exception as e:
+                                logger.warning("Failed to send enhanced Discord notification: %s", e)
                     else:
                         logger.error("❌ Failed to execute BUY for %s: %s", symbol, error)
                 else:
@@ -2743,6 +3096,23 @@ def main() -> int:
                         executed_trades.append(decision)
                         logger.info("✅ Executed SELL for %s: PnL $%.2f (%.2f%%)", 
                                    symbol, pnl_usd, decision['pnl_pct'] * 100)
+                        
+                        # Send enhanced Discord notification for SELL
+                        if ENHANCED_DISCORD_AVAILABLE:
+                            try:
+                                send_enhanced_trade_notification(
+                                    symbol=symbol,
+                                    action='SELL',
+                                    price=decision['price'],
+                                    quantity=decision['qty'],
+                                    reason=decision.get('reason', ''),
+                                    agent_type='hybrid',
+                                    pnl_usd=pnl_usd,
+                                    pnl_pct=decision.get('pnl_pct', 0)
+                                )
+                                logger.info("📢 Enhanced Discord notification sent for %s SELL", symbol)
+                            except Exception as e:
+                                logger.warning("Failed to send enhanced Discord notification: %s", e)
                     else:
                         logger.error("❌ Failed to execute SELL for %s", symbol)
                 else:
@@ -2859,6 +3229,7 @@ def main() -> int:
         logger.info(f"[heartbeat] HEARTBEAT={HEARTBEAT}, NOTIFY={NOTIFY}, HEARTBEAT_EVERY_N={HEARTBEAT_EVERY_N}, hb_runs={hb_runs}")
         
         if HEARTBEAT and NOTIFY and HEARTBEAT_EVERY_N > 0 and (hb_runs % HEARTBEAT_EVERY_N == 0):
+            # Traditional notification payload
             payload = {
                 "symbol": "MULTI-ASSET",
                 "price": 0,  # Multi-asset mode doesn't have single price
@@ -2870,6 +3241,35 @@ def main() -> int:
                 "status": f"alive run={hb_runs} trades={len(executed_trades)}",
             }
             notify("heartbeat", payload)
+            
+            # Enhanced Discord heartbeat with system metrics
+            if ENHANCED_DISCORD_AVAILABLE:
+                try:
+                    # Calculate enhanced metrics
+                    performance_stats = performance_tracker.get_stats()
+                    health_summary = health_monitor.get_system_health_summary()
+                    
+                    # Get recent signal quality from executed trades
+                    recent_signals = []
+                    for trade in executed_trades[-10:]:  # Last 10 trades
+                        if 'signal_quality' in trade:
+                            recent_signals.append({'signal_quality': trade['signal_quality']})
+                    
+                    # Calculate total PnL from recent trades
+                    total_pnl = sum(trade.get('pnl_usd', 0) for trade in executed_trades)
+                    
+                    send_enhanced_heartbeat(
+                        uptime_hours=performance_stats.get('uptime_hours', 0),
+                        total_trades=performance_stats.get('trade_count', len(executed_trades)),
+                        active_positions=len([t for t in executed_trades if t['action'] == 'BUY']),
+                        current_pnl=total_pnl,
+                        system_health=health_summary.get('status', 'unknown'),
+                        recent_signals=recent_signals
+                    )
+                    logger.info("📢 Enhanced Discord heartbeat sent")
+                except Exception as e:
+                    logger.warning("Failed to send enhanced Discord heartbeat: %s", e)
+            
             heartbeat_state["last_heartbeat_ts"] = now_ts
             logger.info("[heartbeat] sent run=%d every=%d", hb_runs, HEARTBEAT_EVERY_N)
         else:

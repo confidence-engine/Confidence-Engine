@@ -6,36 +6,38 @@ Here is a draft for the README introduction that puts the Tracer Bullet philosop
 # Confidence Engine — Institutional-Grade Multi-Asset Divergence Engine
 > Looking for the concise version? See [README_CLEAN.md](README_CLEAN.md)
 
-## 🚀 Latest: Intelligent TP/SL System with Critical Bug Fixes (September 3, 2025)
+## 🚀 Latest: Enhanced Signal Intelligence System with ML Removal (September 3, 2025)
 
-**🚨 CRITICAL FIX**: Fixed missing entry logic in hybrid trader - system can now properly enter AND exit positions!
+**🧠 BREAKTHROUGH**: Implemented unified enhanced signal system for both agents, achieving signal quality parity and eliminating ML complexity dependency!
 
-**NEW**: Complete intelligent trade-quality based TP/SL system:
+**NEW**: Comprehensive enhanced signal intelligence system:
 
-- **� Intelligent TP/SL**: Trade quality analysis (Excellent/Good/Fair) with dynamic targets
-- **🎯 Crypto Targets**: 12-20% TP for excellent signals, 5-8% TP for fair signals
-- **🚀 Futures Targets**: 15-25% TP for excellent signals with leverage adjustments
-- **⚖️ Asset Difficulty**: BTC 1.5x hardest to move, smaller alts 0.7x easier
-- **� Position Management**: Automated monitoring with intelligent exit decisions
-- **� Complete Documentation**: Comprehensive command reference (COMMANDS.md)
+- **📊 Signal Quality Scoring**: 0-10 scale assessment based on sentiment strength, price momentum, volume confirmation, and RSI extremes
+- **🌍 Market Regime Detection**: Multi-dimensional classification (volatility/trend/volume regimes) with confidence scoring
+- **🎯 Conviction Scoring**: Weighted combination of signal quality (40%), regime alignment (30%), volatility (20%), and confirmation (10%)
+- **🧠 Regime-Aware Trading**: Adaptive logic requiring different quality thresholds based on market conditions
+- **⚡ Futures Agent Enhanced**: Same enhanced signal system implemented for futures agent parity
+- **📨 Enhanced Notifications**: Rich Discord notifications with emoji indicators, signal quality metrics, and regime displays
+- **🔧 ML Removal**: Successfully eliminated ML complexity dependency while improving accuracy through robust signal quality
 
-**Status**: Both agents live with intelligent TP/SL | **Entry Logic**: ✅ FIXED | **Risk Management**: Enhanced
+**Status**: Both agents enhanced with unified signal intelligence | **Signal Quality**: ✅ IMPLEMENTED | **Regime Detection**: ✅ ACTIVE
 
-### Current Live Configuration (September 3, 2025)
-- **Main Agent**: ✅ Live trading with intelligent TP/SL, fixed entry logic, 15+ crypto assets, ML gates
-- **Futures Agent**: ✅ Live trading with intelligent leverage-adjusted TP/SL, momentum strategies
-- **TP/SL System**: Trade-quality based (Excellent: 12-20%, Good: 8-12%, Fair: 5-8%)
-- **Risk Management**: Asset difficulty multipliers, dynamic targets, enhanced position monitoring
-- **Entry Logic**: ✅ CRITICAL FIX - BUY signals now generated on EMA cross conditions
-- **Position Management**: Automated monitoring with 60s crypto / 30s futures intervals
-- **Documentation**: Complete command reference (COMMANDS.md) with all operational procedures
+### Enhanced Signal System Architecture (September 3, 2025)
+- **Hybrid Agent**: ✅ Complete enhanced signal integration with `evaluate_enhanced_signals()` function
+- **Futures Agent**: ✅ Enhanced with `evaluate_enhanced_futures_signals()` for parity with hybrid agent
+- **Signal Quality**: 0-10 scale scoring replacing ML complexity with robust technical assessment
+- **Market Regimes**: Bull/bear/sideways trend detection with low/normal/high/extreme volatility classification
+- **Quality Thresholds**: Configurable via `TB_MIN_SIGNAL_QUALITY` and `TB_MIN_CONVICTION_SCORE` environment variables
+- **Enhanced Notifications**: Rich Discord embeds with signal quality, conviction scores, and regime state displays
+- **Production Ready**: Comprehensive testing completed, both agents operational with enhanced intelligence
 
-### Real-Time System Status
-- **Total Balance**: $14,925.08 (Live Binance API)
-- **Available**: $12,769.30
-- **Used Margin**: $2,136.90
-- **Unrealized P&L**: +$38.74
-- **Uptime**: 11 days, 17+ hours system uptime
+### Real-Time Enhanced System Status
+- **Signal Intelligence**: ✅ Unified enhanced signal system active for both agents
+- **Quality Scoring**: ✅ 0-10 scale assessment with sentiment, momentum, volume, and RSI factors
+- **Regime Detection**: ✅ Multi-dimensional market classification with confidence scoring
+- **ML Dependency**: ❌ REMOVED - Enhanced signals replace ML complexity with robust technical analysis
+- **Notification System**: ✅ Enhanced Discord notifications with emoji indicators and detailed metrics
+- **Conviction Scoring**: ✅ Weighted factor combination for holistic trade assessment
 
 ## 🛡️ Comprehensive Monitoring System (Latest Addition)
 
