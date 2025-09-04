@@ -1488,7 +1488,7 @@ class HighRiskFuturesAgent:
             if self.enable_discord and self.discord_webhook:
                 embed = {
                     "title": "🔄 Futures Agent Heartbeat",
-                    "description": f"**Status:** Healthy\n**Capital:** ${available_balance:,.2f} USDT\n**Positions:** {open_positions}/{self.max_positions} (ultra-conservative)\n**P&L:** ${total_pnl:,.2f}\n**Uptime:** {uptime_mins:.0f}m",
+                    "description": f"**Status:** Healthy\n**Capital:** ${available_balance:,.2f} USDT\n**Positions:** {open_positions}/{self.max_positions} (learning-optimized)\n**P&L:** ${total_pnl:,.2f}\n**Uptime:** {uptime_mins:.0f}m",
                     "color": 0x00ff00,  # Green
                     "fields": [
                         {"name": "🏛️ Platform", "value": self.current_platform, "inline": True},
@@ -1512,7 +1512,7 @@ class HighRiskFuturesAgent:
                 tg_msg = f"""🔄 **Futures Agent Heartbeat**
 
 💰 Capital: ${available_balance:,.2f} USDT
-📊 Positions: {open_positions}/{self.max_positions} (ultra-conservative)
+📊 Positions: {open_positions}/{self.max_positions} (learning-optimized)
 💸 P&L: ${total_pnl:,.2f}
 🎯 Risk: {self.risk_per_trade*100:.1f}% per trade
 📈 Leverage: {self.max_leverage}x max
