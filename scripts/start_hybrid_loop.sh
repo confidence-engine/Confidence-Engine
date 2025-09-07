@@ -55,7 +55,7 @@ export TB_HTF_EMA_LEN=${TB_HTF_EMA_LEN:-200}
 export TB_USE_ML_GATE=${TB_USE_ML_GATE:-1}
 export TB_ML_GATE_MODEL_PATH=${TB_ML_GATE_MODEL_PATH:-eval_runs/ml/latest/model.pt}
 export TB_ML_FEATURES_PATH=${TB_ML_FEATURES_PATH:-eval_runs/ml/latest/features.csv}
-export TB_ML_GATE_MIN_PROB=${TB_ML_GATE_MIN_PROB:-0.5}
+export TB_ML_GATE_MIN_PROB=${TB_ML_GATE_MIN_PROB:-0.08}
 export TB_ML_GATE_SOFT=${TB_ML_GATE_SOFT:-1}
 export TB_ML_RETRAIN_EVERY_SEC=${TB_ML_RETRAIN_EVERY_SEC:-2592000}
 
@@ -97,37 +97,37 @@ while true; do
     EXPLORATION_WINDOW=1
   fi
 
-  # 10% epsilon-greedy by default (configurable via TB_EPSILON_PCT)
+  # 25% epsilon-greedy by default (configurable via TB_EPSILON_PCT)  
   R=$((RANDOM % 100))
   EPS=0
-  if [ "$R" -lt "${TB_EPSILON_PCT:-10}" ]; then
+  if [ "$R" -lt "${TB_EPSILON_PCT:-25}" ]; then
     EPS=1
   fi
 
-  # Base thresholds (day-trading defaults can be overridden by env)
-  BASE_PROB="${TB_ML_GATE_MIN_PROB:-0.35}"
-  BASE_ATR="${TB_ATR_MIN_PCT:-0.001}"
+  # Base thresholds (EMERGENCY LEARNING MODE - much more aggressive)
+  BASE_PROB="${TB_ML_GATE_MIN_PROB:-0.08}"
+  BASE_ATR="${TB_ATR_MIN_PCT:-0.0001}"
 
   PROB="$BASE_PROB"
   ATR="$BASE_ATR"
   MODE="normal"
 
-  # Exploration window relax
+  # Exploration window relax (EMERGENCY MODE)
   if [ "$EXPLORATION_WINDOW" = "1" ]; then
-    PROB="${TB_EXP_PROB:-0.26}"
-    ATR="${TB_EXP_ATR:-0.0007}"
+    PROB="${TB_EXP_PROB:-0.05}"
+    ATR="${TB_EXP_ATR:-0.0001}"
     MODE="window"
   fi
 
-  # Epsilon-greedy relax (overrides window)
+  # Epsilon-greedy relax (overrides window) (EMERGENCY MODE)
   if [ "$EPS" = "1" ]; then
-    PROB="${TB_EPS_PROB:-0.22}"
-    ATR="${TB_EPS_ATR:-0.0005}"
+    PROB="${TB_EPS_PROB:-0.03}"
+    ATR="${TB_EPS_ATR:-0.0001}"
     MODE="epsilon"
   fi
 
-  # Enforce a minimum ML threshold floor for safety during exploration
-  FLOOR="${TB_ML_PROB_FLOOR:-0.25}"
+  # Enforce a minimum ML threshold floor for safety during exploration (EMERGENCY MODE)
+  FLOOR="${TB_ML_PROB_FLOOR:-0.03}"
   awk_cmp=$(awk -v a="$PROB" -v b="$FLOOR" "BEGIN{print (a<b)?1:0}")
   if [ "$awk_cmp" = "1" ]; then
     PROB="$FLOOR"
