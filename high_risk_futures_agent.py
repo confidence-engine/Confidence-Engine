@@ -1181,13 +1181,25 @@ class HighRiskFuturesAgent:
         """Calculate momentum-based trading signal with enhanced evaluation"""
         try:
             # Get recent data
+            logger.info(f"🔍 DEBUG: Fetching data for {symbol} (15m, 100 bars)")
             data = enhanced_futures_bars(symbol, '15m', 100)  # Get more data for better analysis
-            if data is None or len(data) < self.momentum_window:
-                return {'signal': 'neutral', 'strength': 0, 'reason': 'insufficient_data'}
+            
+            logger.info(f"🔍 DEBUG: Data result for {symbol}: {data is not None}, length={len(data) if data is not None else 'N/A'}")
+            logger.info(f"🔍 DEBUG: Required momentum window: {self.momentum_window}")
+            
+            if data is None:
+                logger.warning(f"🔍 DEBUG: No data returned for {symbol}")
+                return {'signal': 'neutral', 'strength': 0, 'reason': 'no_data_returned'}
+            
+            if len(data) < self.momentum_window:
+                logger.warning(f"🔍 DEBUG: Insufficient data for {symbol}: got {len(data)}, need {self.momentum_window}")
+                return {'signal': 'neutral', 'strength': 0, 'reason': f'insufficient_data_got_{len(data)}_need_{self.momentum_window}'}
 
             # Calculate basic momentum
             prices = data['close']
             momentum = (prices.iloc[-1] - prices.iloc[-self.momentum_window]) / prices.iloc[-self.momentum_window]
+            
+            logger.info(f"🔍 DEBUG: {symbol} momentum calculation: latest={prices.iloc[-1]:.4f}, window_ago={prices.iloc[-self.momentum_window]:.4f}, momentum={momentum:.4f}")
 
             # Calculate volatility
             returns = prices.pct_change().dropna()
@@ -2058,24 +2070,49 @@ class HighRiskFuturesAgent:
 
         # Look for new trades
         trades_this_cycle = 0
-        for symbol in self.symbols:
+        logger.info(f"🔍 DEBUG: Starting symbol analysis loop with {len(self.symbols)} symbols")
+        logger.info(f"🔍 DEBUG: Symbols to analyze: {self.symbols[:5]}...") # Show first 5
+        logger.info(f"🔍 DEBUG: Current positions: {list(self.positions.keys())}")
+        logger.info(f"🔍 DEBUG: Max trades per cycle: {self.max_trades_per_cycle}")
+        
+        for i, symbol in enumerate(self.symbols):
+            logger.info(f"🔍 DEBUG: Processing symbol {i+1}/{len(self.symbols)}: {symbol}")
+            
             if symbol in self.positions:
+                logger.info(f"🔍 DEBUG: Skipping {symbol} - already have position")
                 continue  # Skip if we already have position
 
             if trades_this_cycle >= self.max_trades_per_cycle:
                 logger.info(f"📊 Maximum trades per cycle reached ({self.max_trades_per_cycle}), stopping for this cycle")
                 break
 
-            signal = self.calculate_momentum_signal(symbol)
+            try:
+                logger.info(f"🔍 DEBUG: Calculating momentum signal for {symbol}")
+                signal = self.calculate_momentum_signal(symbol)
+                logger.info(f"🔍 DEBUG: Signal result for {symbol}: {signal}")
+                
+                if signal['signal'] != 'neutral':
+                    logger.info(f"🔍 DEBUG: Non-neutral signal for {symbol}, checking should_trade")
+                    trade_decision = self.should_trade(symbol, signal)
+                    logger.info(f"🔍 DEBUG: Trade decision for {symbol}: {trade_decision}")
+                    
+                    if trade_decision:
+                        # Log additional context
+                        regime = self.detect_market_regime(symbol)
+                        logger.info(f"🎯 Signal detected for {symbol}: {signal['signal']} ({signal['strength']:.4f})")
+                        logger.info(f"📊 Market regime: {regime} | Volatility: {signal.get('volatility', 0):.4f}")
+                        if self.execute_trade(symbol, signal):
+                            trades_this_cycle += 1
+                            logger.info(f"✅ Trade {trades_this_cycle}/{self.max_trades_per_cycle} executed this cycle")
+                else:
+                    logger.info(f"🔍 DEBUG: Neutral signal for {symbol}, skipping")
+                    
+            except Exception as e:
+                logger.error(f"🔍 DEBUG: Exception processing {symbol}: {e}")
+                import traceback
+                logger.error(f"🔍 DEBUG: Traceback: {traceback.format_exc()}")
 
-            if signal['signal'] != 'neutral' and self.should_trade(symbol, signal):
-                # Log additional context
-                regime = self.detect_market_regime(symbol)
-                logger.info(f"🎯 Signal detected for {symbol}: {signal['signal']} ({signal['strength']:.4f})")
-                logger.info(f"📊 Market regime: {regime} | Volatility: {signal.get('volatility', 0):.4f}")
-                if self.execute_trade(symbol, signal):
-                    trades_this_cycle += 1
-                    logger.info(f"✅ Trade {trades_this_cycle}/{self.max_trades_per_cycle} executed this cycle")
+        logger.info(f"🔍 DEBUG: Symbol loop completed. Trades this cycle: {trades_this_cycle}")
 
         # Log status
         status = self.get_status()

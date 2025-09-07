@@ -6,6 +6,7 @@ import requests
 import time
 import hmac
 import hashlib
+import pandas as pd
 from urllib.parse import urlencode
 from typing import Dict, List, Optional
 
@@ -68,9 +69,66 @@ class MockFuturesPlatform:
 futures_platform = MockFuturesPlatform()
 
 # Required function stubs
-def get_futures_data(symbol: str, timeframe: str, limit: int = 100) -> List[Dict]:
-    """Get futures data - stub implementation"""
-    return []
+def get_futures_data(symbol: str, timeframe: str, limit: int = 100) -> pd.DataFrame:
+    """Get futures data from Binance testnet"""
+    import requests
+    import os
+    import pandas as pd
+    from datetime import datetime
+    
+    # Binance testnet API
+    base_url = 'https://testnet.binancefuture.com'
+    
+    # Map timeframe to Binance format
+    timeframe_map = {
+        '1m': '1m', '3m': '3m', '5m': '5m', '15m': '15m', '30m': '30m',
+        '1h': '1h', '2h': '2h', '4h': '4h', '6h': '6h', '8h': '8h', '12h': '12h',
+        '1d': '1d', '3d': '3d', '1w': '1w', '1M': '1M'
+    }
+    
+    binance_timeframe = timeframe_map.get(timeframe, '15m')
+    
+    try:
+        # Get kline data from Binance
+        params = {
+            'symbol': symbol,
+            'interval': binance_timeframe,
+            'limit': limit
+        }
+        
+        response = requests.get(f'{base_url}/fapi/v1/klines', params=params, timeout=10)
+        
+        if response.status_code != 200:
+            print(f"❌ Binance API error for {symbol}: {response.status_code}")
+            return pd.DataFrame()
+        
+        klines = response.json()
+        
+        if not klines:
+            print(f"❌ No kline data returned for {symbol}")
+            return pd.DataFrame()
+        
+        # Convert to DataFrame with standard columns
+        df = pd.DataFrame(klines, columns=[
+            'timestamp', 'open', 'high', 'low', 'close', 'volume',
+            'close_time', 'quote_volume', 'count', 'taker_buy_volume', 
+            'taker_buy_quote_volume', 'ignore'
+        ])
+        
+        # Convert to proper types and format
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df[['open', 'high', 'low', 'close', 'volume']] = df[['open', 'high', 'low', 'close', 'volume']].astype(float)
+        
+        # Keep only essential columns
+        df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+        df.set_index('timestamp', inplace=True)
+        
+        print(f"✅ Got {len(df)} bars for {symbol} ({timeframe})")
+        return df
+        
+    except Exception as e:
+        print(f"❌ Error fetching {symbol} data: {e}")
+        return pd.DataFrame()
 
 def get_perpetuals_data(symbol: str, timeframe: str, limit: int = 100) -> List[Dict]:
     """Get perpetuals data - stub implementation"""
