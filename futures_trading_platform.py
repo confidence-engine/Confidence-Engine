@@ -135,8 +135,134 @@ def get_perpetuals_data(symbol: str, timeframe: str, limit: int = 100) -> List[D
     return []
 
 def place_futures_order(symbol: str, side: str, amount: float, **kwargs) -> Dict:
-    """Place futures order - stub implementation"""
-    return {"error": "Order placement not implemented in stub"}
+    """Place futures order on Binance testnet"""
+    import requests
+    import os
+    import time
+    import hmac
+    import hashlib
+    
+    # Binance testnet credentials
+    API_KEY = os.getenv('BINANCE_TESTNET_API_KEY')
+    SECRET_KEY = os.getenv('BINANCE_TESTNET_SECRET_KEY')
+    BASE_URL = 'https://testnet.binancefuture.com'
+    
+    if not API_KEY or not SECRET_KEY:
+        return {"error": "Binance API credentials not configured"}
+    
+    try:
+        # Convert side to Binance format
+        binance_side = 'BUY' if side.lower() in ['buy', 'long'] else 'SELL'
+        
+        # Use market order by default
+        order_type = kwargs.get('order_type', 'MARKET')
+        leverage = kwargs.get('leverage', 1)
+        
+        headers = {'X-MBX-APIKEY': API_KEY}
+        
+        # Get current price to convert position value to quantity
+        price_response = requests.get(f'{BASE_URL}/fapi/v1/ticker/price?symbol={symbol}')
+        if price_response.status_code != 200:
+            return {"error": "Could not get current price"}
+        
+        current_price = float(price_response.json()['price'])
+        
+        # Convert position value (dollars) to quantity (asset amount)
+        quantity = amount / current_price
+        
+        # Apply symbol-specific precision (most futures symbols use 3-4 decimal places)
+        if 'USDT' in symbol:
+            if symbol in ['BTCUSDT', 'ETHUSDT']:
+                quantity = round(quantity, 3)  # BTC/ETH: 3 decimals
+            else:
+                quantity = round(quantity, 1)  # Altcoins: 1 decimal or whole numbers
+        else:
+            quantity = round(quantity, 2)  # Default: 2 decimals
+        
+        # Minimum quantity check
+        if quantity < 0.001:  # Too small
+            return {"error": f"Quantity too small: {quantity}"}
+        
+        # Set leverage first
+        timestamp = int(time.time() * 1000)
+        leverage_params = {
+            'symbol': symbol,
+            'leverage': leverage,
+            'timestamp': timestamp
+        }
+        
+        # Create signature for leverage
+        leverage_query = '&'.join([f"{k}={v}" for k, v in leverage_params.items()])
+        leverage_signature = hmac.new(
+            SECRET_KEY.encode('utf-8'),
+            leverage_query.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        leverage_params['signature'] = leverage_signature
+        
+        # Set leverage
+        leverage_response = requests.post(
+            f'{BASE_URL}/fapi/v1/leverage',
+            headers=headers,
+            data=leverage_params
+        )
+        
+        if leverage_response.status_code != 200:
+            print(f"Warning: Could not set leverage: {leverage_response.text}")
+        
+        # Place order
+        timestamp = int(time.time() * 1000)
+        order_params = {
+            'symbol': symbol,
+            'side': binance_side,
+            'type': order_type,
+            'quantity': str(quantity),  # Convert to string for API
+            'timestamp': timestamp
+        }
+        
+        # Add additional parameters for limit orders
+        if order_type == 'LIMIT':
+            price = kwargs.get('price')
+            if price:
+                order_params['price'] = str(price)
+                order_params['timeInForce'] = 'GTC'
+        
+        # Create signature for order
+        order_query = '&'.join([f"{k}={v}" for k, v in order_params.items()])
+        order_signature = hmac.new(
+            SECRET_KEY.encode('utf-8'),
+            order_query.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        order_params['signature'] = order_signature
+        
+        # Place the order
+        order_response = requests.post(
+            f'{BASE_URL}/fapi/v1/order',
+            headers=headers,
+            data=order_params
+        )
+        
+        if order_response.status_code == 200:
+            order_data = order_response.json()
+            return {
+                'success': True,
+                'order_id': order_data.get('orderId'),
+                'symbol': symbol,
+                'side': binance_side,
+                'quantity': quantity,
+                'leverage': leverage,
+                'price': current_price,
+                'status': order_data.get('status'),
+                'timestamp': order_data.get('updateTime'),
+                'position_value': amount  # Original dollar amount
+            }
+        else:
+            error_msg = order_response.text
+            return {"error": f"Order placement failed: {error_msg}"}
+            
+    except Exception as e:
+        return {"error": f"Order placement exception: {str(e)}"}
 
 def switch_futures_platform(platform_name: str) -> bool:
     """Switch platform - stub implementation"""

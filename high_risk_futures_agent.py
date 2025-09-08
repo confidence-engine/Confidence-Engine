@@ -177,6 +177,11 @@ class HighRiskFuturesAgent:
         self.trades_today = 0
         self.positions = {}
         self.trade_log = []
+        
+        # 🚨 FIX: Add duplicate order prevention
+        self.recent_orders = {}  # symbol -> last_order_timestamp
+        self.order_cooldown_seconds = 300  # 5 minutes minimum between orders for same symbol
+        self.pending_orders = set()  # Track symbols with pending orders
 
         # Initialize Kelly sizing and risk management
         if ADVANCED_RISK_AVAILABLE:
@@ -1228,7 +1233,8 @@ class HighRiskFuturesAgent:
                 should_trade_enhanced = enhanced_eval['should_trade']
                 
                 # Determine signal based on enhanced evaluation
-                if should_trade_enhanced and abs(momentum) > self.min_momentum_threshold:
+                # EMERGENCY MODE: Trust enhanced signals completely in ultra-low volatility markets
+                if should_trade_enhanced:
                     signal_type = 'buy' if momentum > 0 else 'sell'
                     strength = conviction_score / 10.0  # Convert to 0-1 scale
                 else:
@@ -1315,6 +1321,41 @@ class HighRiskFuturesAgent:
 
         return True
 
+    def is_order_too_soon(self, symbol: str) -> bool:
+        """Check if we've placed an order for this symbol too recently"""
+        if symbol not in self.recent_orders:
+            return False
+            
+        last_order_time = self.recent_orders[symbol]
+        time_since_last = datetime.now(timezone.utc).timestamp() - last_order_time
+        return time_since_last < self.order_cooldown_seconds
+    
+    def mark_order_placed(self, symbol: str):
+        """Mark that an order was placed for this symbol"""
+        self.recent_orders[symbol] = datetime.now(timezone.utc).timestamp()
+        self.pending_orders.add(symbol)
+        logger.info(f"🕒 Marked {symbol} order placed with {self.order_cooldown_seconds}s cooldown")
+    
+    def mark_order_filled(self, symbol: str):
+        """Mark that an order was filled for this symbol"""
+        if symbol in self.pending_orders:
+            self.pending_orders.remove(symbol)
+            logger.info(f"✅ Removed {symbol} from pending orders - position filled")
+    
+    def cleanup_old_order_records(self):
+        """Clean up old order records to prevent memory buildup"""
+        current_time = datetime.now(timezone.utc).timestamp()
+        cutoff_time = current_time - (self.order_cooldown_seconds * 2)  # Keep records for 2x cooldown period
+        
+        old_symbols = [symbol for symbol, timestamp in self.recent_orders.items() 
+                      if timestamp < cutoff_time]
+        
+        for symbol in old_symbols:
+            del self.recent_orders[symbol]
+            
+        if old_symbols:
+            logger.info(f"🧹 Cleaned up {len(old_symbols)} old order records")
+
     def execute_trade(self, symbol: str, signal: Dict) -> bool:
         """Execute a futures trade with platform switching support"""
         try:
@@ -1351,9 +1392,15 @@ class HighRiskFuturesAgent:
             pos_info['leverage_used'] = smart_leverage
 
             # Execute trade
+            # 🚨 FIX: Mark order as placed before execution
+            self.mark_order_placed(symbol)
+            
             trade_result = execute_futures_trade(symbol, side, pos_info)
 
             if 'error' not in trade_result:
+                # 🚨 FIX: Mark order as filled
+                self.mark_order_filled(symbol)
+                
                 # Record position
                 entry_price = trade_result.get('price', 0) or 0
                 quantity = trade_result.get('quantity', 0) or 0
@@ -1405,10 +1452,16 @@ class HighRiskFuturesAgent:
 
                 return True
             else:
+                # 🚨 FIX: Remove from pending orders if trade failed
+                if symbol in self.pending_orders:
+                    self.pending_orders.remove(symbol)
                 logger.warning(f"❌ Trade execution failed: {trade_result['error']}")
                 return False
 
         except Exception as e:
+            # 🚨 FIX: Remove from pending orders if exception occurred
+            if symbol in self.pending_orders:
+                self.pending_orders.remove(symbol)
             logger.error(f"Error executing trade for {symbol}: {e}")
             return False
 
@@ -2005,14 +2058,20 @@ class HighRiskFuturesAgent:
 
             # Remove position from tracking
             del self.positions[symbol]
-            logger.info(f"🗑️ Removed {symbol} from position tracking")
+            # 🚨 FIX: Also remove from pending orders when position is closed
+            if symbol in self.pending_orders:
+                self.pending_orders.remove(symbol)
+            logger.info(f"🗑️ Removed {symbol} from position tracking and pending orders")
 
         except Exception as e:
             logger.error(f"Error closing position for {symbol}: {e}")
             # Still try to remove from tracking even if there was an error
             if symbol in self.positions:
                 del self.positions[symbol]
-                logger.warning(f"🗑️ Force-removed {symbol} from tracking due to error")
+                # 🚨 FIX: Also clean up pending orders on error
+                if symbol in self.pending_orders:
+                    self.pending_orders.remove(symbol)
+                logger.warning(f"🗑️ Force-removed {symbol} from tracking and pending orders due to error")
 
     def get_status(self) -> Dict:
         """Get agent status with enhanced information"""
@@ -2045,6 +2104,9 @@ class HighRiskFuturesAgent:
     def run_trading_cycle(self):
         """Run one complete trading cycle with enhanced features"""
         logger.info("🔄 Starting trading cycle...")
+        
+        # 🚨 FIX: Clean up old order records at start of each cycle
+        self.cleanup_old_order_records()
 
         # Increment run count and check heartbeat
         self.run_count += 1
@@ -2073,6 +2135,8 @@ class HighRiskFuturesAgent:
         logger.info(f"🔍 DEBUG: Starting symbol analysis loop with {len(self.symbols)} symbols")
         logger.info(f"🔍 DEBUG: Symbols to analyze: {self.symbols[:5]}...") # Show first 5
         logger.info(f"🔍 DEBUG: Current positions: {list(self.positions.keys())}")
+        logger.info(f"🔍 DEBUG: Pending orders: {list(self.pending_orders)}")
+        logger.info(f"🔍 DEBUG: Recent orders cooldowns: {len(self.recent_orders)}")
         logger.info(f"🔍 DEBUG: Max trades per cycle: {self.max_trades_per_cycle}")
         
         for i, symbol in enumerate(self.symbols):
@@ -2081,6 +2145,15 @@ class HighRiskFuturesAgent:
             if symbol in self.positions:
                 logger.info(f"🔍 DEBUG: Skipping {symbol} - already have position")
                 continue  # Skip if we already have position
+
+            # 🚨 FIX: Check for duplicate order prevention
+            if self.is_order_too_soon(symbol):
+                logger.info(f"🚨 Skipping {symbol} - order cooldown active (last order < {self.order_cooldown_seconds}s ago)")
+                continue
+                
+            if symbol in self.pending_orders:
+                logger.info(f"🚨 Skipping {symbol} - pending order already exists")
+                continue
 
             if trades_this_cycle >= self.max_trades_per_cycle:
                 logger.info(f"📊 Maximum trades per cycle reached ({self.max_trades_per_cycle}), stopping for this cycle")

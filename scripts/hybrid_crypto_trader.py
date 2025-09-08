@@ -1503,27 +1503,32 @@ def evaluate_enhanced_signals(bars_15: pd.DataFrame, bars_1h: pd.DataFrame,
             results['conviction_score'] = conviction_score
             
             # 4. Regime-specific trading logic
-            regime_suitable = False
-            reason = f"Regime: {regime_state.trend_regime} trend, {regime_state.volatility_regime} vol"
-            
-            # Only trade in suitable regimes
-            if regime_state.trend_regime in ['sideways'] and signal_quality >= 6.0:
-                # Ranging markets: require high-quality divergence signals
-                regime_suitable = True
-                reason = f"High-quality divergence signal in ranging market (Q:{signal_quality:.1f})"
-            elif regime_state.trend_regime in ['bull', 'strong_bull'] and signal_quality >= 4.0:
-                # Trending up markets: accept momentum + divergence
-                regime_suitable = True  
-                reason = f"Momentum signal in bull market (Q:{signal_quality:.1f})"
-            elif regime_state.trend_regime in ['bear', 'strong_bear'] and signal_quality >= 7.0:
-                # Bear markets: require very high quality signals
-                regime_suitable = True
-                reason = f"High-conviction signal in bear market (Q:{signal_quality:.1f})"
-            
-            # Additional volatility constraints
-            if regime_state.volatility_regime == 'extreme' and signal_quality < 8.0:
+            if USE_REGIME_FILTERING:
                 regime_suitable = False
-                reason = f"Extreme volatility requires exceptional signals (Q:{signal_quality:.1f} < 8.0)"
+                reason = f"Regime: {regime_state.trend_regime} trend, {regime_state.volatility_regime} vol"
+                
+                # Only trade in suitable regimes
+                if regime_state.trend_regime in ['sideways'] and signal_quality >= 6.0:
+                    # Ranging markets: require high-quality divergence signals
+                    regime_suitable = True
+                    reason = f"High-quality divergence signal in ranging market (Q:{signal_quality:.1f})"
+                elif regime_state.trend_regime in ['bull', 'strong_bull'] and signal_quality >= 4.0:
+                    # Trending up markets: accept momentum + divergence
+                    regime_suitable = True  
+                    reason = f"Momentum signal in bull market (Q:{signal_quality:.1f})"
+                elif regime_state.trend_regime in ['bear', 'strong_bear'] and signal_quality >= 7.0:
+                    # Bear markets: require very high quality signals
+                    regime_suitable = True
+                    reason = f"High-conviction signal in bear market (Q:{signal_quality:.1f})"
+                
+                # Additional volatility constraints
+                if regime_state.volatility_regime == 'extreme' and signal_quality < 8.0:
+                    regime_suitable = False
+                    reason = f"Extreme volatility requires exceptional signals (Q:{signal_quality:.1f} < 8.0)"
+            else:
+                # ULTRA MODE: Bypass all regime filtering
+                regime_suitable = True
+                reason = f"Ultra-aggressive mode: regime filtering disabled"
             
             results['regime_suitable'] = regime_suitable
             results['should_trade'] = (regime_suitable and 
@@ -2208,21 +2213,73 @@ def get_account_equity(api: REST) -> float:
 
 
 def reconcile_position_state(api: Optional[REST], symbol: str, st: Dict[str, Any]) -> Dict[str, Any]:
-    """Update st['in_position'] based on broker positions when online; otherwise keep as-is."""
+    """Update st['in_position'] based on broker positions AND pending orders when online; otherwise keep as-is.
+    Uses file-based locking to prevent multi-process race conditions."""
     if api is None:
         return st
+    
+    import fcntl
+    import time
+    from pathlib import Path
+    
     try:
         sym = _normalize_symbol(symbol)
         qty = 0.0
-        for p in api.list_positions():
-            if getattr(p, "symbol", "") == sym:
-                try:
-                    qty = abs(float(p.qty))
-                except Exception:
-                    qty = 0.0
-                break
+        has_pending_orders = False
+        
+        # 🚨 CRITICAL FIX: File-based lock to prevent multi-process race conditions
+        lock_dir = Path("state/order_locks")
+        lock_dir.mkdir(parents=True, exist_ok=True)
+        lock_file = lock_dir / f"{sym.replace('/', '')}.lock"
+        
+        try:
+            with open(lock_file, 'w') as f:
+                # Try to acquire exclusive lock (non-blocking)
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                logger.debug(f"🔒 Acquired lock for {sym}")
+                
+                # Check existing positions
+                for p in api.list_positions():
+                    if getattr(p, "symbol", "") == sym:
+                        try:
+                            qty = abs(float(p.qty))
+                        except Exception:
+                            qty = 0.0
+                        break
+                
+                # Check for pending orders to prevent duplicates
+                if qty == 0.0:  # Only check orders if no position exists
+                    try:
+                        orders = api.list_orders(status='open')
+                        for order in orders:
+                            if getattr(order, "symbol", "") == sym:
+                                order_side = getattr(order, "side", "").upper()
+                                if order_side == "BUY":
+                                    has_pending_orders = True
+                                    logger.info("🚨 Found pending BUY order for %s, blocking duplicate trade", sym)
+                                    break
+                    except Exception as e:
+                        logger.warning(f"[reconcile] failed to check pending orders for {sym}: {e}")
+                
+                # Lock will be automatically released when file closes
+                
+        except (IOError, OSError) as e:
+            if e.errno in (11, 35):  # EAGAIN or EWOULDBLOCK  
+                logger.info(f"🚨 Another process is trading {sym}, marking as in_position to prevent duplicate")
+                has_pending_orders = True  # Treat lock contention as pending order
+            else:
+                logger.warning(f"[reconcile] lock error for {sym}: {e}")
+        
         st = dict(st)
-        st["in_position"] = bool(qty > 0.0)
+        # Mark as in position if we have shares OR pending orders OR lock contention
+        st["in_position"] = bool(qty > 0.0 or has_pending_orders)
+        if has_pending_orders:
+            st["position_side"] = "pending_long"
+        elif qty > 0.0:
+            st["position_side"] = "long"
+        else:
+            st["position_side"] = "none"
+            
         return st
     except Exception as e:
         logger.warning(f"[state] reconcile failed: {e}")
@@ -2279,14 +2336,45 @@ def place_bracket(api: REST, symbol: str, qty: float, entry: float, tp: float, s
             logger.debug(f"📏 Precision rounded: {symbol} qty={qty} entry=${entry} tp=${tp} sl=${sl}")
                 
         def _submit():
-            # Place simple market order (TP/SL handled by position monitoring)
-            return api.submit_order(
-                symbol=_normalize_symbol(symbol),
-                side="buy",
-                type="market",
-                time_in_force="gtc",
-                qty=qty
-            )
+            # 🚨 FINAL DUPLICATE CHECK: Last-chance prevention before order submission
+            import fcntl
+            from pathlib import Path
+            
+            sym = _normalize_symbol(symbol)
+            lock_dir = Path("state/order_locks")
+            lock_dir.mkdir(parents=True, exist_ok=True)
+            lock_file = lock_dir / f"{sym.replace('/', '')}.lock"
+            
+            try:
+                with open(lock_file, 'w') as f:
+                    # Acquire exclusive lock - this will block other processes
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                    
+                    # Final check for existing orders before submission
+                    try:
+                        orders = api.list_orders(status='open')
+                        for order in orders:
+                            if (getattr(order, "symbol", "") == sym and 
+                                getattr(order, "side", "").upper() == "BUY"):
+                                logger.info(f"🚨 FINAL CHECK: Found pending BUY order for {sym}, ABORTING submission")
+                                raise Exception(f"Duplicate order prevented for {sym}")
+                    except Exception as order_check_error:
+                        if "Duplicate order prevented" in str(order_check_error):
+                            raise  # Re-raise our intentional abort
+                        logger.warning(f"[final_check] failed to check orders for {sym}: {order_check_error}")
+                    
+                    # Place simple market order (TP/SL handled by position monitoring)
+                    logger.info(f"🔒 Final submission for {sym} with lock held")
+                    return api.submit_order(
+                        symbol=sym,
+                        side="buy",
+                        type="market",
+                        time_in_force="gtc",
+                        qty=qty
+                    )
+            except (IOError, OSError) as e:
+                logger.error(f"🚨 Lock error during final submission for {sym}: {e}")
+                raise
             
         def _on_retry(attempt: int, status: Optional[int], exc: Exception, sleep_s: float) -> None:
             logger.warning(f"[retry] submit_order attempt {attempt} status={status} err={str(exc)[:120]} next={sleep_s:.2f}s")
@@ -2560,13 +2648,20 @@ def main() -> int:
             state = reconcile_position_state(api, symbol, state)
         asset_states[symbol] = state
         
-        # Track current positions
+        # Track current positions (including pending orders)
         if state.get("position_side") == "long":
             current_positions[symbol] = {
                 'side': 'long',
                 'qty': state.get("position_qty", 0),
                 'entry_price': state.get("position_entry_price", 0),
                 'timestamp': state.get("last_entry_time", "")
+            }
+        elif state.get("position_side") == "pending_long":
+            current_positions[symbol] = {
+                'side': 'pending_long',
+                'qty': 0,
+                'entry_price': 0,
+                'timestamp': _nowstamp()
             }
     
     logger.info("Current positions: %s", list(current_positions.keys()))
@@ -2935,6 +3030,14 @@ def main() -> int:
                         trading_db.save_position_state(symbol, state)
                         save_state(symbol, state)
                         
+                        # 🔧 FIX: Add position to current_positions to prevent duplicates
+                        current_positions[symbol] = {
+                            'side': 'long',
+                            'qty': decision['qty'],
+                            'entry_price': decision['price'],
+                            'timestamp': state["last_entry_time"]
+                        }
+                        
                         executed_trades.append(decision)
                         logger.info("✅ Executed BUY for %s: %.4f @ $%.2f", 
                                    symbol, decision['qty'], decision['price'])
@@ -3011,6 +3114,10 @@ def main() -> int:
                         # Save state to both SQLite and JSON for now
                         trading_db.save_position_state(symbol, state)
                         save_state(symbol, state)
+                        
+                        # 🔧 FIX: Remove position from current_positions to allow new entries
+                        if symbol in current_positions:
+                            del current_positions[symbol]
                         
                         executed_trades.append(decision)
                         logger.info("✅ Executed SELL for %s: PnL $%.2f (%.2f%%)", 

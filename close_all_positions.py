@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Binance testnet credentials
-API_KEY = os.getenv('BINANCE_FUTURES_TESTNET_API_KEY')
-SECRET_KEY = os.getenv('BINANCE_FUTURES_TESTNET_SECRET_KEY')
+API_KEY = os.getenv('BINANCE_TESTNET_API_KEY')
+SECRET_KEY = os.getenv('BINANCE_TESTNET_SECRET_KEY')
 BASE_URL = 'https://testnet.binancefuture.com'
 
 def create_signature(query_string, secret_key):
@@ -32,7 +32,13 @@ def close_all_positions():
     print('=' * 40)
     
     # Get current positions
-    response = requests.get(f'{BASE_URL}/fapi/v2/positionRisk', headers=headers)
+    timestamp = int(time.time() * 1000)
+    params = {'timestamp': timestamp}
+    query_string = '&'.join([f"{k}={v}" for k, v in params.items()])
+    signature = create_signature(query_string, SECRET_KEY)
+    params['signature'] = signature
+    
+    response = requests.get(f'{BASE_URL}/fapi/v2/positionRisk', headers=headers, params=params)
     
     if response.status_code != 200:
         print(f"❌ Error getting positions: {response.text}")
