@@ -259,7 +259,7 @@ class FuturesIntegration:
             order_result = place_futures_order(
                 symbol=symbol,
                 side=side,
-                quantity=quantity,
+                amount=quantity,  # Fixed: was quantity=quantity
                 order_type=order_type,
                 leverage=leverage
             )

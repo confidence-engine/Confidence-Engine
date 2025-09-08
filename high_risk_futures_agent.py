@@ -197,7 +197,7 @@ class HighRiskFuturesAgent:
         # Strategy parameters - More aggressive for frequent trading
         self.momentum_window = 6  # hours (reduced for faster signals)
         self.volatility_window = 12  # hours (reduced for more responsive)
-        self.min_momentum_threshold = 0.008  # 0.8% momentum (reduced for more signals)
+        self.min_momentum_threshold = float(os.getenv("FUTURES_MIN_MOMENTUM_THRESHOLD", "0.001"))  # 0.1% momentum (ULTRA aggressive for low-vol markets)
         self.max_volatility_threshold = 0.12  # 12% max volatility (increased for more opportunities)
 
         # New: Market regime and correlation tracking
