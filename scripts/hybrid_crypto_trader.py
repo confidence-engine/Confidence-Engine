@@ -2327,6 +2327,32 @@ def place_bracket(api: REST, symbol: str, qty: float, entry: float, tp: float, s
             except Exception:
                 pass
         
+        # 🚨 MANDATORY HARD CAP: Apply final hard cap at order submission to prevent any oversize orders
+        # Use conservative price estimate to cap quantity regardless of data quality issues
+        try:
+            SUBMISSION_HARD_CAP = float(os.getenv("TB_HARD_CAP_PER_TRADE", "950"))
+            
+            # For market orders, use a conservative price estimate (20% above entry to account for slippage)
+            conservative_price = float(entry) * 1.20
+            
+            # If data seems unrealistic (> $500k), use reasonable crypto price ranges
+            if conservative_price > 500000:
+                if 'BTC' in symbol.upper():
+                    conservative_price = 70000  # Conservative BTC price
+                elif 'ETH' in symbol.upper(): 
+                    conservative_price = 5000   # Conservative ETH price
+                else:
+                    conservative_price = 100    # Conservative altcoin price
+                logger.warning(f"� PRICE CORRECTION: {symbol} corrected unrealistic entry ${entry:.2f} to ${conservative_price:.2f}")
+            
+            original_notional = float(qty) * conservative_price
+            if original_notional > SUBMISSION_HARD_CAP:
+                qty = SUBMISSION_HARD_CAP / conservative_price
+                logger.warning(f"🚨 SUBMISSION HARD CAP: {symbol} order capped from ${original_notional:.2f} to ${SUBMISSION_HARD_CAP} (qty: {qty:.6f})")
+                
+        except Exception as e:
+            logger.error(f"Failed to apply submission hard cap for {symbol}: {e}")
+        
         # 🎯 INFRASTRUCTURE: Use precision manager for order precision
         if INFRASTRUCTURE_AVAILABLE:
             qty = precision_manager.round_quantity(symbol, qty)
@@ -2880,6 +2906,13 @@ def main() -> int:
                     # Combined sizing
                     total_multiplier = volatility_multiplier * quality_multiplier * conviction_multiplier
                     adjusted_position_value = base_position_value * total_multiplier
+                    
+                    # 🚨 CRITICAL: ENFORCE HARD CAP PER TRADE
+                    HARD_CAP_PER_TRADE = float(os.getenv("TB_HARD_CAP_PER_TRADE", "1000"))
+                    if adjusted_position_value > HARD_CAP_PER_TRADE:
+                        logger.warning(f"🚨 HARD CAP: {symbol} position ${adjusted_position_value:.0f} > ${HARD_CAP_PER_TRADE} limit, capping to ${HARD_CAP_PER_TRADE}")
+                        adjusted_position_value = HARD_CAP_PER_TRADE
+                    
                     qty = adjusted_position_value / price
                     
                     logger.info(f"📐 {symbol} Position Sizing: Base=${base_position_value:.0f} "

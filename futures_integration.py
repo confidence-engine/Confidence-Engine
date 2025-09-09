@@ -46,22 +46,26 @@ class FuturesIntegration:
             'binance': {
                 'max_trade_size': float(os.getenv("BINANCE_MAX_TRADE_SIZE", "100")),
                 'max_leverage': int(os.getenv("BINANCE_MAX_LEVERAGE", "25")),
-                'paper_capital': float(os.getenv("BINANCE_PAPER_CAPITAL", "15000"))
+                'paper_capital': float(os.getenv("BINANCE_PAPER_CAPITAL", "15000")),
+                'hard_cap_per_trade': float(os.getenv("FUTURES_HARD_CAP_PER_TRADE", "50"))
             },
             'bybit': {
                 'max_trade_size': float(os.getenv("BYBIT_MAX_TRADE_SIZE", "500")),
                 'max_leverage': int(os.getenv("BYBIT_MAX_LEVERAGE", "100")),
-                'paper_capital': float(os.getenv("BYBIT_PAPER_CAPITAL", "240000"))
+                'paper_capital': float(os.getenv("BYBIT_PAPER_CAPITAL", "240000")),
+                'hard_cap_per_trade': float(os.getenv("FUTURES_HARD_CAP_PER_TRADE", "50"))
             },
             'Binance Futures': {
                 'max_trade_size': float(os.getenv("BINANCE_MAX_TRADE_SIZE", "100")),
                 'max_leverage': int(os.getenv("BINANCE_MAX_LEVERAGE", "25")),
-                'paper_capital': float(os.getenv("BINANCE_PAPER_CAPITAL", "15000"))
+                'paper_capital': float(os.getenv("BINANCE_PAPER_CAPITAL", "15000")),
+                'hard_cap_per_trade': float(os.getenv("FUTURES_HARD_CAP_PER_TRADE", "50"))
             },
             'Bybit Futures': {
                 'max_trade_size': float(os.getenv("BYBIT_MAX_TRADE_SIZE", "500")),
                 'max_leverage': int(os.getenv("BYBIT_MAX_LEVERAGE", "100")),
-                'paper_capital': float(os.getenv("BYBIT_PAPER_CAPITAL", "240000"))
+                'paper_capital': float(os.getenv("BYBIT_PAPER_CAPITAL", "240000")),
+                'hard_cap_per_trade': float(os.getenv("FUTURES_HARD_CAP_PER_TRADE", "50"))
             }
         }
 
@@ -220,6 +224,12 @@ class FuturesIntegration:
                 current_price = data['close'].iloc[-1]
                 max_position_by_size = max_trade_size * max_platform_leverage / current_price
                 final_position = min(final_position, max_position_by_size)
+            
+            # 🚨 CRITICAL: ENFORCE HARD CAP PER FUTURES TRADE
+            FUTURES_HARD_CAP = float(platform_config.get('hard_cap_per_trade', 100))  # Default $100 for futures
+            if final_position > FUTURES_HARD_CAP:
+                print(f"🚨 FUTURES HARD CAP: {symbol} position ${final_position:.0f} > ${FUTURES_HARD_CAP} limit, capping to ${FUTURES_HARD_CAP}")
+                final_position = FUTURES_HARD_CAP
 
             # Calculate smart leverage
             smart_leverage = self.calculate_smart_leverage(symbol, max_platform_leverage, volatility, market_regime)
