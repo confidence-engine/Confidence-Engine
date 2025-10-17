@@ -1,15 +1,15 @@
 # Asset directional hit-rate summary
-- files: 260
-- items_examined: 74613
-- items_with_prediction: 3142
+- files: 261
+- items_examined: 74698
+- items_with_prediction: 3148
 - items_with_outcome: 191
 
 ## Overall
 - n: 191
-- hits: 153
-- hit_rate: 0.8010471204188482
+- hits: 154
+- hit_rate: 0.806282722513089
 
 ## By Horizon
-- 1d: n=190, hits=152, hit_rate=0.8
-- 1h: n=191, hits=153, hit_rate=0.8010471204188482
-- 4h: n=191, hits=153, hit_rate=0.8010471204188482
+- 1d: n=189, hits=152, hit_rate=0.8042328042328042
+- 1h: n=191, hits=154, hit_rate=0.806282722513089
+- 4h: n=190, hits=153, hit_rate=0.8052631578947368
