@@ -1,7 +1,7 @@
 # Asset directional hit-rate summary
-- files: 505
-- items_examined: 95438
-- items_with_prediction: 4612
+- files: 506
+- items_examined: 95523
+- items_with_prediction: 4618
 - items_with_outcome: 191
 
 ## Overall
